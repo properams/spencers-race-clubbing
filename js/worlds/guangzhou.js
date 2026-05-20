@@ -125,6 +125,9 @@ function _applyGuangzhouDayLighting(){
   hemiLight.color.setHex(0x4a4860);
   hemiLight.groundColor.setHex(0x1a1428);
   hemiLight.intensity = 0.16;
+  // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Default 1.0.
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
 // Expose to non-module consumers — night.js reads from window.* scope.
 if(typeof window!=='undefined') window._applyGuangzhouDayLighting = _applyGuangzhouDayLighting;
@@ -3176,15 +3179,30 @@ async function buildGuangzhouEnvironment(){
   _gzWindowFlickerOffset = 0;
   const _y = () => (typeof window!=='undefined' && window._yieldBuild) ? window._yieldBuild() : Promise.resolve();
   // Ground — wet dark asphalt. 2400² to fill the world.
-  const gnd = new THREE.Mesh(
-    new THREE.PlaneGeometry(2400, 2400),
-    new THREE.MeshLambertMaterial({
-      color:             _GZ_PALETTE.asphalt,
-      map:               _gzGroundTex(),
-      emissive:          new THREE.Color(0x100820),  // faint purple-magenta tint
-      emissiveIntensity: 0.18                         // subtle, not glowing
-    })
-  );
+  // PBR-upgrade Brok 1b: desktop krijgt MeshStandardMaterial met
+  // envMapIntensity zodat de IBL-reflectie de wet-look daadwerkelijk
+  // doet (Guangzhou is de regenwereld — dit is het rendement van IBL).
+  // Mobile blijft Lambert om de Standard-shader op een 2400² plane te
+  // vermijden.
+  let _gzGroundMat;
+  const _gzGroundDef = {
+    color:             _GZ_PALETTE.asphalt,
+    map:               _gzGroundTex(),
+    emissive:          new THREE.Color(0x100820),
+    emissiveIntensity: 0.18
+  };
+  if(window._isMobile){
+    _gzGroundMat = new THREE.MeshLambertMaterial(_gzGroundDef);
+  } else {
+    _gzGroundMat = new THREE.MeshStandardMaterial(Object.assign({
+      metalness:       0.0,
+      roughness:       0.30,
+      envMapIntensity: 0.70
+    }, _gzGroundDef));
+    _gzGroundMat.userData = _gzGroundMat.userData || {};
+    _gzGroundMat.userData.envTag = 'wet-asphalt';
+  }
+  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), _gzGroundMat);
   gnd.rotation.x = -Math.PI / 2;
   gnd.position.y = -0.15;
   gnd.receiveShadow = true;

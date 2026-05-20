@@ -80,6 +80,10 @@ function _applyGrandPrixDayLighting(){
   hemiLight.color.setHex(0x9bbfdd);
   hemiLight.groundColor.setHex(0x4a7a3d);
   hemiLight.intensity=.36;
+  // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Default 1.0 dus
+  // geen visuele change in stable preset.
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
 if(typeof window!=='undefined')window._applyGrandPrixDayLighting=_applyGrandPrixDayLighting;
 // Alle texture-slots die op een r134 MeshPhysicalMaterial kunnen voorkomen.
@@ -1196,6 +1200,17 @@ async function buildScene(){
   // (Phase 1 graphics setWorldExposure dropped — overlapped met master's
   // sun-arc tijd-gebaseerde exposure target lerp.)
   if(typeof setAtmosphereWorld==='function')setAtmosphereWorld(activeWorld);
+  // PBR-upgrade Brok 1a: per-wereld visuele config (IBL-multiplier,
+  // exposure-target, emissive-multiplier voor neon-getagde materialen). Skipt
+  // ongetagde materialen tot Brok 1b de wereld-modules aanvult.
+  if(typeof window.applyWorldVisuals === 'function'){
+    window.applyWorldVisuals(activeWorld, scene, renderer);
+  }
+  // PBR-upgrade Brok 3: contact-shadows InstancedMesh attachen aan de
+  // nieuwe scene. Init bij eerste call; daarna alleen re-attach na
+  // disposeScene op wereld-switch.
+  if(typeof window._initContactShadows === 'function')window._initContactShadows();
+  if(typeof window._reattachContactShadows === 'function')window._reattachContactShadows();
   camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.2,900);
   camera.position.set(0,12,330);camera.lookAt(0,0,280);
   camPos.copy(camera.position);

@@ -51,6 +51,10 @@ const _Q_FLAGS_HIGH = {
   // dat als een doorschemerend stilstaand beeld in plaats van filmisch
   // lens-vuil. Wie het terug wil zet 'm aan via dev-panel.
   dirtyLensOverlay: false,
+  // PBR-upgrade Brok 2: SMAA "lite" 2-pass anti-aliasing op rtFinal ná
+  // composite. 'full'=full-res 2 passes; 'half'=half-res 2 passes + bilinear
+  // upscale; false=skip (composite schrijft direct naar canvas zoals voorheen).
+  smaa: 'full',
   aiStagger: false,               // every AI updates every frame
   lodCullDist: 800                // restored 2026-05-15: 360 culled Phase 11/12 far-band props
                                    // (CBD silhouet cilinders r=540/740, Canton Tower z=-180 h≈600m,
@@ -78,6 +82,7 @@ const _Q_FLAGS_MID = {
   envCubeSize: 192,
   dtClampSec: 0.065,
   dirtyLensOverlay: false,
+  smaa: 'half',                   // half-res 2-pass SMAA + bilinear upscale
   aiStagger: true,                // every 2nd frame per AI car
   lodCullDist: 500                // restored 2026-05-15: 220 culled skyline windows / near-silhouet / city-glow
 };
@@ -103,6 +108,7 @@ const _Q_FLAGS_LOW = {
   envCubeSize: 128,
   dtClampSec: 0.085,
   dirtyLensOverlay: false,
+  smaa: false,                    // SMAA uit op LOW; composite schrijft direct naar canvas
   aiStagger: true,
   lodCullDist: 280                // restored 2026-05-15: 150 was hiding mid-band props on mobile/low
 };

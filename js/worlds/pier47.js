@@ -86,6 +86,9 @@ function _applyPier47DayLighting(){
   hemiLight.color.setHex(0x6a7080);                          // was #a0a8b0
   hemiLight.groundColor.setHex(0x2a2028);                    // donkerder grond-bounce
   hemiLight.intensity = 0.20;                                // was 0.5
+  // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Default 1.0.
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
 // Expose to non-module consumers — night.js reads from window.* scope.
 if(typeof window!=='undefined')window._applyPier47DayLighting=_applyPier47DayLighting;

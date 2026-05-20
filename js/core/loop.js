@@ -226,6 +226,8 @@ function loop(){
     _dw('updateDirt', ()=>updateDirt(dt));
     _dw('updateFlags', ()=>updateFlags());
     if(typeof _updateExposure==='function')      _dw('_updateExposure', ()=>_updateExposure(dt));
+    // PBR-upgrade Brok 3 — contact-shadow matrix-update per frame.
+    if(typeof _updateContactShadows==='function') _dw('_updateContactShadows', ()=>_updateContactShadows());
     // Phase 8.7 + 8.8 + 8.10 — distance-cull LOD, reflectie probe re-bake,
     // skyline parallax scroll. Alle cost-vrij of mobile-safe (probe skip).
     if(typeof _updateLodCull==='function')        _dw('_updateLodCull', ()=>_updateLodCull());

@@ -138,13 +138,33 @@ function getSharedCarMats(){
     tail:     _carMat({color:0xff1010, emissive:0xcc0000, emissiveIntensity:.45, metalness:0.1, roughness:0.30, envMapIntensity:0.35}),
     indicator:_carMat({color:0xff7e10, emissive:0xff5500, emissiveIntensity:.35, metalness:0.1, roughness:0.30, envMapIntensity:0.35})
   };
+  // PBR-upgrade Brok 1a: envTag per shared car material zodat de
+  // applyWorldVisuals-traversal (js/core/world-visuals.js) envMapIntensity
+  // per wereld kan moduleren. Materialen zonder envTag worden door de
+  // helper overgeslagen, dus dit is veilig voor Brok 1a (cars getagd) →
+  // Brok 1b (world-props worden later getagd).
+  const _envTags = {
+    glass:'glass', glassDark:'glass', chrome:'chrome',
+    blk:'world-prop', matBlk:'world-prop', grille:'world-prop',
+    carbon:'carbon', tire:'tire', rim:'rim',
+    brakeRed:'world-prop', brakeDisc:'world-prop',
+    head:'world-prop', tail:'world-prop', indicator:'world-prop'
+  };
   // Flag every shared car material so disposeScene leaves the cache alive
   // across world rebuilds — otherwise getSharedCarMats() would return a
   // bag of disposed material handles after the first race ends, and on
   // desktop the next race would pay a Standard-shader recompile hitch.
-  Object.values(_carShared).forEach(m=>{
+  Object.entries(_carShared).forEach(([key, m])=>{
     m.userData = m.userData || {};
     m.userData._sharedAsset = true;
+    if(_envTags[key]) m.userData.envTag = _envTags[key];
+    // PBR-upgrade Brok 1a: pas world-visuals direct toe op shared car-mats.
+    // Cars worden ná buildScene gespawned, dus scene.traverse() in
+    // applyWorldVisuals mist ze; deze single-mat-apply houdt ze in sync.
+    if(typeof window.applyVisualsToMaterial === 'function'
+       && typeof activeWorld !== 'undefined'){
+      window.applyVisualsToMaterial(m, activeWorld);
+    }
   });
   // Track headlight material in a registry so night.js can sync emissive intensity
   // when toggling dark mode without touching every car mesh.
@@ -208,14 +228,22 @@ function makePaintMats(def, opts){
     // paintClearcoat / paintRoughness / paintMetalness gezet zijn, gebruiken
     // we die i.p.v. de gloss-defaults. Bestaande 12 cars hebben deze velden
     // niet → fallback naar de showroom-supercar tuning, gedrag ongewijzigd.
-    const cc = (typeof def.paintClearcoat === 'number') ? def.paintClearcoat : 1.0;
+    // PBR-upgrade Brok 1a: clearcoat-formule herijkt. Onder de nieuwe IBL
+    // (per-wereld envMapIntensity-multiplier in world-visuals.js) gaf de
+    // oude `cc = 1.0` + lage clearcoatRoughness te veel chroom-look op
+    // helder belichte werelden. De per-def overrides paintClearcoat /
+    // paintRoughness blijven werken — alleen de default-formule schuift.
     const rg = (typeof def.paintRoughness  === 'number') ? def.paintRoughness  : 0.30;
     const mt = (typeof def.paintMetalness  === 'number') ? def.paintMetalness  : 0.85;
-    // clearcoatRoughness schaalt mee met paint roughness zodat matte rally
-    // finishes ook een matte top-lak krijgen i.p.v. hard-coded gloss-coat
-    // bovenop matte paint (anders ziet rally er nog steeds geplastificeerd
-    // uit). Floor van 0.05 houdt F1/super gloss intact.
-    const ccRg = Math.max(0.05, rg * 0.4);
+    // Nieuwe default-formule: cc = 0.35 + 0.55 * rg. Bij rg=0.30 levert dit
+    // cc≈0.515 (was 1.0); rally finishes (hogere rg) krijgen iets meer
+    // clearcoat-volume, F1-gloss (lagere rg) iets minder.
+    const cc = (typeof def.paintClearcoat === 'number')
+      ? def.paintClearcoat
+      : (0.35 + 0.55 * rg);
+    // clearcoatRoughness schaalt mee met paint roughness; floor 0.06 (was 0.05)
+    // zodat zelfs F1-gloss een fractie minder mirror-finish krijgt.
+    const ccRg = Math.max(0.06, rg * 0.45);
     paint = new THREE.MeshPhysicalMaterial({
       color: color,
       metalness: mt, roughness: rg,
@@ -228,8 +256,20 @@ function makePaintMats(def, opts){
       clearcoat: 0.6, clearcoatRoughness: 0.10,
       envMapIntensity: 0.65,
     });
-    paint.userData = paint.userData || {}; paint.userData._carPBR = true;
-    accentMat.userData = accentMat.userData || {}; accentMat.userData._carPBR = true;
+    paint.userData = paint.userData || {};
+    paint.userData._carPBR = true;
+    paint.userData.envTag = 'paint';
+    paint.userData.isCarPaint = true;
+    accentMat.userData = accentMat.userData || {};
+    accentMat.userData._carPBR = true;
+    accentMat.userData.envTag = 'paint';
+    // PBR-upgrade Brok 1a: world-visuals direct toepassen op fresh paint/accent
+    // zodat envMapIntensity klopt zonder af te hangen van scene.traverse.
+    if(typeof window.applyVisualsToMaterial === 'function'
+       && typeof activeWorld !== 'undefined'){
+      window.applyVisualsToMaterial(paint, activeWorld);
+      window.applyVisualsToMaterial(accentMat, activeWorld);
+    }
   }
   return {paint, accent: accentMat};
 }

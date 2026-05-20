@@ -121,6 +121,10 @@ function initRenderer(){
   // Sessie 03 — SSR init after SSAO; wires tSSR uniform on the
   // composite shader. Skips on mobile/low via internal guard.
   if(typeof _initSSR==='function')_initSSR();
+  // PBR-upgrade Brok 2 — SMAA "lite" 2-pass anti-aliasing op rtFinal ná
+  // composite. Skipt op LOW via _qFlags.smaa===false. Postfx leest
+  // _smaaCompositeTarget() en routeert composite-output daarnaartoe.
+  if(typeof _initSMAA==='function')_initSMAA();
   window.dbg&&dbg.log('renderer','init done — '+innerWidth+'×'+innerHeight+' dpr '+renderer.getPixelRatio().toFixed(2)+' shadow='+renderer.shadowMap.enabled+' THREE '+(THREE.REVISION||'?'));
   // Single resize pipeline: one rAF-debounced handler bound to resize, orientationchange and
   // visualViewport.resize. Re-evaluates device flags so portrait↔landscape (and split-view)

@@ -62,6 +62,9 @@ function _applyCandyDayLighting(){
   hemiLight.color.setHex(0xffd9f0);
   hemiLight.groundColor.setHex(0xb3e6ff);
   hemiLight.intensity = 0.8;
+  // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Default 1.0.
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
 if(typeof window!=='undefined')window._applyCandyDayLighting=_applyCandyDayLighting;
 

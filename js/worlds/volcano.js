@@ -39,6 +39,9 @@ function _applyVolcanoDayLighting(){
   hemiLight.color.setHex(0xff6600);
   hemiLight.groundColor.setHex(0x220800);
   hemiLight.intensity=.25;
+  // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Default 1.0.
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
 if(typeof window!=='undefined')window._applyVolcanoDayLighting=_applyVolcanoDayLighting;
 

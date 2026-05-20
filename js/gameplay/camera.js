@@ -254,7 +254,16 @@ function updateCamera(dt){
     _punchKick += window._finishFovKick * 6 * _kickScale;
     window._finishFovKick = Math.max(0, window._finishFovKick - dt / 0.70);
   }
-  const tFov=baseFov+(Math.abs(car.speed)/car.def.topSpd*22+(nitroActive?20:0)+(car.boostTimer>0?10:0))*_kickScale+_punchKick;
+  const _speedRatio=Math.abs(car.speed)/car.def.topSpd;
+  const tFovBase=baseFov+(_speedRatio*22+(nitroActive?20:0)+(car.boostTimer>0?10:0))*_kickScale+_punchKick;
+  // PBR-upgrade Brok 4: per-wereld FOV-creep bovenop de bestaande speed-FOV.
+  // Default fovBoost 3–5° in stable-presets — subtiele extra creep op
+  // max snelheid die de wereldsfeer ondersteunt (donkere werelden 5°,
+  // heldere 3°). Geen extra perf-cost (één keer per frame).
+  let _worldFov=0;
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v&&_v.fovBoost) _worldFov=_v.fovBoost*_speedRatio;
+  const tFov=tFovBase+_worldFov;
   // FOV reageert sneller wanneer boost net start (high-pass via dt*5 ipv 3.5)
   const fovRate=(nitroActive||car.boostTimer>0||_punchKick>0.5)?5.0:3.0;
   camera.fov+=(tFov-camera.fov)*Math.min(1,dt*fovRate);

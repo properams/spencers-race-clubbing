@@ -25,6 +25,9 @@ function _applyArcticDayLighting(){
   hemiLight.color.setHex(0x6688aa);
   hemiLight.groundColor.setHex(0x223344);
   hemiLight.intensity=.30;
+  // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Default 1.0.
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
 if(typeof window!=='undefined')window._applyArcticDayLighting=_applyArcticDayLighting;
 

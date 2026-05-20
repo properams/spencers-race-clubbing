@@ -84,7 +84,15 @@ function toggleNight(){
   _skyTarget=isDark?1:0;
   // Phase 6.2 + 8.4 — day/night tone-mapping exposure curve.
   // Zet TARGET — updateExposure(dt) lerpt per-frame naar het doel.
-  _exposureTarget = isDark ? 0.95 : 1.25;
+  // PBR-upgrade Brok 1a: per-wereld targets lezen uit world-visuals;
+  // fallback naar de eerdere globale 0.95/1.25 voor onbekende werelden.
+  {
+    const _v = (typeof window.getWorldVisuals === 'function')
+      ? window.getWorldVisuals(activeWorld) : null;
+    _exposureTarget = _v
+      ? (isDark ? _v.exposureNight : _v.exposureDay)
+      : (isDark ? 0.95 : 1.25);
+  }
   if(activeWorld==='deepsea'){
     // Underwater — toggle is shallow water (day) vs deep abyss (night)
     if(isDark){
@@ -459,6 +467,12 @@ function toggleNight(){
   const titleLbl=isDark?'☀ DAY':'🌙 NIGHT';
   const _tnb=document.getElementById('titleNightBtn');if(_tnb)_tnb.textContent=titleLbl;
   const _hnb=document.getElementById('hudNightBtn');if(_hnb)_hnb.textContent=iconOnly;
+  // PBR-upgrade Brok 1a: re-apply per-wereld visuals zodat emissive-mul en
+  // exposure-target voor de nieuwe day/night-state kloppen. Vóór deze upgrade
+  // schreef toggleNight zelf de exposure-target weg; nu komt die uit visuals.
+  if(typeof window.applyWorldVisuals === 'function'){
+    window.applyWorldVisuals(activeWorld, scene, renderer);
+  }
 }
 
 // Release the sandstorm sky-cache (day + night skybox + PMREM env). Called

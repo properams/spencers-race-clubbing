@@ -269,11 +269,18 @@ const _BLOOM_WORLD_THRESHOLD_DARK = {
 let _bloomWorldKey = '';
 function setBloomDayNight(dark){
   if(!_postfx.ready) return;
+  // PBR-upgrade Brok 2: bloom-thresholds en -multiplier komen voortaan uit
+  // world-visuals; de oude _BLOOM_WORLD_MUL / _BLOOM_WORLD_THRESHOLD_DARK
+  // tables blijven als fallback voor onbekende werelden.
+  const _v = (typeof window.getWorldVisuals === 'function')
+    ? window.getWorldVisuals(_bloomWorldKey) : null;
+  const thrDark = _v ? _v.bloomThresholdDark : (_BLOOM_WORLD_THRESHOLD_DARK[_bloomWorldKey] || 0.82);
+  const thrDay  = _v ? _v.bloomThresholdDay  : 0.86;
   if(dark){
-    _postfx.threshold = _BLOOM_WORLD_THRESHOLD_DARK[_bloomWorldKey] || 0.82;
+    _postfx.threshold = thrDark;
     _postfx.strength = 0.62 * _bloomWorldStrengthMul;
   } else {
-    _postfx.threshold = 0.86;
+    _postfx.threshold = thrDay;
     _postfx.strength = 0.54 * _bloomWorldStrengthMul;
   }
   _postfx.matExtract.uniforms.threshold.value = _postfx.threshold;
@@ -281,31 +288,18 @@ function setBloomDayNight(dark){
 }
 function setBloomWorld(world){
   _bloomWorldKey = world || '';
-  _bloomWorldStrengthMul = _BLOOM_WORLD_MUL[world] || 1.0;
+  // PBR-upgrade Brok 2: bloomMul uit world-visuals (fallback op oude table).
+  const _v = (typeof window.getWorldVisuals === 'function')
+    ? window.getWorldVisuals(world) : null;
+  _bloomWorldStrengthMul = _v ? _v.bloomMul : (_BLOOM_WORLD_MUL[world] || 1.0);
   // Re-apply current day/night to pick up the new multiplier.
   if(_postfx.ready) setBloomDayNight(typeof isDark!=='undefined' && isDark);
 }
 
-// Per-world ACES exposure tuning. Globale 1.1 was te conservatief —
-// arctic (sneeuw-blowout) wil iets lager, volcano (cinematic glow) wil
-// hoger. Werkt direct op renderer.toneMappingExposure dus ook actief
-// wanneer postfx uit staat (mobile, user-toggle). Default 1.1 voor onbekende
-// world keys behoudt vorig globaal gedrag.
-const _WORLD_EXPOSURE = {
-  space:     1.10,
-  deepsea:   0.95,
-  candy:     1.00,
-  volcano:   1.15,
-  arctic:    0.95,
-  sandstorm: 1.10,
-  pier47:    1.12,
-  guangzhou: 1.08,
-  gp:        1.10
-};
-function setWorldExposure(world){
-  if(typeof renderer==='undefined' || !renderer) return;
-  renderer.toneMappingExposure = _WORLD_EXPOSURE[world] || 1.10;
-}
+// Per-world exposure is gemigreerd naar js/core/world-visuals.js
+// (exposureDay/exposureNight). Brok 1a heeft de oude _WORLD_EXPOSURE-tabel +
+// setWorldExposure() verwijderd; die was al niet meer aangeroepen sinds
+// Phase 1 (zie comment in scene.js).
 
 // User-toggleable quality: when localStorage('src_fx')==='0', skip alle
 // postfx passes en val terug op directe renderer.render(). Persistent
@@ -499,10 +493,17 @@ function renderWithPostFX(scn, cam){
   // picks up via tSSR + ssrStrength uniforms.
   if(typeof _renderSSR==='function') _renderSSR();
 
-  // Pass 4: composite to canvas
+  // Pass 4: composite to canvas (of naar rtFinal als SMAA actief is).
+  // PBR-upgrade Brok 2: wanneer _qFlags.smaa een rtFinal target levert,
+  // schrijft composite daarheen en runt SMAA-pass die naar canvas blendt.
   _postfx.quad.material = _postfx.matComposite;
   _postfx.matComposite.uniforms.tScene.value = _postfx.rtScene.texture;
   _postfx.matComposite.uniforms.tBloom.value = _postfx.rtBlurV.texture;
-  renderer.setRenderTarget(null);
+  const _smaaTarget = (typeof window._smaaCompositeTarget === 'function')
+    ? window._smaaCompositeTarget() : null;
+  renderer.setRenderTarget(_smaaTarget || null);
   renderer.render(_postfx.fsScene, _postfx.fsCam);
+  if(_smaaTarget && typeof window._renderSMAAPass === 'function'){
+    window._renderSMAAPass();
+  }
 }

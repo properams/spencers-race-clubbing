@@ -133,6 +133,9 @@ function _applySandstormDayLighting(){
   hemiLight.color.setHex(0xffb87a);
   hemiLight.groundColor.setHex(0x8b3a1d);
   hemiLight.intensity = window._isMobile ? 0.7 : 1.0;
+  // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Default 1.0.
+  const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
+  if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
 // Expose to non-module consumers — night.js reads from window.* scope.
 if(typeof window!=='undefined')window._applySandstormDayLighting=_applySandstormDayLighting;
