@@ -173,6 +173,21 @@ function getSharedCarMats(){
   return _carShared;
 }
 
+// PBR-fix: shared car-mats (_carShared) leven sessie-lang en worden NIET door
+// scene.traverse bereikt wanneer buildScene draait vóór cars zijn ge-add.
+// Bij wereld-switch keerden chrome/glass/tire/rim/etc. anders terug met de
+// IBL-waarden van de eerste wereld die ooit geladen was. Deze helper haalt
+// de complete shared-cache opnieuw door world-visuals' applyVisualsToMaterial.
+function applyVisualsToSharedCarMats(world){
+  if(!_carShared) return;
+  if(typeof window.applyVisualsToMaterial !== 'function') return;
+  const mats = Object.values(_carShared);
+  for(let i=0;i<mats.length;i++){
+    window.applyVisualsToMaterial(mats[i], world);
+  }
+}
+window.applyVisualsToSharedCarMats = applyVisualsToSharedCarMats;
+
 // Drop the shared car material cache. Call on full session reset (not on
 // per-race world rebuild — the materials are flagged _sharedAsset so they
 // survive disposeScene). Currently no caller; documented for completeness.

@@ -470,7 +470,13 @@ function toggleNight(){
   // PBR-upgrade Brok 1a: re-apply per-wereld visuals zodat emissive-mul en
   // exposure-target voor de nieuwe day/night-state kloppen. Vóór deze upgrade
   // schreef toggleNight zelf de exposure-target weg; nu komt die uit visuals.
-  if(typeof window.applyWorldVisuals === 'function'){
+  //
+  // PBR-fix: lichtgewicht-variant — IBL hangt niet van dag/nacht af, dus
+  // de volledige IBL-traverse bij elke M-toggle is verspilling. Alleen
+  // emissive-mul + exposure worden bijgewerkt.
+  if(typeof window.applyWorldVisualsNightToggle === 'function'){
+    window.applyWorldVisualsNightToggle(activeWorld, scene, renderer);
+  } else if(typeof window.applyWorldVisuals === 'function'){
     window.applyWorldVisuals(activeWorld, scene, renderer);
   }
 }

@@ -177,42 +177,67 @@ function resetExperiment(world){
   entry.presets.experiment = _cloneStable(entry.presets.stable);
 }
 
-// Idempotente apply. Traversal van envMapIntensity skipt materialen die nog
-// geen userData.envTag hebben — Brok 1a tagt alleen car-mats, Brok 1b vult
-// de wereld-materialen aan. Tot dan behouden ongetagde materialen hun
-// originele envMapIntensity-waarde uit de factory.
-function _applyIBLMultiplier(scene, ibl, carPaintMul){
-  if(!scene) return;
-  scene.traverse(function(obj){
-    if(!obj || !obj.material) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for(let i=0;i<mats.length;i++){
-      const m = mats[i];
-      if(!m || !m.userData || !m.userData.envTag) continue;
-      const tag = m.userData.envTag;
-      const base = BASE_ENV_BY_TAG[tag];
-      if(base == null) continue;
-      const paintFactor = (tag === 'paint') ? carPaintMul : 1.0;
+// Apply IBL + emissive-mul aan één materiaal. Geëxtraheerd zodat de
+// traverse-loop en de single-material-helper (applyVisualsToMaterial,
+// applyVisualsToSharedCarMats) één bron-of-truth delen.
+function _applyVisualsToMatInline(m, ibl, carPaintMul, emissiveMul){
+  if(!m || !m.userData) return;
+  if(m.userData.envTag){
+    const base = BASE_ENV_BY_TAG[m.userData.envTag];
+    if(base != null){
+      const paintFactor = (m.userData.envTag === 'paint') ? carPaintMul : 1.0;
       m.envMapIntensity = base * ibl * paintFactor;
     }
-  });
+  }
+  if(m.userData.isNeon){
+    if(m.userData._neonBaseIntensity == null){
+      m.userData._neonBaseIntensity = m.emissiveIntensity || 1.0;
+    }
+    m.emissiveIntensity = m.userData._neonBaseIntensity * emissiveMul;
+  }
 }
 
-// Emissive-multiplier voor materialen met userData.isNeon === true. Brok 1a
-// tagt geen materialen als neon; effectief no-op tot Brok 1b/2 de tagging
-// uitrolt op wereld-emissives.
-function _applyEmissiveMul(scene, mul){
+// PBR-fix: drie scene.traverses geconsolideerd in één. Wereld-switch en
+// night-toggle doen nu één scene-walk i.p.v. drie. Per-iteratie checken
+// we eerst of het materiaal getagd is (skip Lambert/Phong en niet-
+// auto-tagbare materialen); zo niet en de mat is een PBR-type, dan
+// inline auto-tag + apply. Bij applyOnlyEmissive=true (night-toggle pad)
+// slaan we de IBL-pass over omdat IBL niet van dag/nacht afhangt.
+function _walkSceneVisuals(scene, visuals, applyOnlyEmissive){
   if(!scene) return;
+  const ibl = visuals.ibl;
+  const carPaintMul = visuals.carPaintEnvMul;
+  const emissiveMul = visuals.emissiveMul;
   scene.traverse(function(obj){
     if(!obj || !obj.material) return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     for(let i=0;i<mats.length;i++){
       const m = mats[i];
-      if(!m || !m.userData || !m.userData.isNeon) continue;
-      if(m.userData._neonBaseIntensity == null){
-        m.userData._neonBaseIntensity = m.emissiveIntensity || 1.0;
+      if(!m) continue;
+      m.userData = m.userData || {};
+      // Auto-tag op het moment van de eerste apply. Skipt car-mats
+      // (_carPBR/_sharedAsset zijn al door car-parts.js getagd) en
+      // niet-PBR materialen (envMapIntensity is daar no-op).
+      if(!m.userData.envTag && !m.userData.isNeon
+         && !m.userData._carPBR && !m.userData._sharedAsset
+         && (m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)){
+        const e = m.emissive;
+        const hasEmissive = e && (e.r > 0.001 || e.g > 0.001 || e.b > 0.001)
+                            && (m.emissiveIntensity || 0) > 0.001;
+        if(hasEmissive) m.userData.isNeon = true;
+        else            m.userData.envTag = 'world-prop';
+        m.userData._autoTagged = true;
       }
-      m.emissiveIntensity = m.userData._neonBaseIntensity * mul;
+      if(applyOnlyEmissive){
+        if(m.userData.isNeon){
+          if(m.userData._neonBaseIntensity == null){
+            m.userData._neonBaseIntensity = m.emissiveIntensity || 1.0;
+          }
+          m.emissiveIntensity = m.userData._neonBaseIntensity * emissiveMul;
+        }
+      } else {
+        _applyVisualsToMatInline(m, ibl, carPaintMul, emissiveMul);
+      }
     }
   });
 }
@@ -231,19 +256,7 @@ function applyVisualsToMaterial(mat, world){
   if(!mat || !mat.userData) return;
   const v = getWorldVisuals(world);
   if(!v) return;
-  if(mat.userData.envTag){
-    const base = BASE_ENV_BY_TAG[mat.userData.envTag];
-    if(base != null){
-      const paintFactor = (mat.userData.envTag === 'paint') ? v.carPaintEnvMul : 1.0;
-      mat.envMapIntensity = base * v.ibl * paintFactor;
-    }
-  }
-  if(mat.userData.isNeon){
-    if(mat.userData._neonBaseIntensity == null){
-      mat.userData._neonBaseIntensity = mat.emissiveIntensity || 1.0;
-    }
-    mat.emissiveIntensity = mat.userData._neonBaseIntensity * v.emissiveMul;
-  }
+  _applyVisualsToMatInline(mat, v.ibl, v.carPaintEnvMul, v.emissiveMul);
 }
 
 // Fog-overschrijving per wereld. scene.fog wordt nog in scene.js opgezet
@@ -270,52 +283,38 @@ function _applyFog(scene, fogConfig){
   }
 }
 
-// Auto-tagging voor wereld-materialen die geen handmatige envTag/isNeon
-// hebben. Werkt enkel op MeshStandardMaterial / MeshPhysicalMaterial — Lambert
-// en Phong reageren toch niet op envMapIntensity. Heuristiek:
-//   - emissive ≠ zwart → userData.isNeon = true (alleen emissive-mul-applicabel)
-//   - anders → userData.envTag = 'world-prop'
-// Materialen met _carPBR / _sharedAsset (car-mats) of _autoTagged worden
-// overgeslagen: ze zijn al getagd of staan onder car-parts.js z'n beheer.
-function _autoTagSceneMaterials(scene){
-  if(!scene) return;
-  scene.traverse(function(obj){
-    if(!obj || !obj.material) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for(let i=0;i<mats.length;i++){
-      const m = mats[i];
-      if(!m) continue;
-      // Skip non-PBR (Lambert, Phong, Basic) — envMapIntensity is no-op.
-      if(!(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)) continue;
-      m.userData = m.userData || {};
-      if(m.userData._carPBR || m.userData._sharedAsset) continue;
-      if(m.userData.envTag || m.userData.isNeon) continue;
-      const e = m.emissive;
-      const hasEmissive = e && (e.r > 0.001 || e.g > 0.001 || e.b > 0.001)
-                          && (m.emissiveIntensity || 0) > 0.001;
-      if(hasEmissive){
-        m.userData.isNeon = true;
-      } else {
-        m.userData.envTag = 'world-prop';
-      }
-      m.userData._autoTagged = true;
-    }
-  });
-}
-
 // Idempotente per-wereld apply. Wordt aangeroepen vanuit scene.js (na PMREM-
-// bake + setBloomWorld) en vanuit night.js (bij night-toggle). Voor preset-
-// wisseling via console: schedule via requestAnimationFrame om mid-frame
-// traversal te voorkomen.
+// bake + setBloomWorld). Voor preset-wisseling via console: schedule via
+// requestAnimationFrame om mid-frame traversal te voorkomen.
 function applyWorldVisuals(world, scene, renderer){
   const v = getWorldVisuals(world);
   if(!v) return;
   if(scene){
-    _autoTagSceneMaterials(scene);
-    _applyIBLMultiplier(scene, v.ibl, v.carPaintEnvMul);
-    _applyEmissiveMul(scene, v.emissiveMul);
+    // Eén traverse die auto-taggt + IBL/emissive-mul toepast.
+    _walkSceneVisuals(scene, v, false);
     _applyFog(scene, v.fog);
   }
+  // Shared car-mats (_carShared in car-parts.js) leven sessie-lang en zijn
+  // niet via scene.traverse bereikbaar wanneer cars nog niet ge-add zijn.
+  // PBR-fix: expliciete re-apply zodat chrome/glass/tire/rim/etc. ook na
+  // wereld-switch de juiste IBL-multiplier krijgen.
+  if(typeof window.applyVisualsToSharedCarMats === 'function'){
+    window.applyVisualsToSharedCarMats(world);
+  }
+  if(renderer && typeof window._setExposureTarget === 'function'){
+    const target = _isWorldDark() ? v.exposureNight : v.exposureDay;
+    window._setExposureTarget(target);
+  }
+}
+
+// PBR-fix: night-toggle pad. IBL hangt niet van dag/nacht af, dus de
+// volledige IBL-traverse bij elke M-toggle is verspilling. Deze variant
+// raakt alleen emissive-mul (neon-materialen flickeren met day/night) en
+// de exposure-target. Bespaart 0.5-2 ms per night-toggle op grote werelden.
+function applyWorldVisualsNightToggle(world, scene, renderer){
+  const v = getWorldVisuals(world);
+  if(!v) return;
+  if(scene) _walkSceneVisuals(scene, v, true);
   if(renderer && typeof window._setExposureTarget === 'function'){
     const target = _isWorldDark() ? v.exposureNight : v.exposureDay;
     window._setExposureTarget(target);
@@ -329,6 +328,7 @@ if(typeof window !== 'undefined'){
   window.getWorldVisuals           = getWorldVisuals;
   window.setActivePreset           = setActivePreset;
   window.resetExperiment           = resetExperiment;
-  window.applyWorldVisuals         = applyWorldVisuals;
-  window.applyVisualsToMaterial    = applyVisualsToMaterial;
+  window.applyWorldVisuals             = applyWorldVisuals;
+  window.applyWorldVisualsNightToggle  = applyWorldVisualsNightToggle;
+  window.applyVisualsToMaterial        = applyVisualsToMaterial;
 }

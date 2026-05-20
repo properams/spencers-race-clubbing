@@ -242,8 +242,9 @@ function emitWheelDust(car){
   if(typeof dustSystem === 'undefined' || !dustSystem || !dustSystem.emit) return;
   const w = (typeof activeWorld !== 'undefined') ? activeWorld : '';
   const tint = _WHEEL_DUST_TINT[w] || _WHEEL_DUST_DEFAULT_TINT;
-  // Achterwaartse offset langs car-quaternion (z+ richting wijst voorwaarts
-  // in mesh-space; -z is achter).
+  // Achterwaartse offset langs car-quaternion. Conventie in deze codebase:
+  // -Z = forward (zie cars/build.js), dus +Z = achter de auto. 1.4 units
+  // achter het mesh-center plaatst de puff net achter de bumper.
   _wheelDustOffset.set(0, 0, 1.4).applyQuaternion(car.mesh.quaternion);
   const px = car.mesh.position.x + _wheelDustOffset.x;
   const py = car.mesh.position.y + 0.10;
@@ -268,6 +269,10 @@ let _ambientFxAccum = 0;
 function emitAmbientWorldFX(dt){
   if(typeof carObjs==='undefined' || !carObjs.length) return;
   if(typeof playerIdx==='undefined') return;
+  // PBR-fix: tier-gate. Op LOW (postFX uit) levert atmosfeer-particles toch
+  // geen bloom + ze kosten Math.random + emit-werk dat het mobile frame-
+  // budget niet aankan. Skipt automatisch op iPhone 12 / DevTools-throttle.
+  if(window._qFlags && window._qFlags.postFX === false) return;
   const pCar = carObjs[playerIdx]; if(!pCar||!pCar.mesh) return;
   _ambientFxAccum += dt;
   // 12Hz tick — enough motion to feel alive, low GC churn.

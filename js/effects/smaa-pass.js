@@ -27,8 +27,13 @@ var _smaa = {
   w: 0, h: 0          // cached dimensions
 };
 
+// PBR-fix: lees DYNAMISCH uit _qFlags.smaa zodat graceful-downgrade niveau-1
+// (die _qFlags.smaa van 'full' naar 'half' flipped) ook daadwerkelijk de
+// render-target-resolutie halveert. Voorheen leek _smaa.mode op de init-
+// waarde gecached, waardoor de flag-flip een no-op was.
 function _smaaResolutionMul(){
-  return _smaa.mode === 'half' ? 0.5 : 1.0;
+  const cur = (window._qFlags && window._qFlags.smaa) || _smaa.mode;
+  return cur === 'half' ? 0.5 : 1.0;
 }
 
 function initSMAA(){
@@ -46,17 +51,24 @@ function initSMAA(){
   const h = Math.max(2, Math.floor(innerHeight * mul));
   _smaa.w = w; _smaa.h = h;
 
+  // PBR-fix: r160 verwijderde THREE.sRGBEncoding. encoding: undefined zou
+  // three.js de default-LinearSRGB laten kiezen wat een latente
+  // dubbel-gamma-correctie kan veroorzaken zodra ColorManagement aan gaat.
+  // ThreeCompat zet de juiste colorSpace op de RT-texture.
   const rtParams = {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
     format: THREE.RGBAFormat,
     type: THREE.UnsignedByteType,
-    encoding: THREE.sRGBEncoding,
     depthBuffer: false,
     stencilBuffer: false
   };
   _smaa.rtFinal = new THREE.WebGLRenderTarget(w, h, rtParams);
   _smaa.rtEdge  = new THREE.WebGLRenderTarget(w, h, rtParams);
+  if(typeof ThreeCompat !== 'undefined' && ThreeCompat.applyTextureColorSpace){
+    ThreeCompat.applyTextureColorSpace(_smaa.rtFinal.texture);
+    ThreeCompat.applyTextureColorSpace(_smaa.rtEdge.texture);
+  }
 
   // Pass 1: edge-detect (luma). 3 samples (centrum, links-buur, boven-buur).
   // Threshold 0.05 luma-delta = standard SMAA-lite; lager = meer edges.
@@ -150,6 +162,7 @@ function resizeSMAA(){
   _smaa.matEdge.uniforms.texelSize.value.set(1/w, 1/h);
   _smaa.matBlend.uniforms.texelSize.value.set(1/w, 1/h);
 }
+window._resizeSMAA = resizeSMAA;
 
 // Runtime-active check: respecteert tier-downgrades die _qFlags.smaa op
 // false zetten ná init (loop.js auto-quality-detector).

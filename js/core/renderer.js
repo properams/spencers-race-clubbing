@@ -146,6 +146,11 @@ function initRenderer(){
         camera.updateProjectionMatrix();
       }
       if(typeof resizePostFX==='function')resizePostFX();
+      // PBR-fix: SMAA RTs (rtFinal + rtEdge) ook resizen op orientation/
+      // visualViewport-events. Anders bleef het oude RT-formaat tot de
+      // eerstvolgende renderSMAAPass-frame het zelf cachebust, met als
+      // gevolg één frame scrambled output.
+      if(typeof resizeSMAA==='function')resizeSMAA();
     });
   }
   window.addEventListener('resize',_handleResize);
