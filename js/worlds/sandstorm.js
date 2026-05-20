@@ -1482,7 +1482,7 @@ function buildSandstormEnvironment(){
     if(typeof _rainIntensity!=='undefined')_rainIntensity=0;
     if(rainCanvas)rainCanvas.style.display='none';
   }
-  // ── Ground (sand canvas, anisotropy/repeat matches grandprix-style)
+  // ── Ground (sand canvas, anisotropy/repeat matches default-world style)
   const g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
     new THREE.MeshLambertMaterial({color:0xd4a55a,map:_sandGroundTex()}));
   g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;

@@ -18,7 +18,6 @@
 // Generators beschikbaar:
 //   kelpForest    — vertical pillars die uitfanen aan top (deepsea)
 //   iceShards     — scherpe driehoekige ice-peaks (arctic)
-//   thrillPark    — reuzenrad + coaster + drop-tower (legacy, unused)
 //   candyHills    — cake-layers + cream-bumps (candy upgrade)
 //   volcanicPeaks — scherpere cone-profielen + lava-cracks (volcano upgrade)
 //
@@ -130,220 +129,6 @@ function _hzGenIceShards(profile){
     g.lineTo(x+w*0.5, baseY);
     g.closePath();
     g.fill();
-  }
-  return c;
-}
-
-// ── Generator: ferriswheel ────────────────────────────────────────────
-// Themepark skyline: ferris wheel + coaster + drop tower verspreid over
-// de tile-width. Strokes voor de ferris-spaken + coaster-track + tower.
-function _hzGenFerriswheel(profile){
-  const {c,g}=_hzMakeCanvas();
-  const rnd=_hzSeedRnd(profile.seed);
-  const baseY=_HORIZON_H*0.92;
-  const grad=_hzGradFill(g, profile.accent, profile.color);
-  g.fillStyle=grad;
-  g.strokeStyle=grad;
-  // Ground band
-  g.fillRect(0, baseY+8, _HORIZON_W, _HORIZON_H-baseY-8);
-  // 5 elementen verdelen over de tile
-  const elements=['ferris','coaster','tower','ferris','coaster'];
-  elements.forEach((kind, i)=>{
-    const cx=(i+0.5)*(_HORIZON_W/elements.length)+(rnd()-0.5)*60;
-    if(kind==='ferris'){
-      const r=100+rnd()*30;
-      const cy=baseY-r-22;
-      g.lineWidth=4;
-      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI*2); g.stroke();
-      // 8 spaken
-      for(let s=0;s<8;s++){
-        const ang=(s/8)*Math.PI*2;
-        g.beginPath();
-        g.moveTo(cx, cy);
-        g.lineTo(cx+Math.cos(ang)*r, cy+Math.sin(ang)*r);
-        g.stroke();
-      }
-      // A-frame pylon naar de grond
-      g.lineWidth=2;
-      g.beginPath();
-      g.moveTo(cx-16, baseY);
-      g.lineTo(cx, cy+8);
-      g.lineTo(cx+16, baseY);
-      g.closePath();
-      g.fill();
-    }else if(kind==='coaster'){
-      // Wave-shaped track
-      g.lineWidth=5;
-      const peakH=80+rnd()*55;
-      const cy=baseY-12;
-      g.beginPath();
-      g.moveTo(cx-150, cy);
-      g.bezierCurveTo(cx-105, cy-peakH*1.5, cx-60, cy-peakH*0.3, cx-15, cy-peakH);
-      g.bezierCurveTo(cx+25, cy-peakH*1.4, cx+65, cy-peakH*0.3, cx+105, cy-peakH*0.5);
-      g.bezierCurveTo(cx+135, cy-peakH*0.8, cx+150, cy, cx+150, cy);
-      g.stroke();
-      // Support pillars
-      g.lineWidth=3;
-      [-105, -45, 30, 100].forEach(off=>{
-        g.beginPath();
-        g.moveTo(cx+off, baseY);
-        g.lineTo(cx+off, cy-peakH*0.4);
-        g.stroke();
-      });
-    }else if(kind==='tower'){
-      // Drop-tower — verticaal beam met kroon
-      const h=230+rnd()*60;
-      g.lineWidth=12;
-      g.beginPath();
-      g.moveTo(cx, baseY);
-      g.lineTo(cx, baseY-h);
-      g.stroke();
-      g.beginPath();
-      g.moveTo(cx-20, baseY-h);
-      g.lineTo(cx+20, baseY-h);
-      g.lineTo(cx, baseY-h-26);
-      g.closePath();
-      g.fill();
-    }
-  });
-  return c;
-}
-
-// ── Generator: thrillPark ─────────────────────────────────────────────
-// Carnival horizon: ronde circus-tenten + balloon-clusters + bunting
-// strings tussen de toppen. Geen ferris wheel, geen coaster — past de
-// nieuwe "avond-carnival" sfeer.
-function _hzGenThrillPark(profile){
-  const {c,g}=_hzMakeCanvas();
-  const rnd=_hzSeedRnd(profile.seed);
-  const baseY=_HORIZON_H*0.92;
-  const grad=_hzGradFill(g, profile.accent, profile.color);
-  g.fillStyle=grad;
-  g.strokeStyle=grad;
-  // Ground band
-  g.fillRect(0, baseY+8, _HORIZON_W, _HORIZON_H-baseY-8);
-  // 5 clusters: bigtent in het midden, regular tents en balloon clusters
-  // rond de tile-breedte. Tops bewaard voor bunting-string.
-  const kinds=['tent','balloons','bigtent','balloons','tent'];
-  const tops=[];
-  kinds.forEach((kind,i)=>{
-    const cx=(i+0.5)*(_HORIZON_W/kinds.length)+(rnd()-0.5)*60;
-    if(kind==='tent'){
-      const w=120+rnd()*40;
-      const h=140+rnd()*30;
-      // Tent body (trapezium gefaket via rect + cone)
-      g.fillRect(cx-w*0.5, baseY-h*0.35, w, h*0.35);
-      // Cone roof met verticale strepen-suggestie via 6 wedges
-      const peakY=baseY-h;
-      for(let s=0;s<6;s++){
-        const a0=(s/6)-0.5, a1=((s+1)/6)-0.5;
-        g.beginPath();
-        g.moveTo(cx+a0*w, baseY-h*0.35);
-        g.lineTo(cx, peakY);
-        g.lineTo(cx+a1*w, baseY-h*0.35);
-        g.closePath();
-        if(s%2===0){ g.fill(); }
-        else { g.lineWidth=2; g.stroke(); }
-      }
-      // Flag op de top
-      g.lineWidth=2;
-      g.beginPath();
-      g.moveTo(cx, peakY);
-      g.lineTo(cx, peakY-14);
-      g.stroke();
-      g.beginPath();
-      g.moveTo(cx, peakY-14);
-      g.lineTo(cx+10, peakY-9);
-      g.lineTo(cx, peakY-4);
-      g.closePath();
-      g.fill();
-      tops.push({x:cx, y:peakY-14});
-    } else if(kind==='bigtent'){
-      // Brede big-top met dome top
-      const w=240+rnd()*40;
-      const h=180+rnd()*30;
-      g.fillRect(cx-w*0.5, baseY-h*0.4, w, h*0.4);
-      // Dome (kwart-cirkel boog ipv puntige cone)
-      g.beginPath();
-      g.moveTo(cx-w*0.5, baseY-h*0.4);
-      g.quadraticCurveTo(cx, baseY-h*1.3, cx+w*0.5, baseY-h*0.4);
-      g.closePath();
-      g.fill();
-      // Verticale stripe-suggestie
-      g.lineWidth=2;
-      for(let s=-2;s<=2;s++){
-        const sx=cx+s*(w*0.18);
-        g.beginPath();
-        g.moveTo(sx, baseY-h*0.4);
-        g.lineTo(sx*0.6+cx*0.4, baseY-h*0.95);
-        g.stroke();
-      }
-      // Top flag
-      const peakY=baseY-h*1.05;
-      g.beginPath();
-      g.moveTo(cx, peakY);
-      g.lineTo(cx, peakY-20);
-      g.stroke();
-      g.beginPath();
-      g.moveTo(cx, peakY-20);
-      g.lineTo(cx+14, peakY-14);
-      g.lineTo(cx, peakY-8);
-      g.closePath();
-      g.fill();
-      tops.push({x:cx, y:peakY-20});
-    } else { // balloons
-      // Cluster van 4–5 balloons op verschillende hoogten met stems
-      const count=4+Math.floor(rnd()*2);
-      const baseClusterY=baseY-90-rnd()*30;
-      const balloonTops=[];
-      for(let b=0;b<count;b++){
-        const bx=cx+(b-(count-1)/2)*22+(rnd()-0.5)*8;
-        const by=baseClusterY-(rnd()*30);
-        const r=10+rnd()*5;
-        g.beginPath();
-        g.arc(bx, by, r, 0, Math.PI*2);
-        g.fill();
-        // Stem
-        g.lineWidth=1.2;
-        g.beginPath();
-        g.moveTo(bx, by+r);
-        g.lineTo(cx, baseY-8);
-        g.stroke();
-        balloonTops.push({x:bx, y:by-r});
-      }
-      // Sla de hoogste balloon op als top
-      const hi=balloonTops.reduce((a,b)=>b.y<a.y?b:a, balloonTops[0]);
-      tops.push(hi);
-    }
-  });
-  // Bunting-string die alle tops verbindt — golvende lijn met kleine
-  // triangle pendants om de paar pixels.
-  if(tops.length>=2){
-    g.lineWidth=1.5;
-    g.beginPath();
-    g.moveTo(tops[0].x, tops[0].y);
-    for(let i=1;i<tops.length;i++){
-      const prev=tops[i-1], cur=tops[i];
-      const mx=(prev.x+cur.x)/2;
-      const my=Math.max(prev.y, cur.y)+18;
-      g.quadraticCurveTo(mx, my, cur.x, cur.y);
-    }
-    g.stroke();
-    // Pendants (kleine driehoeken hangend van de string elke ~80 px)
-    for(let px=40;px<_HORIZON_W;px+=90){
-      // Interpolate y langs een eenvoudige avg-lijn (niet exact, maar oogt OK)
-      const t=px/_HORIZON_W;
-      const idx=Math.min(tops.length-2, Math.floor(t*(tops.length-1)));
-      const a=tops[idx], b=tops[idx+1];
-      const lt=(px-a.x)/Math.max(1,(b.x-a.x));
-      const y=a.y+(b.y-a.y)*Math.max(0,Math.min(1,lt))+18;
-      g.beginPath();
-      g.moveTo(px-3, y);
-      g.lineTo(px+3, y);
-      g.lineTo(px, y+8);
-      g.closePath();
-      g.fill();
-    }
   }
   return c;
 }
@@ -520,8 +305,6 @@ function _hzGenVolcanicPeaks(profile){
 const _SILHOUETTE_GENERATORS={
   kelpForest:    _hzGenKelpForest,
   iceShards:     _hzGenIceShards,
-  ferriswheel:   _hzGenFerriswheel,
-  thrillPark:    _hzGenThrillPark,
   candyHills:    _hzGenCandyHills,
   volcanicPeaks: _hzGenVolcanicPeaks,
 };
@@ -566,7 +349,6 @@ const WORLD_HORIZON_PROFILE={
     far:  { type:'iceShards', seed:17, color:'#5a6a86',  accent:'#94a4ba', opacity:0.85, height:110 },
     near: { type:'iceShards', seed:43, color:'#2a3a54',  accent:'#56688a', opacity:0.94, height:84  },
   },
-  // Themepark — tent + balloon + bunting silhouet (geen ferris wheel meer;
   // Candy — cake-layer + cream-bump silhouet ipv pastel mountains.
   // Pastel pink palette matcht de huidige _SILHOUETTE_PALETTES.candy
   // tones zodat de wereld-mood identiek leest, alleen de SHAPE is nu

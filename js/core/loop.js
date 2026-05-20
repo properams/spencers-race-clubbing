@@ -21,7 +21,7 @@
 //   updateSkidMarks, updateWeather, updateSky, updateSnow, updateStormFlash,
 //   updateSpaceWorld, updateDeepSeaWorld, updateCandyWorld,
 //   updateVolcanoWorld, updateArcticWorld,
-//   updateThemeparkWorld, updateHUD, updateSpeedOverlay, getPositions,
+//   updateHUD, updateSpeedOverlay, getPositions,
 //   updateAmbientWindSpeed, updateAchievements,
 //   updateWeatherForecast, updateQuickRestart, updateDamageSmoke,
 //   updateRpmBar, updateRevLimiter, updateDriftVisuals,
@@ -105,7 +105,7 @@ window._resetFirstRaceFrameMarker=()=>{_firstRaceFrameLogged=false;};
 const QUALITY_CHECK_FRAME_START=30,QUALITY_CHECK_FRAME_END=180;
 // 2026-05-17: relaxed van 0.032/60 → 0.040/90. De vorige drempel zakte het
 // hele scherm permanent naar 'low' bij één bursty wereld (Guangzhou shader-
-// compile, Themepark fireworks). Op desktop-low rendert content nog steeds
+// compile, Candy emissive flood). Op desktop-low rendert content nog steeds
 // op desktop-density (zie js/worlds/*) wat aliasing-chaos veroorzaakt. Een
 // hogere drempel houdt desktop op mid/high tenzij echt nodig.
 const QUALITY_BAD_FRAME_MS=0.040,QUALITY_BAD_FRAME_THRESHOLD=90;

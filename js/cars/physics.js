@@ -349,7 +349,7 @@ function updatePlayer(dt){
   // get a correctly-named popup. Friction multipliers preserve legacy
   // gameplay tuning: space (.09) and deepsea (.13) keep their lighter
   // values; candy keeps its .22 sticky-frosting feel via the world-
-  // override row; everything else (volcano/arctic/grandprix/sandstorm)
+  // override row; everything else (volcano/arctic/sandstorm/pier47/guangzhou)
   // keeps the legacy .18 default while the popup
   // label now matches the actual surface ("SAND!" / "ICE!" / etc.)
   // instead of the misleading "GRASS!".

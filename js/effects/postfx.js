@@ -235,7 +235,7 @@ function initPostFX(){
 // Day/night bloom tuning — at night we use a slightly lower threshold so
 // neon/emissive props bloom more dramatically; by day we keep bloom subtle
 // so highlights don't blow out the sky. Per-world multipliers below let
-// pastel/dense-emissive worlds (Candy, Themepark) get less bleed without
+// pastel/dense-emissive worlds (Candy) get less bleed without
 // dimming the intentional neon aesthetic.
 //
 // Game-breed tone-down: previously dark strength was 0.78 / day 0.66 with

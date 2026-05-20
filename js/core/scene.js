@@ -16,7 +16,7 @@
 //
 // Externe builders (non-module scripts): buildTrack, buildSpaceEnvironment,
 // buildDeepSeaEnvironment, buildCandyEnvironment,
-// buildVolcanoEnvironment, buildArcticEnvironment, buildThemeparkEnvironment,
+// buildVolcanoEnvironment, buildArcticEnvironment,
 // buildGround, buildClouds, buildBarriers, buildGantry, buildMountains,
 // buildLake, buildGravelTraps, buildNightObjects,
 // buildSpectators, buildSunBillboard, buildAdvertisingBoards,
@@ -525,48 +525,6 @@ function makeGrandPrixNightSkyTex(){
   return _skyTexFromCanvas(c);
 }
 
-// Themepark NIGHT — carnival blues + warm fairground-light reflections
-// at horizon. Day is sunset-toned; night drops to deep blue with a
-// dramatic strip of carnival-light glow (yellow + pink + cyan) along
-// the lower band. PMREM env paints lacquer with that warm carnival-glow
-// from below.
-function makeThemeparkNightSkyTex(){
-  const {c,g}=_newSkyCanvas('#0a0a26','#1a1438');
-  // Carnival-light strip at horizon — alternating warm + cool blobs simulate
-  // distant ferris-wheel/carousel glow. Very saturated.
-  const stripY=380;
-  for(let i=0;i<14;i++){
-    const x=Math.random()*1024;
-    const r=70+Math.random()*60;
-    const tones=['255,180,80','255,90,180','120,200,255','255,220,80','220,110,255'];
-    const tone=tones[Math.floor(Math.random()*tones.length)];
-    const gr=g.createRadialGradient(x,stripY,0,x,stripY,r);
-    gr.addColorStop(0,`rgba(${tone},0.55)`);
-    gr.addColorStop(1,`rgba(${tone},0)`);
-    g.fillStyle=gr;g.fillRect(x-r,stripY-r,r*2,r*2);
-  }
-  // Stars — sparser than candy, emphasis on zenith.
-  const STAR_COUNT=window._isMobile?60:140;
-  for(let i=0;i<STAR_COUNT;i++){
-    const x=Math.random()*1024;
-    const y=Math.pow(Math.random(),1.7)*280;
-    const a=(0.5+Math.random()*0.5).toFixed(2);
-    g.fillStyle=`rgba(220,225,255,${a})`;
-    g.fillRect(x,y,1,1);
-  }
-  // Soft moon, upper-right.
-  const moonCx=720,moonCy=110,moonR=36;
-  const halo=g.createRadialGradient(moonCx,moonCy,moonR*0.5,moonCx,moonCy,moonR*2.4);
-  halo.addColorStop(0,'rgba(245,235,210,0.45)');
-  halo.addColorStop(1,'rgba(245,235,210,0)');
-  g.fillStyle=halo;g.fillRect(moonCx-moonR*2.4,moonCy-moonR*2.4,moonR*4.8,moonR*4.8);
-  const disc=g.createRadialGradient(moonCx-moonR*0.25,moonCy-moonR*0.25,0, moonCx,moonCy,moonR);
-  disc.addColorStop(0,'rgba(255,250,235,1)');
-  disc.addColorStop(1,'rgba(220,210,195,0.92)');
-  g.fillStyle=disc;g.beginPath();g.arc(moonCx,moonCy,moonR,0,Math.PI*2);g.fill();
-  return _skyTexFromCanvas(c);
-}
-
 // Candy NIGHT — glow-in-the-dark wonderland. Deep-purple/magenta zenith
 // with dense pastel sparkle-stars, soft moon, sugary horizon glow. PMREM
 // env paints lacquer with playful pink/violet reflections.
@@ -892,33 +850,6 @@ function makeSandstormNightSkyTex(){
   return _skyTexFromCanvas(c);
 }
 
-// Theme park — sunset gradient + soft cloud puffs + early stars + lit horizon
-function makeThemeparkSkyTex(){
-  const {c,g}=_newSkyCanvas('#2a0844','#ff8844');
-  // Soft sunset clouds (orange/purple)
-  for(let i=0;i<12;i++){
-    const x=Math.random()*1024,y=120+Math.random()*220;
-    const r=60+Math.random()*90;
-    const gr=g.createRadialGradient(x,y,0,x,y,r);
-    const tone=Math.random()<0.5?'255,140,80':'180,80,140';
-    gr.addColorStop(0,`rgba(${tone},0.5)`);
-    gr.addColorStop(1,`rgba(${tone},0)`);
-    g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);
-  }
-  // Faint horizon glow
-  const glow=g.createLinearGradient(0,380,0,512);
-  glow.addColorStop(0,'rgba(255,180,100,0)');
-  glow.addColorStop(1,'rgba(255,180,100,0.4)');
-  g.fillStyle=glow;g.fillRect(0,380,1024,132);
-  // Early stars (top, sparse)
-  for(let i=0;i<40;i++){
-    const x=Math.random()*1024,y=Math.random()*120;
-    g.fillStyle=`rgba(255,240,200,${(Math.random()*0.4+0.3).toFixed(2)})`;
-    g.fillRect(x,y,2,2);
-  }
-  return _skyTexFromCanvas(c);
-}
-
 // Yield helper used between buildScene phases (and inside heavy per-world
 // environment builders) so Chrome's "page unresponsive" detector — which
 // resets between browser tasks — sees frequent task boundaries instead of
@@ -1192,7 +1123,7 @@ async function buildScene(){
   }
   // Per-world color grading + vignette in postfx composite.
   if(typeof setWorldGrading==='function')setWorldGrading(activeWorld);
-  // Per-world bloom strength multiplier (Candy/Themepark have many emissives
+  // Per-world bloom strength multiplier (Candy/Guangzhou have many emissives
   // packed close together — full strength bleeds across the narrow track).
   if(typeof setBloomWorld==='function')setBloomWorld(activeWorld);
   // Per-world atmosphere tuning (godrays strength + horizon-haze colour).

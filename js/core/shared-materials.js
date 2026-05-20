@@ -25,7 +25,7 @@
   if(typeof THREE === 'undefined' || !THREE.MeshLambertMaterial) return;
   if(window._sharedMat) return;  // idempotent — survives a hot-reload
 
-  // Pure white — generic ambient prop. Themepark elephants, candy frosting,
+  // Pure white — generic ambient prop. Candy frosting,
   // pier47 white-flag, guangzhou banner-back.
   const purewhite = new THREE.MeshLambertMaterial({color: 0xffffff});
 

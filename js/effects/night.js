@@ -548,12 +548,6 @@ function _disposeCandySkyCache(){
   if(_cdyDayBg){try{_cdyDayBg.dispose();}catch(_){} _cdyDayBg=null;}
   if(_cdyDayEnv){try{_cdyDayEnv.dispose();}catch(_){} _cdyDayEnv=null;}
 }
-function _disposeThemeparkSkyCache(){
-  if(_tpkNightBg){try{_tpkNightBg.dispose();}catch(_){} _tpkNightBg=null;}
-  if(_tpkNightEnv){try{_tpkNightEnv.dispose();}catch(_){} _tpkNightEnv=null;}
-  if(_tpkDayBg){try{_tpkDayBg.dispose();}catch(_){} _tpkDayBg=null;}
-  if(_tpkDayEnv){try{_tpkDayEnv.dispose();}catch(_){} _tpkDayEnv=null;}
-}
 function _disposeGrandPrixSkyCache(){
   if(_gpNightBg){try{_gpNightBg.dispose();}catch(_){} _gpNightBg=null;}
   if(_gpNightEnv){try{_gpNightEnv.dispose();}catch(_){} _gpNightEnv=null;}
