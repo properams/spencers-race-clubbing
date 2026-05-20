@@ -104,9 +104,9 @@ function updatePlayer(dt){
   if(hbk)car.speed*=Math.pow(.875,dt*60);
   if(Math.abs(car.speed)<.0008)car.speed=0;
 
-  if(hbk&&Math.abs(car.speed)>.5){addSkidMark(car);if(Math.random()<.22)Audio.playScreech();}
+  if(hbk&&Math.abs(car.speed)>.5){addSkidMark(car);if(typeof window._emitWheelDust==='function')window._emitWheelDust(car);if(Math.random()<.22)Audio.playScreech();}
   // Skid marks on hard braking
-  if(brk&&Math.abs(car.speed)>.95&&Math.random()<.28){addSkidMark(car,0.55);}
+  if(brk&&Math.abs(car.speed)>.95&&Math.random()<.28){addSkidMark(car,0.55);if(typeof window._emitWheelDust==='function')window._emitWheelDust(car);}
   // Tire smoke on hard braking
   if(brk&&Math.abs(car.speed)>.8&&Math.random()<.18){
     exhaustSystem.emit(car.mesh.position.x,car.mesh.position.y+.15,car.mesh.position.z,(Math.random()-.5)*.04,.02,(Math.random()-.5)*.04,2,.9,.9,.9,.5);

@@ -125,9 +125,15 @@
 .selRight {grid-area:right}
 
 /* ── LEFT: garage with tier tabs ────────────────────────────────────── */
+/* PBR-upgrade follow-up: menu-DoF. backdrop-filter blurt het achter-
+   liggende hoofd-game-canvas zodat de garage-paneel-info los staat van
+   de scene-blur. Goedkoper dan een aparte DoF-render-pass; browser doet
+   het optimalisatie-werk. -webkit-backdrop-filter voor iOS-Safari. */
 .selLeft{
   display:flex;flex-direction:column;border-right:1px solid var(--line);
-  overflow-y:hidden;padding:0;background:rgba(8,8,14,.25)
+  overflow-y:hidden;padding:0;background:rgba(8,8,14,.25);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px)
 }
 .garageHeader{
   padding:14px 18px 12px;border-bottom:1px solid var(--line);background:transparent;
@@ -460,9 +466,14 @@
 .specKmhLbl{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:3px}
 
 /* ── RIGHT: settings + rival + start ────────────────────────────────── */
+/* PBR-upgrade follow-up: menu-DoF op het rechter-paneel mirrort .selLeft.
+   Achtergrond was `transparent` — een lichte rgba laag is nodig zodat
+   backdrop-filter daadwerkelijk pixels heeft om te blurren. */
 .selRight{
   display:flex;flex-direction:column;padding:18px 22px;gap:14px;
-  overflow-y:auto;background:transparent;border-left:0
+  overflow-y:auto;background:rgba(8,8,14,.20);border-left:0;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px)
 }
 /* RACE SETTINGS card: holoCard wrapper voor LAPS + DIFFICULTY in
    de rechterkolom. Visueel parallel aan .specPanel erboven. */

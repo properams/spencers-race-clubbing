@@ -216,6 +216,50 @@ class SimpleParticles{
   }
 }
 
+// PBR-upgrade follow-up: wheel-dust. Gespawned door physics.js op
+// skid-momenten (handbrake of hard-brake bij hoge snelheid). Eén korte
+// puff achter de auto, kleur per wereld. Skipt op LOW via tier-flag.
+//
+// Geen wheel-positie engineering: emit-positie = car.mesh.position met
+// een achterwaartse offset langs car.mesh.quaternion. "Achter de auto"
+// is goed genoeg voor het sfeer-effect; per-wheel zou per-frame matrix-
+// werk vergen dat we juist proberen te vermijden.
+const _WHEEL_DUST_TINT = {
+  space:    [0.85, 0.85, 1.00],
+  deepsea:  [0.50, 0.78, 0.95],
+  candy:    [1.00, 0.78, 0.92],
+  volcano:  [0.78, 0.40, 0.25],
+  arctic:   [0.94, 0.96, 1.00],
+  sandstorm:[0.84, 0.66, 0.42],
+  pier47:   [0.55, 0.55, 0.62],
+  guangzhou:[0.45, 0.45, 0.58]
+};
+const _WHEEL_DUST_DEFAULT_TINT = [0.78, 0.74, 0.66];
+const _wheelDustOffset = (typeof THREE !== 'undefined') ? new THREE.Vector3() : null;
+function emitWheelDust(car){
+  if(!car || !car.mesh) return;
+  if(window._qFlags && window._qFlags.wheelDust === false) return;
+  if(typeof dustSystem === 'undefined' || !dustSystem || !dustSystem.emit) return;
+  const w = (typeof activeWorld !== 'undefined') ? activeWorld : '';
+  const tint = _WHEEL_DUST_TINT[w] || _WHEEL_DUST_DEFAULT_TINT;
+  // Achterwaartse offset langs car-quaternion (z+ richting wijst voorwaarts
+  // in mesh-space; -z is achter).
+  _wheelDustOffset.set(0, 0, 1.4).applyQuaternion(car.mesh.quaternion);
+  const px = car.mesh.position.x + _wheelDustOffset.x;
+  const py = car.mesh.position.y + 0.10;
+  const pz = car.mesh.position.z + _wheelDustOffset.z;
+  // 2 particles per emit, opwaartse drift, korte life. Per-instance jitter
+  // in emit() voegt al variatie toe; we hoeven hier niet te randomizen.
+  dustSystem.emit(
+    px, py, pz,
+    0.0, 0.18, 0.0,
+    2,
+    tint[0], tint[1], tint[2],
+    0.55
+  );
+}
+if(typeof window !== 'undefined') window._emitWheelDust = emitWheelDust;
+
 // Sessie 02 V3 — ambient world FX emitter. Spawns a few particles per
 // frame near the player camera using the right pool + tint for the
 // current world. Throttled to keep each pool well under its `alive`

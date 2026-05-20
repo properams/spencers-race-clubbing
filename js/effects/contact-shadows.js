@@ -14,6 +14,9 @@
 
 'use strict';
 
+// PBR-upgrade follow-up: expose voor graceful-downgrade-niveau-2 zodat het
+// auto-quality-pad de InstancedMesh-visibility kan flippen zonder via een
+// API te hoeven gaan.
 var _contactShadows = {
   ready: false,
   mesh: null,                  // InstancedMesh
@@ -82,6 +85,8 @@ function initContactShadows(){
   _contactShadows._tmpMatrix = new THREE.Matrix4();
   _contactShadows._tmpPos    = new THREE.Vector3();
   _contactShadows.ready = true;
+  // Expose state-handle voor graceful-downgrade-niveau-2 in loop.js.
+  if(typeof window !== 'undefined') window._contactShadows = _contactShadows;
 }
 window._initContactShadows = initContactShadows;
 

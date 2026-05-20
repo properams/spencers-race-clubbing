@@ -458,23 +458,58 @@ function loop(){
 }
 
 // PBR-upgrade follow-up: gradiele downgrade die VÓÓR _engageLowQuality wordt
-// toegepast. Schakelt de twee duurste optionele effecten uit (speed-blur,
-// SMAA full→half) zodat één hitch niet meteen een full tier-step forceert.
-// Idempotent — een tweede aanroep is een no-op. Manual-pin respecteert.
-let _gracefulDowngradeApplied = false;
+// toegepast. Twee niveaus:
+//   Niveau 1 (eerste hitch / boven 70% bad-frame-drempel):
+//     - speed-blur uit
+//     - wheel-dust uit
+//     - SMAA full → half
+//   Niveau 2 (tweede hitch / boven 100% drempel maar niet getrigged tot
+//   binaire tier-step omdat downgrade-pad anderszins gevolgd wordt):
+//     - SMAA half → uit
+//     - contact-shadows uit
+// Idempotent per niveau. Manual-pin respecteert.
+let _gracefulDowngradeLevel = 0;
 function _applyGracefulDowngrade(){
-  if(_gracefulDowngradeApplied) return;
   if(window._qManualDowngrade) return;
-  _gracefulDowngradeApplied = true;
+  if(_gracefulDowngradeLevel >= 1) return;
+  _gracefulDowngradeLevel = 1;
   if(window._qFlags){
     window._qFlags.speedBlur = false;
+    window._qFlags.wheelDust = false;
     if(window._qFlags.smaa === 'full') window._qFlags.smaa = 'half';
   }
   if(window.dbg) dbg.markRaceEvent('GRACEFUL-DOWNGRADE', {
+    level: 1,
     smaa: (window._qFlags && window._qFlags.smaa) || null,
-    speedBlur: false
+    speedBlur: false,
+    wheelDust: false
   });
 }
+
+// Tweede graceful-niveau — voor consumers die nu nog niet aangeroepen worden,
+// maar staan klaar voor wanneer we hier een trigger voor toevoegen. Exposed
+// als window-global zodat een eventuele toekomstige trigger niet eerst een
+// loop.js-wijziging nodig heeft.
+function _applyGracefulDowngradeLevel2(){
+  if(window._qManualDowngrade) return;
+  if(_gracefulDowngradeLevel >= 2) return;
+  if(_gracefulDowngradeLevel < 1) _applyGracefulDowngrade();
+  _gracefulDowngradeLevel = 2;
+  if(window._qFlags){
+    if(window._qFlags.smaa !== false) window._qFlags.smaa = false;
+  }
+  // Contact-shadows mesh uit via _sharedAsset-handle. Behoudt geometrie/
+  // material in cache zodat re-attach na een wereld-rebuild niet faalt.
+  if(window._contactShadows && window._contactShadows.mesh){
+    window._contactShadows.mesh.visible = false;
+  }
+  if(window.dbg) dbg.markRaceEvent('GRACEFUL-DOWNGRADE', {
+    level: 2,
+    smaa: false,
+    contactShadows: false
+  });
+}
+window._applyGracefulDowngradeLevel2 = _applyGracefulDowngradeLevel2;
 
 // Apply quality downgrade: drop one or two tiers via the shared tier system
 // (window._qFlags + window._downgradeQualityTier). Falls back to the original
