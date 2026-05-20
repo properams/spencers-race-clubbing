@@ -509,10 +509,21 @@ function setAtmosphereWorld(world){
 // Phase 9.2 — drive motionBlurStr uniform vanuit per-frame player speed.
 // Aangeroepen door loop.js update-block. Threshold: alleen >65% top-speed
 // produceert blur (high-speed cue, niet altijd zichtbaar).
+//
+// PBR-upgrade follow-up: per-wereld speedBlur-multiplier uit world-visuals
+// (stable-presets 0.10-0.30 per wereld), plus tier-flag _qFlags.speedBlur
+// die de blur op LOW volledig uitschakelt.
 function setMotionBlurFromSpeed(speedRatio){
   if(!_atmo.ready) return;
+  if(window._qFlags && window._qFlags.speedBlur === false){
+    _atmo.matCompositeExt.uniforms.motionBlurStr.value = 0;
+    return;
+  }
+  const _v = (typeof window.getWorldVisuals === 'function' && typeof activeWorld !== 'undefined')
+    ? window.getWorldVisuals(activeWorld) : null;
+  const worldMul = (_v && typeof _v.speedBlur === 'number') ? _v.speedBlur : 1.0;
   const t = Math.max(0, (speedRatio - 0.65) / 0.35);  // 0..1 vanaf 65%
-  const target = t * t * 1.0;  // ease-in
+  const target = t * t * worldMul;                      // ease-in × per-wereld scale
   const u = _atmo.matCompositeExt.uniforms;
   // Smooth via simple lerp toward target — voorkomt snelle flicker bij
   // boost-bursts en handbrake-decel.

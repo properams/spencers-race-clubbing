@@ -409,6 +409,9 @@ function loop(){
   // Auto quality detection — see QUALITY_* constants above for thresholds.
   // Bad-frame window has two bands now: > THRESHOLD frames slow → drop one
   // tier; > 2× THRESHOLD → drop two tiers (skip the middle, go straight low).
+  // PBR-upgrade follow-up: extra graceful-band toegevoegd boven THRESHOLD*0.7
+  // die alleen speed-blur uitschakelt + SMAA full→half — voordat de
+  // binaire tier-step _engageLowQuality wordt aangeroepen.
   if(!_perfChecked&&gameState==='RACE'&&_aiFrameCounter>QUALITY_CHECK_FRAME_START&&_aiFrameCounter<QUALITY_CHECK_FRAME_END){
     if(dt>QUALITY_BAD_FRAME_MS)_perfBadFrames++;
     if(_aiFrameCounter===QUALITY_CHECK_FRAME_END-1){
@@ -417,6 +420,8 @@ function loop(){
         _engageLowQuality(2);
       } else if(_perfBadFrames > QUALITY_BAD_FRAME_THRESHOLD){
         _engageLowQuality(1);
+      } else if(_perfBadFrames > QUALITY_BAD_FRAME_THRESHOLD*0.7){
+        _applyGracefulDowngrade();
       }
     }
   }
@@ -439,11 +444,36 @@ function loop(){
       if(_goSpikeHitchCount>=2&&!_lowQuality){
         _engageLowQuality(1);
         if(window.dbg)dbg.markRaceEvent('GO-SPIKE-DOWNGRADE',{frame:_raceFrameCount,wallMs:+wallDt.toFixed(1),consecutive:_goSpikeHitchCount});
+      } else if(_goSpikeHitchCount===1){
+        // PBR-upgrade follow-up: graceful-downgrade op de eerste hitch zodat
+        // speed-blur + SMAA-full-pass al uit zijn vóór een eventuele
+        // tweede hitch _engageLowQuality afdwingt. Vermindert kans dat een
+        // shader-compile burst tot een volledige tier-step leidt.
+        _applyGracefulDowngrade();
       }
     } else {
       _goSpikeHitchCount=0;
     }
   }
+}
+
+// PBR-upgrade follow-up: gradiele downgrade die VÓÓR _engageLowQuality wordt
+// toegepast. Schakelt de twee duurste optionele effecten uit (speed-blur,
+// SMAA full→half) zodat één hitch niet meteen een full tier-step forceert.
+// Idempotent — een tweede aanroep is een no-op. Manual-pin respecteert.
+let _gracefulDowngradeApplied = false;
+function _applyGracefulDowngrade(){
+  if(_gracefulDowngradeApplied) return;
+  if(window._qManualDowngrade) return;
+  _gracefulDowngradeApplied = true;
+  if(window._qFlags){
+    window._qFlags.speedBlur = false;
+    if(window._qFlags.smaa === 'full') window._qFlags.smaa = 'half';
+  }
+  if(window.dbg) dbg.markRaceEvent('GRACEFUL-DOWNGRADE', {
+    smaa: (window._qFlags && window._qFlags.smaa) || null,
+    speedBlur: false
+  });
 }
 
 // Apply quality downgrade: drop one or two tiers via the shared tier system
