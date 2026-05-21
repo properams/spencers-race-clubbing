@@ -87,7 +87,7 @@ const _Q_FLAGS_MID = {
   envCubeSize: 192,
   dtClampSec: 0.065,
   dirtyLensOverlay: false,
-  smaa: 'half',                   // half-res 2-pass SMAA + bilinear upscale
+  smaa: false,                    // SMAA uit op mid: half-res + bilinear upscale gaf zichtbare waas + rand-fringes; vol-res zonder AA verkozen boven blur (jaggies < waas)
   speedBlur: true,                // PBR-upgrade follow-up: speed-blur via visuals
   wheelDust: true,                // PBR-upgrade follow-up: dust-puff op skid
   aiStagger: true,                // every 2nd frame per AI car

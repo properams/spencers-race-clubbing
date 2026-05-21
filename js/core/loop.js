@@ -476,7 +476,7 @@ function _applyGracefulDowngrade(){
   if(window._qFlags){
     window._qFlags.speedBlur = false;
     window._qFlags.wheelDust = false;
-    if(window._qFlags.smaa === 'full') window._qFlags.smaa = 'half';
+    if(window._qFlags.smaa === 'full') window._qFlags.smaa = false;
   }
   if(window.dbg) dbg.markRaceEvent('GRACEFUL-DOWNGRADE', {
     level: 1,
