@@ -23,6 +23,26 @@ let _spaceFrame=0; // per-frame counter for mobile staggering
 // var (niet const) — script-globaal voor cross-script reset in core/scene.js.
 var _wpGravityZones=[],_wpOrbitAsteroids=[],_wpWarpTunnels=[];
 
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Space-specifiek): solid-volume props krijgen op
+// desktop een MeshStandardMaterial met envTag 'cosmic-rock' of
+// 'cosmic-metal' zodat ze IBL-reflectie pakken. Mobile blijft Lambert
+// om PBR-shader-kosten te vermijden op LOW-tier waar de reflection probe
+// toch uit staat. Glow-laag (warp tunnels, gravity wells, neon strips,
+// gates, railguns, beams, orb, meteor, UFO dome+ring, anomaly halo) gaat
+// hier NIET doorheen — die blijven Lambert.
+//
+// Usage:
+//   const mat = _spMat({color:0x665544}, {metalness:0.0, roughness:0.88}, 'cosmic-rock');
+function _spMat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 function buildGravityZones(){
   const defs=[{t:.15},{t:.47},{t:.73}];
   defs.forEach(def=>{
@@ -78,7 +98,7 @@ function buildOrbitingAsteroids(){
       posAttr.setXYZ(i,posAttr.getX(i)*(0.75+Math.random()*.5),posAttr.getY(i)*(0.75+Math.random()*.5),posAttr.getZ(i)*(0.75+Math.random()*.5));
     }
     geo.computeVertexNormals();
-    const rock=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:0x665544}));
+    const rock=new THREE.Mesh(geo,_spMat({color:0x665544},{metalness:0.0,roughness:0.88},'cosmic-rock'));
     rock.position.copy(centre).addScaledVector(new THREE.Vector3(1,0,0),def.r);
     scene.add(rock);
     // Small dust halo (torus)
@@ -319,9 +339,9 @@ function _buildSpaceMidRing(){
   const total = (typeof _mobCount==='function')?_mobCount(35):35;
   const perBucket = Math.max(1, Math.floor(total/3));
   const buckets = [
-    {sz:1.2, mat:new THREE.MeshLambertMaterial({color:0x222244, emissive:0x000022, emissiveIntensity:0.4})},
-    {sz:2.0, mat:new THREE.MeshLambertMaterial({color:0x252253, emissive:0x110033, emissiveIntensity:0.35})},
-    {sz:3.2, mat:new THREE.MeshLambertMaterial({color:0x1b1b3a, emissive:0x000033, emissiveIntensity:0.30})}
+    {sz:1.2, mat:_spMat({color:0x222244, emissive:0x000022, emissiveIntensity:0.4},{metalness:0.0,roughness:0.88},'cosmic-rock')},
+    {sz:2.0, mat:_spMat({color:0x252253, emissive:0x110033, emissiveIntensity:0.35},{metalness:0.0,roughness:0.88},'cosmic-rock')},
+    {sz:3.2, mat:_spMat({color:0x1b1b3a, emissive:0x000033, emissiveIntensity:0.30},{metalness:0.0,roughness:0.88},'cosmic-rock')}
   ];
   buckets.forEach((b, bi) => {
     const geo = new THREE.BoxGeometry(b.sz, b.sz, b.sz);
@@ -348,7 +368,7 @@ function buildSpaceVoid(){
   // at y=-40..-220u depth the silhouette difference is invisible.
   const COUNT=(typeof _mobCount==='function')?_mobCount(55):55;
   const debGeo=new THREE.DodecahedronGeometry(1,0);
-  const debMat=new THREE.MeshLambertMaterial({color:0x222233});
+  const debMat=_spMat({color:0x222233},{metalness:0.0,roughness:0.88},'cosmic-rock');
   const debIM =new THREE.InstancedMesh(debGeo,debMat,COUNT);
   const _d=new THREE.Object3D();
   _spaceDebrisData.length=0;
@@ -381,7 +401,7 @@ function buildSpaceTrackPlatform(){
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
     const nr=new THREE.Vector3(-tg.z,0,tg.x);
     return{L:p.clone().addScaledVector(nr,-(TW+.5)).setY(-.55),R:p.clone().addScaledVector(nr,TW+.5).setY(-.55)};
-  },new THREE.MeshLambertMaterial({color:0x0e0e1e,side:THREE.BackSide}));
+  },_spMat({color:0x0e0e1e,side:THREE.BackSide},{metalness:0.40,roughness:0.45},'cosmic-metal'));
   // Left wall
   ribbon(N,t=>{
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
@@ -540,17 +560,17 @@ function buildSpacePlanets(){
     else{pColors[i*3]=.94;pColors[i*3+1]=.80;pColors[i*3+2]=.60;}
   }
   pGeo.setAttribute('color',new THREE.Float32BufferAttribute(pColors,3));
-  const planet=new THREE.Mesh(pGeo,new THREE.MeshLambertMaterial({vertexColors:true}));
+  const planet=new THREE.Mesh(pGeo,_spMat({vertexColors:true},{metalness:0.0,roughness:0.75},'cosmic-rock'));
   planet.position.set(-520,115,-520);planet.rotation.z=.18;scene.add(planet);
   // Ring
   const ring=new THREE.Mesh(new THREE.RingGeometry(125,178,64),
     new THREE.MeshBasicMaterial({color:0xc89050,transparent:true,opacity:.52,side:THREE.DoubleSide}));
   ring.position.copy(planet.position);ring.rotation.x=1.3;ring.rotation.z=.08;scene.add(ring);
   // Moon 1 — grey
-  const m1=new THREE.Mesh(new THREE.SphereGeometry(17,12,12),new THREE.MeshLambertMaterial({color:0xaaaabc}));
+  const m1=new THREE.Mesh(new THREE.SphereGeometry(17,12,12),_spMat({color:0xaaaabc},{metalness:0.0,roughness:0.85},'cosmic-rock'));
   m1.position.set(310,195,-460);scene.add(m1);
   // Moon 2 — reddish
-  const m2=new THREE.Mesh(new THREE.SphereGeometry(11,12,12),new THREE.MeshLambertMaterial({color:0x887060}));
+  const m2=new THREE.Mesh(new THREE.SphereGeometry(11,12,12),_spMat({color:0x887060},{metalness:0.0,roughness:0.80},'cosmic-rock'));
   m2.position.set(-260,275,490);scene.add(m2);
 }
 
@@ -633,7 +653,7 @@ function buildSpaceStation(){
   const p=trackCurve.getPoint(0),tg=trackCurve.getTangent(0).normalize();
   const nr=new THREE.Vector3(-tg.z,0,tg.x);
   const base=p.clone().addScaledVector(nr,-(TW+13));
-  const mM=new THREE.MeshLambertMaterial({color:0x22223a});
+  const mM=_spMat({color:0x22223a},{metalness:0.40,roughness:0.45},'cosmic-metal');
   const gM=new THREE.MeshLambertMaterial({color:0x0044ff,emissive:0x0022aa,emissiveIntensity:1.6});
   const glM=new THREE.MeshLambertMaterial({color:0x88aaff,emissive:0x2244cc,emissiveIntensity:.9,transparent:true,opacity:.72});
   // Main block
@@ -659,7 +679,7 @@ function buildSpaceStation(){
 function buildSpaceGate(){
   const p=trackCurve.getPoint(0),tg=trackCurve.getTangent(0).normalize();
   const nr=new THREE.Vector3(-tg.z,0,tg.x),hw=TW+4;
-  const mM=new THREE.MeshLambertMaterial({color:0x1a1a2e});
+  const mM=_spMat({color:0x1a1a2e},{metalness:0.40,roughness:0.45},'cosmic-metal');
   const nC=new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00aaff,emissiveIntensity:2.4});
   const nM=new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:2.4});
   [-1,1].forEach((s,si)=>{
@@ -810,7 +830,7 @@ function buildSpaceUFOs(){
     // Body (flattened sphere)
     const bodyGeo=new THREE.SphereGeometry(2.2,16,10);
     bodyGeo.scale(1,.35,1);
-    const body=new THREE.Mesh(bodyGeo,new THREE.MeshLambertMaterial({color:0x222233}));
+    const body=new THREE.Mesh(bodyGeo,_spMat({color:0x222233},{metalness:0.40,roughness:0.45},'cosmic-metal'));
     body.position.set(spawnX,spawnY,spawnZ);scene.add(body);
     // Dome
     const dome=new THREE.Mesh(new THREE.SphereGeometry(1.1,12,8,0,Math.PI*2,0,Math.PI*.5),
