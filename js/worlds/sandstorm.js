@@ -69,6 +69,25 @@ function _ssMakeStoneMat(map, roughness){
   });
 }
 
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Sandstorm-specifiek): solid-volume props krijgen op
+// desktop een MeshStandardMaterial met envTag 'desert-matte' zodat ze
+// IBL-reflectie pakken (ultra-diffuse zandwoestijn-look). Mobile blijft
+// Lambert om PBR-shader-kosten te vermijden op LOW-tier waar de reflection
+// probe toch uit staat. Glow-laag (obelisk gilded capstone 0.30 emissive)
+// gaat hier NIET doorheen — die blijft Lambert.
+//
+// Usage:
+//   const mat = _ssMat({color:0xc8a070}, {metalness:0.0, roughness:0.92}, 'desert-matte');
+function _ssMat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 // _ssMergeProto — merges multi-shape prototype geometries into one
 // BufferGeometry and disposes the input source geometries. Used by
 // roadside marker/cactus/bones builders. Consolidates the
@@ -194,7 +213,7 @@ function _ssBuildCanyonCliffs(){
   // Mobile uses Lambert to skip the PBR shader-compile spike.
   const baseCliffMat=window._isMobile
     ? new THREE.MeshLambertMaterial({map:stoneTex, vertexColors:true, flatShading:false})
-    : new THREE.MeshStandardMaterial({map:stoneTex, roughness:0.92, metalness:0, vertexColors:true, flatShading:false});
+    : _ssMat({map:stoneTex, vertexColors:true, flatShading:false},{metalness:0.0,roughness:0.92},'desert-matte');
   // Talud: instanced beveled rocks at the base.
   const ROCKS_PER=mob?0:5;
   let taludIM=null;
@@ -204,7 +223,7 @@ function _ssBuildCanyonCliffs(){
     const rockGeo=ProcGeometry.beveledBox({w:1.5,h:0.8,d:1.5,bevel:0.15});
     const rockMat=window._isMobile
       ? new THREE.MeshLambertMaterial({color:0x7a3a1c})
-      : new THREE.MeshStandardMaterial({color:0x7a3a1c, roughness:0.95, metalness:0});
+      : _ssMat({color:0x7a3a1c},{metalness:0.0,roughness:0.92},'desert-matte');
     taludIM=new THREE.InstancedMesh(rockGeo, rockMat, COUNT*ROCKS_PER);
   }
   const [tStart,tEnd]=_SS_SLOT_T_RANGE;
@@ -297,7 +316,7 @@ function _ssBuildBackgroundMesas(){
   });
   const baseMat=window._isMobile
     ? new THREE.MeshLambertMaterial({map:stoneTex, color:0xcc8d60, flatShading:false})
-    : new THREE.MeshStandardMaterial({map:stoneTex, color:0xcc8d60, roughness:0.95, metalness:0, flatShading:false});
+    : _ssMat({map:stoneTex, color:0xcc8d60, flatShading:false},{metalness:0.0,roughness:0.92},'desert-matte');
   // Mobile: skip the background tier (only 2 layers, halved counts) so the
   // far-distance fillrate stays manageable.
   //
@@ -392,7 +411,7 @@ function _ssBuildSandDunes(){
   });
   const duneMat=window._isMobile
     ? new THREE.MeshLambertMaterial({map:sandTex, color:0xd4a55a})
-    : new THREE.MeshStandardMaterial({map:sandTex, color:0xd4a55a, roughness:1.0, metalness:0});
+    : _ssMat({map:sandTex, color:0xd4a55a},{metalness:0.0,roughness:0.92},'desert-matte');
   for(let i=0;i<COUNT;i++){
     const range=_SS_DUNES_T_RANGES[i%_SS_DUNES_T_RANGES.length];
     const t=range[0]+Math.random()*(range[1]-range[0]);
@@ -615,7 +634,7 @@ function _ssBuildSphinxMonument(){
   // ── HALF-BURIED SAND MOUND — Lambert OK (background reads), sub-mesh 20
   // The mound IS the integrated base. Lambert acceptable here — it's
   // semi-decorative ground around the prop, not a hero surface.
-  const moundMat=new THREE.MeshLambertMaterial({color:0xc8a070});
+  const moundMat=_ssMat({color:0xc8a070},{metalness:0.0,roughness:0.92},'desert-matte');
   const mound=new THREE.Mesh(
     new THREE.SphereGeometry(16, 14, 9, 0, Math.PI*2, 0, Math.PI*0.5),
     moundMat
@@ -916,18 +935,18 @@ function _ssBuildPalmTrees(){
   });
   const trunkMat=window._isMobile
     ? new THREE.MeshLambertMaterial({map:barkTex, color:0x8b6532})
-    : new THREE.MeshStandardMaterial({map:barkTex, color:0x8b6532, roughness:0.95, metalness:0});
+    : _ssMat({map:barkTex, color:0x8b6532},{metalness:0.0,roughness:0.92},'desert-matte');
   // palmLeaf returns { texture, alphaMap }. Lambert + alphaTest +
   // transparent:false avoids mobile-PBR alpha-sortering Z-fighting (spec
   // material-exception §2.2).
   const leafPair=ProcTextures.palmLeaf({
     darkColor:'#2c4818', lightColor:'#86b540', midribColor:'#5a8a28'
   });
-  const leafMat=new THREE.MeshLambertMaterial({
+  const leafMat=_ssMat({
     map:leafPair.texture, alphaMap:leafPair.alphaMap,
     alphaTest:0.5, transparent:false,
     side:THREE.DoubleSide
-  });
+  },{metalness:0.0,roughness:0.80},'desert-matte');
   // Frond geometry — multi-segment plane with a baked quadratic droop
   // curve along its length. Visual-fix-v2 issue 6: the previous single-
   // quad PlaneGeometry rendered as 2D no matter the per-frond rotation.
@@ -1032,7 +1051,7 @@ function _ssBuildPalmTrees(){
 function _ssBuildCamels(){
   const mob=window._isMobile;
   // Spec §3.11 color: warme bruin-grijs #8b6f4d.
-  const camelMat=new THREE.MeshLambertMaterial({color:0x8b6f4d});
+  const camelMat=_ssMat({color:0x8b6f4d},{metalness:0.0,roughness:0.92},'desert-matte');
   const parts=[];
   // Helper: take a prebuilt geometry, translate + optionally rotate, push.
   const _push=(g, x, y, z, rx, ry, rz)=>{
@@ -1132,7 +1151,7 @@ function _ssBuildPyramids(){
   });
   const baseMat=window._isMobile
     ? new THREE.MeshLambertMaterial({map:pyrTex, color:0xc9a473})
-    : new THREE.MeshStandardMaterial({map:pyrTex, color:0xc9a473, roughness:0.95, metalness:0});
+    : _ssMat({map:pyrTex, color:0xc9a473},{metalness:0.0,roughness:0.92},'desert-matte');
   const {p:startP,tg:startTg,nr:startNr}=_ssTrackSide(0.0,1,0);
   // [baseW, height, distOff, alongMul, blendToFog]
   const trio=[
@@ -1174,9 +1193,9 @@ function _ssBuildBedouinTents(){
   });
   const tentMat=window._isMobile
     ? new THREE.MeshLambertMaterial({map:stripeTex, side:THREE.DoubleSide})
-    : new THREE.MeshStandardMaterial({map:stripeTex, side:THREE.DoubleSide, roughness:0.85, metalness:0});
-  const poleMat=new THREE.MeshLambertMaterial({color:0x4a3018});
-  const ropeMat=new THREE.MeshLambertMaterial({color:0xb89370});
+    : _ssMat({map:stripeTex, side:THREE.DoubleSide},{metalness:0.0,roughness:0.80},'desert-matte');
+  const poleMat=_ssMat({color:0x4a3018},{metalness:0.0,roughness:0.85},'desert-matte');
+  const ropeMat=_ssMat({color:0xb89370},{metalness:0.0,roughness:0.92},'desert-matte');
   // Cone with thetaLength=2π - π/3 leaves a ~60° wedge open as the
   // entrance. theta starts at -π/6 so the open arc straddles the +Z axis
   // (front of the tent after rotation.y).
@@ -1248,10 +1267,10 @@ function _ssBuildBedouinTents(){
     scene.add(flap);
     // Phase 13C — banner op pole-top: kleine vlag die wappert
     const bannerGeo = new THREE.PlaneGeometry(1.2, 0.6);
-    const bannerMat = new THREE.MeshLambertMaterial({
+    const bannerMat = _ssMat({
       color:0xc44a25, emissive:0x331008, emissiveIntensity:0.2,
       side:THREE.DoubleSide
-    });
+    },{metalness:0.0,roughness:0.65},'desert-matte');
     const banner = new THREE.Mesh(bannerGeo, bannerMat);
     banner.position.set(cx + 0.6, 3.6, cz);
     banner.userData = {_baseX: cx + 0.6, _baseZ: cz, _phase: i*0.9};
@@ -1288,16 +1307,16 @@ function _ssBuildRoadsideDetail(){
     baseColor:'#a8643a', crackColor:'#3a2418', crackCount:5, ageWear:0.5
   });
   const stoneMat=_ssMakeStoneMat(stoneTex, 0.95);
-  const woodMat=new THREE.MeshLambertMaterial({color:0x6e4520});
-  const cactusMat=window._isMobile?new THREE.MeshLambertMaterial({color:0x4a6b32}):new THREE.MeshStandardMaterial({color:0x4a6b32, roughness:0.85, metalness:0});
-  const boneMat=new THREE.MeshLambertMaterial({color:0xe8d8b0});
+  const woodMat=_ssMat({color:0x6e4520},{metalness:0.0,roughness:0.80},'desert-matte');
+  const cactusMat=window._isMobile?new THREE.MeshLambertMaterial({color:0x4a6b32}):_ssMat({color:0x4a6b32},{metalness:0.0,roughness:0.85},'desert-matte');
+  const boneMat=_ssMat({color:0xe8d8b0},{metalness:0.0,roughness:0.85},'desert-matte');
   // Scarab sign uses pseudoGlyphs as a bug-silhouette stand-in via opts —
   // ProcTextures.pseudoGlyphs has the visual primitives we need.
   const signTex=ProcTextures.pseudoGlyphs({
     rowCount:1, glyphsPerRow:1,
     baseColor:'#7a4818', glyphColor:'#1a0e04'
   });
-  const signMat=new THREE.MeshLambertMaterial({map:signTex,side:THREE.DoubleSide});
+  const signMat=_ssMat({map:signTex,side:THREE.DoubleSide},{metalness:0.0,roughness:0.85},'desert-matte');
 
   // ── Prototype geometries ─────────────────────────────────────────────
   // Rock: simple beveledBox. Per-instance scale jitter creates "cluster" feel
@@ -1484,7 +1503,7 @@ function buildSandstormEnvironment(){
   }
   // ── Ground (sand canvas, anisotropy/repeat matches default-world style)
   const g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
-    new THREE.MeshLambertMaterial({color:0xd4a55a,map:_sandGroundTex()}));
+    _ssMat({color:0xd4a55a,map:_sandGroundTex()},{metalness:0.0,roughness:0.92},'desert-matte'));
   g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
   g.userData._isProcGround=true;
   scene.add(g);
@@ -1588,7 +1607,7 @@ function _ssBuildCloseBand(){
   // Cactus — thin tall cylinders
   const cactusCount = (typeof _mobCount==='function')?_mobCount(15):15;
   const cactusGeo = new THREE.CylinderGeometry(0.3, 0.3, 3, 6);
-  const cactusMat = new THREE.MeshLambertMaterial({color:0x3a5a2a, emissive:0x0a1a05, emissiveIntensity:0.2});
+  const cactusMat = _ssMat({color:0x3a5a2a, emissive:0x0a1a05, emissiveIntensity:0.2},{metalness:0.0,roughness:0.85},'desert-matte');
   const cactusIm = new THREE.InstancedMesh(cactusGeo, cactusMat, cactusCount*2);
   _populateMidRing(cactusIm, {
     perSide: cactusCount, offsetMin:5, offsetMax:12,
@@ -1599,7 +1618,7 @@ function _ssBuildCloseBand(){
   // Tumbleweeds — round low brown spheres (static, no animation)
   const weedCount = (typeof _mobCount==='function')?_mobCount(25):25;
   const weedGeo = new THREE.SphereGeometry(0.5, 6, 4);
-  const weedMat = new THREE.MeshLambertMaterial({color:0x886633, emissive:0x331100, emissiveIntensity:0.15});
+  const weedMat = _ssMat({color:0x886633, emissive:0x331100, emissiveIntensity:0.15},{metalness:0.0,roughness:0.92},'desert-matte');
   const weedIm = new THREE.InstancedMesh(weedGeo, weedMat, weedCount*2);
   _populateMidRing(weedIm, {
     perSide: weedCount, offsetMin:4, offsetMax:11,
@@ -1610,8 +1629,7 @@ function _ssBuildCloseBand(){
   // Half-buried bricks — small dark boxes
   const brickCount = (typeof _mobCount==='function')?_mobCount(20):20;
   const brickGeo = new THREE.BoxGeometry(0.6, 0.3, 0.4);
-  const brickMat = (typeof _ssMakeStoneMat==='function') ? _ssMakeStoneMat(null, 0.9) : new THREE.MeshLambertMaterial({color:0x887766});
-  if(brickMat.color) brickMat.color.setHex(0x887766);
+  const brickMat = _ssMat({color:0x887766},{metalness:0.0,roughness:0.92},'desert-matte');
   const brickIm = new THREE.InstancedMesh(brickGeo, brickMat, brickCount*2);
   _populateMidRing(brickIm, {
     perSide: brickCount, offsetMin:4, offsetMax:12,
@@ -1677,10 +1695,10 @@ function _ssBuildSandDrifts(){
   if(typeof trackCurve==='undefined'||!trackCurve)return;
   const COUNT = (typeof _mobCount==='function')?_mobCount(55):55;
   const geo = new THREE.PlaneGeometry(1.2, 4.5);
-  const mat = new THREE.MeshLambertMaterial({
+  const mat = _ssMat({
     color:0xddb97a, transparent:true, opacity:0.65,
     depthWrite:false, side:THREE.DoubleSide
-  });
+  },{metalness:0.0,roughness:0.92},'desert-matte');
   const im = new THREE.InstancedMesh(geo, mat, COUNT);
   im.userData = {_noLodCull:true};
   const m4 = new THREE.Matrix4();

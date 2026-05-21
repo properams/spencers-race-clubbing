@@ -53,7 +53,8 @@ const BASE_ENV_BY_TAG = {
   'snow-matte': 0.40,
   'cosmic-rock': 0.40,
   'cosmic-metal':0.55,
-  'candy-glaze':0.50
+  'candy-glaze':0.50,
+  'desert-matte':0.20
 };
 
 // Helper: vorm één preset uit een gedeelde basis. Houdt de tabel scanbaar.
