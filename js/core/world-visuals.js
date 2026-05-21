@@ -48,7 +48,9 @@ const BASE_ENV_BY_TAG = {
   'harbor-wet': 0.50,
   'aqua-wet':   0.55,
   'aqua-metal': 0.70,
-  'lava-rock':  0.30
+  'lava-rock':  0.30,
+  'ice-mirror': 0.95,
+  'snow-matte': 0.40
 };
 
 // Helper: vorm één preset uit een gedeelde basis. Houdt de tabel scanbaar.

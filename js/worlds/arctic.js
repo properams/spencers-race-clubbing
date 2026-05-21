@@ -31,6 +31,26 @@ function _applyArcticDayLighting(){
 }
 if(typeof window!=='undefined')window._applyArcticDayLighting=_applyArcticDayLighting;
 
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Arctic-specifiek): solid-volume props krijgen op
+// desktop een MeshStandardMaterial met envTag 'ice-mirror' of
+// 'snow-matte' zodat ze IBL-reflectie pakken (kristallijn ijs-look).
+// Mobile blijft Lambert om PBR-shader-kosten te vermijden op LOW-tier
+// waar de reflection probe toch uit staat. Glow-laag (crystals 0.4,
+// ice arch 0.4, ice shards 0.4, cone mid-ring 0.6) gaat hier NIET
+// doorheen — die blijven Lambert.
+//
+// Usage:
+//   const mat = _aMat({color:0xccddee}, {metalness:0.0, roughness:0.15}, 'ice-mirror');
+function _aMat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 function buildArcticEnvironment(){
   // Weather reset — Arctic is a snow biome, rain would clash with the blizzard
   // identity. Clear leaked rain state from a previous world or title toggle.
@@ -49,7 +69,7 @@ function buildArcticEnvironment(){
     ? ProcTextures.iceSurface({repeatX:12,repeatY:12,sparkle:0.5})
     : _iceGroundTex();
   var g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
-    new THREE.MeshLambertMaterial({color:0xccddee,map:_iceGroundMap}));
+    _aMat({color:0xccddee,map:_iceGroundMap},{metalness:0.0,roughness:0.15},'ice-mirror'));
   g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
   g.userData._isProcGround=true; // hookable by asset-bridge if PBR ice maps loaded
   scene.add(g);
@@ -108,7 +128,7 @@ function buildArcticEnvironment(){
   [.15,.38,.62,.82].forEach(function(t){
     var p=trackCurve.getPoint(t);
     var patch=new THREE.Mesh(new THREE.PlaneGeometry(TW*1.6,8),
-      new THREE.MeshLambertMaterial({color:0x99ccdd,transparent:true,opacity:.7}));
+      _aMat({color:0x99ccdd,transparent:true,opacity:.7},{metalness:0.0,roughness:0.15},'ice-mirror'));
     patch.rotation.x=-Math.PI/2;patch.position.copy(p);patch.position.y=.02;
     patch.rotation.y=Math.atan2(trackCurve.getTangent(t).x,trackCurve.getTangent(t).z);scene.add(patch);
     if(window._freezeMatrix)window._freezeMatrix(patch);
@@ -300,7 +320,7 @@ function _buildArcticCloseBand(){
   // Snow mounds — low hemispherical bumps
   const moundCount = (typeof _mobCount==='function')?_mobCount(35):35;
   const moundGeo = new THREE.SphereGeometry(0.8, 6, 4, 0, Math.PI*2, 0, Math.PI/2);
-  const moundMat = new THREE.MeshLambertMaterial({color:0xeeffff, emissive:0x223355, emissiveIntensity:0.2});
+  const moundMat = _aMat({color:0xeeffff, emissive:0x223355, emissiveIntensity:0.2},{metalness:0.0,roughness:0.85},'snow-matte');
   const moundIm = new THREE.InstancedMesh(moundGeo, moundMat, moundCount*2);
   _populateMidRing(moundIm, {
     perSide: moundCount, offsetMin:5, offsetMax:10,
@@ -325,10 +345,10 @@ function _buildArcticCloseBand(){
 function _buildArcticGlacierWall(){
   const _gwSegs = window._isMobile ? 32 : 48;
   const geo = new THREE.CylinderGeometry(180, 180, 35, _gwSegs, 1, true);
-  const mat = new THREE.MeshLambertMaterial({
+  const mat = _aMat({
     color: 0xaaddff, emissive: 0x223355, emissiveIntensity: 0.3,
     side: THREE.BackSide, transparent: true, opacity: 0.75
-  });
+  },{metalness:0.0,roughness:0.85},'snow-matte');
   const wall = new THREE.Mesh(geo, mat);
   wall.position.y = 10;
   wall.userData = {_noLodCull:true};

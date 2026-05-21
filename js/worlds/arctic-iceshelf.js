@@ -25,6 +25,17 @@
 
 'use strict';
 
+// ── Solid-volume PBR helper (arctic-iceshelf-specifiek) ──────────────────
+// Duplicaat van _aMat in arctic.js — apart prefixed om naambotsing
+// te vermijden (arctic-iceshelf.js laadt vóór arctic.js).
+function _aiMat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 const _SHELF_T_START=0.42;
 const _SHELF_T_END=0.54;
 const _SHELF_SEGMENTS=8;
@@ -67,7 +78,7 @@ function buildArcticIceShelf(){
   // Shared geometry (1 GPU buffer), per-segment cloned materials so the
   // bioluminescent fissures can pulse independently per plate on lap 2.
   const plateGeo=new THREE.BoxGeometry(_SHELF_PANEL_W,_SHELF_PANEL_H,_SHELF_PANEL_L);
-  const plateMatProto=new THREE.MeshLambertMaterial({color:0xddeeff,emissive:0x224466,emissiveIntensity:.15,transparent:true,opacity:.95});
+  const plateMatProto=_aiMat({color:0xddeeff,emissive:0x224466,emissiveIntensity:.15,transparent:true,opacity:.95},{metalness:0.0,roughness:0.15},'ice-mirror');
   for(let i=0;i<_SHELF_SEGMENTS;i++){
     const t=_SHELF_T_START+(i+.5)*((_SHELF_T_END-_SHELF_T_START)/_SHELF_SEGMENTS);
     const p=trackCurve.getPoint(t);
