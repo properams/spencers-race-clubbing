@@ -201,9 +201,12 @@ window._rebakeSceneEnv = applySceneEnvBake;
 // the scene 6× (cube faces) + a now-cached PMREM filter pass.
 let _rebakeTimer = 0;
 function updateReflectionProbe(dt){
-  // Always honour the legacy mobile guard for safety, even if tier-flag
-  // module is missing for some reason.
-  if(window._isMobile) return;
+  // Legacy mobile-guard: stond hier als veiligheidsnet voor wanneer het tier-
+  // flag-module zou ontbreken. Voor de Guangzhou mobile-IBL-proef gated achter
+  // window._mobileIblEnabled (set door ?mobileibl=... in quality-tier.js), zodat
+  // het standaardpad onveranderd blijft (Lambert + IBL uit) maar de proef wel
+  // de re-bake kan triggeren als de variant dat vraagt.
+  if(window._isMobile && !window._mobileIblEnabled) return;
   const _qf = window._qFlags;
   if(_qf && _qf.reflectionProbe === false) return;
   const interval = (_qf && _qf.reflectionProbeInterval) || 30;

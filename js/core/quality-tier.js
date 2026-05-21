@@ -225,6 +225,28 @@ export function _initQualityTier(isMobile){
   }
   window._qTier = t;
   window._qFlags = Object.assign({}, _flagsForTier(t));
+
+  // Mobile IBL proef — gated by ?mobileibl URL-param.
+  // Zonder flag is gedrag identiek aan huidige LOW-tier (Lambert + IBL uit).
+  //   ?mobileibl=on     : volle variant, 128² cube, re-bake 120s
+  //   ?mobileibl=lite   : lichte variant, 64² cube, alleen initial-bake
+  //   ?mobileibl=tablet : alleen actief op _isTablet (iPad-only sanity check)
+  // Materiaal-pad in Guangzhou checkt window._mobileIblEnabled.
+  try {
+    const _mibl = new URLSearchParams(location.search).get('mobileibl');
+    if(_mibl && (window._isMobile || window._isTablet)){
+      const tabletOnly = (_mibl === 'tablet');
+      const apply = tabletOnly ? !!window._isTablet : true;
+      if(apply){
+        window._qFlags.reflectionProbe = true;
+        window._qFlags.reflectionProbeInterval = (_mibl === 'lite') ? 99999 : 120;
+        window._qFlags.envCubeSize = (_mibl === 'lite') ? 64 : 128;
+        window._mobileIblEnabled = true;
+        if(window.dbg) dbg.log('quality-tier', 'mobileibl=' + _mibl + ' → IBL enabled on mobile (cube=' + window._qFlags.envCubeSize + ', interval=' + window._qFlags.reflectionProbeInterval + 's)');
+      }
+    }
+  } catch(_) {}
+
   if(window.dbg) dbg.log('quality-tier', 'initial tier = ' + t + ' (mobile=' + !!isMobile + ', cores=' + (navigator.hardwareConcurrency||'?') + ', mem=' + (navigator.deviceMemory||'?') + ', pin=' + (pinned || 'auto') + ')');
 }
 

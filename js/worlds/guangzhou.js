@@ -95,7 +95,9 @@ function _gzGetLightTex(){
 // Usage:
 //   const mat = _gzWetMat({color: 0x1a1c24}, {metalness: 0.10, roughness: 0.55});
 function _gzWetMat(lambertDef, stdExtras){
-  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  // Mobile blijft Lambert TENZIJ de ?mobileibl-proef-flag actief is.
+  // Zie js/core/quality-tier.js voor de flag-parser.
+  if(window._isMobile && !window._mobileIblEnabled) return new THREE.MeshLambertMaterial(lambertDef);
   const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
   mat.userData = mat.userData || {};
   mat.userData.envTag = 'wet-prop';
@@ -3210,7 +3212,7 @@ async function buildGuangzhouEnvironment(){
     emissive:          new THREE.Color(0x100820),
     emissiveIntensity: 0.18
   };
-  if(window._isMobile){
+  if(window._isMobile && !window._mobileIblEnabled){
     _gzGroundMat = new THREE.MeshLambertMaterial(_gzGroundDef);
   } else {
     _gzGroundMat = new THREE.MeshStandardMaterial(Object.assign({
