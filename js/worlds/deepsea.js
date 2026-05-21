@@ -24,6 +24,26 @@ let _dsaFrame=0; // per-frame counter for mobile staggering
 // var (niet const) — script-globaal voor cross-script reset in core/scene.js.
 var _wpCurrentStreams=[],_wpAbyssCracks=[],_wpTreasureTrail=[];
 
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Deep Sea-specifiek): solid-volume props krijgen op
+// desktop een MeshStandardMaterial met envTag 'aqua-wet' of 'aqua-metal'
+// zodat ze IBL-reflectie pakken (onderwater glossy look).
+// Mobile blijft Lambert om PBR-shader-kosten te vermijden op LOW-tier
+// waar de reflection probe toch uit staat. Glow-laag (current arrow 0.9
+// emissive, treasure chest+ring, coral fan 0.4 animated, scattered coins
+// 0.5 emissive) gaat hier NIET doorheen — die blijven Lambert.
+//
+// Usage:
+//   const mat = _dsMat({color:0x334455}, {metalness:0.30, roughness:0.55}, 'aqua-metal');
+function _dsMat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 function buildCurrentStreams(){
   const defs=[{t:.20,side:1},{t:.45,side:-1},{t:.70,side:1}];
   defs.forEach((def,di)=>{
@@ -40,7 +60,7 @@ function buildCurrentStreams(){
     }
     // Glowing band on track
     const band=new THREE.Mesh(new THREE.PlaneGeometry(TW*1.8,18),
-      new THREE.MeshLambertMaterial({color:0x0088bb,emissive:0x004466,transparent:true,opacity:.30}));
+      _dsMat({color:0x0088bb,emissive:0x004466,transparent:true,opacity:.30},{metalness:0.0,roughness:0.75},'aqua-wet'));
     band.rotation.x=-Math.PI/2;band.position.copy(p);band.position.y=.016;scene.add(band);
     _wpCurrentStreams.push({pos:p.clone(),pushDir:pushDir.clone(),radius:TW,len:9,strength:2.8,cooldown:0});
   });
@@ -66,7 +86,7 @@ function buildAbyssCracks(){
     const p=trackCurve.getPoint(def.t),tg=trackCurve.getTangent(def.t).normalize();
     const angle=Math.atan2(tg.x,tg.z);
     // Dark jagged crack geometry (two thin dark planes at angles)
-    const crackMat=new THREE.MeshLambertMaterial({color:0x000508,emissive:0x000000,transparent:true,opacity:.75});
+    const crackMat=_dsMat({color:0x000508,emissive:0x000000,transparent:true,opacity:.75},{metalness:0.0,roughness:0.90},'aqua-wet');
     [-1,1].forEach(s=>{
       const crack=new THREE.Mesh(new THREE.PlaneGeometry(TW*.75,6),crackMat);
       crack.rotation.x=-Math.PI/2;crack.rotation.z=s*.15;
@@ -76,7 +96,7 @@ function buildAbyssCracks(){
     });
     // Dark bio-glow rim
     const rim=new THREE.Mesh(new THREE.PlaneGeometry(TW*1.4,6.5),
-      new THREE.MeshLambertMaterial({color:0x001a22,emissive:0x00ffff,emissiveIntensity:.12,transparent:true,opacity:.2}));
+      _dsMat({color:0x001a22,emissive:0x00ffff,emissiveIntensity:.12,transparent:true,opacity:.2},{metalness:0.0,roughness:0.75},'aqua-wet'));
     rim.rotation.x=-Math.PI/2;rim.position.copy(p);rim.position.y=.025;scene.add(rim);
     _wpAbyssCracks.push({pos:p.clone(),radius:TW*.65,len:3,cooldown:0});
   });
@@ -213,7 +233,7 @@ function _buildDeepseaWhaleArch(){
   const pt = trackCurve.getPoint(t);
   const tg = trackCurve.getTangent(t).normalize();
   const rotY = Math.atan2(tg.x, tg.z);
-  const mat = new THREE.MeshLambertMaterial({color:0xeeddcc, emissive:0x554433, emissiveIntensity:0.18});
+  const mat = _dsMat({color:0xeeddcc, emissive:0x554433, emissiveIntensity:0.18},{metalness:0.0,roughness:0.50},'aqua-wet');
   const group = new THREE.Group();
   group.position.set(pt.x, 0, pt.z);
   group.rotation.y = rotY;
@@ -309,10 +329,10 @@ function _buildDeepseaCloseBand(){
   }
   _pos.needsUpdate=true;
   rockGeo.computeVertexNormals();
-  const rockMat = new THREE.MeshLambertMaterial({
+  const rockMat = _dsMat({
     vertexColors:true,
     emissive:0x002244, emissiveIntensity:0.2
-  });
+  },{metalness:0.0,roughness:0.50},'aqua-wet');
   const rockIm = new THREE.InstancedMesh(rockGeo, rockMat, rockCount*2);
   _populateMidRing(rockIm, {
     perSide: rockCount, offsetMin:4, offsetMax:10,
@@ -323,7 +343,7 @@ function _buildDeepseaCloseBand(){
   // Seashells — small cream-colored spheres
   const shellCount = (typeof _mobCount==='function')?_mobCount(20):20;
   const shellGeo = new THREE.SphereGeometry(0.25, 6, 4);
-  const shellMat = new THREE.MeshLambertMaterial({color:0xeeddbb, emissive:0x554422, emissiveIntensity:0.3});
+  const shellMat = _dsMat({color:0xeeddbb, emissive:0x554422, emissiveIntensity:0.3},{metalness:0.0,roughness:0.50},'aqua-wet');
   const shellIm = new THREE.InstancedMesh(shellGeo, shellMat, shellCount*2);
   _populateMidRing(shellIm, {
     perSide: shellCount, offsetMin:4, offsetMax:10,
@@ -353,7 +373,7 @@ function _buildDeepseaMidRing(){
   if(typeof _populateMidRing!=='function')return;
   const perSide = (typeof _mobCount==='function')?_mobCount(55):55;
   const geo = new THREE.CylinderGeometry(0.18, 0.75, 8, 5);
-  const mat = new THREE.MeshLambertMaterial({color:0x003344, emissive:0x00ffcc, emissiveIntensity:0.15});
+  const mat = _dsMat({color:0x003344, emissive:0x00ffcc, emissiveIntensity:0.15},{metalness:0.0,roughness:0.75},'aqua-wet');
   const im  = new THREE.InstancedMesh(geo, mat, perSide*2);
   _populateMidRing(im, {
     perSide: perSide, offsetMin:20, offsetMax:55,
@@ -387,24 +407,24 @@ function _buildDeepseaMidRing(){
 
 function buildSeaFloor(){
   // Main sandy seafloor
-  const sandMat=new THREE.MeshLambertMaterial({color:0xc8a96a,map:_sandGroundTex()});
+  const sandMat=_dsMat({color:0xc8a96a,map:_sandGroundTex()},{metalness:0.0,roughness:0.75},'aqua-wet');
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400,1,1),sandMat);
   floor.rotation.x=-Math.PI/2;floor.position.y=-.18;floor.receiveShadow=true;
   floor.userData._isProcGround=true;
   scene.add(floor);
   // Darker infield — ocean trench / crevice
-  const trenchMat=new THREE.MeshLambertMaterial({color:0x001830});
+  const trenchMat=_dsMat({color:0x001830},{metalness:0.0,roughness:0.90},'aqua-wet');
   const trench=new THREE.Mesh(new THREE.PlaneGeometry(380,320,1,1),trenchMat);
   trench.rotation.x=-Math.PI/2;trench.position.set(-30,-.15,-40);scene.add(trench);
   // Seafloor hills (lumpy formations)
-  const hillMat=new THREE.MeshLambertMaterial({color:0xb89558});
+  const hillMat=_dsMat({color:0xb89558},{metalness:0.0,roughness:0.70},'aqua-wet');
   const hillPositions=[[210,-180,8],[-220,130,10],[150,280,7],[-80,-310,9],[300,100,6],[-310,-50,8],[80,-360,7],[-180,280,6]];
   hillPositions.forEach(([hx,hz,hr])=>{
     const hgeo=new THREE.SphereGeometry(hr+Math.random()*4,8,5);hgeo.scale(1,.38+Math.random()*.18,1);
     const h=new THREE.Mesh(hgeo,hillMat);h.position.set(hx,0,hz);h.receiveShadow=true;scene.add(h);
   });
   // Sand ripple lines (flat thin boxes)
-  const rippleMat=new THREE.MeshLambertMaterial({color:0xd4b87a,transparent:true,opacity:.55});
+  const rippleMat=_dsMat({color:0xd4b87a,transparent:true,opacity:.55},{metalness:0.0,roughness:0.75},'aqua-wet');
   for(let i=0;i<30;i++){
     const r=new THREE.Mesh(new THREE.BoxGeometry(60+Math.random()*120,.05,.6),rippleMat);
     r.position.set((Math.random()-.5)*600,-.12,(Math.random()-.5)*700);
@@ -433,7 +453,7 @@ function buildCoralReefs(){
         // Branch coral — thin cylinders
         const h=1.8+Math.random()*2.4;
         const seg=new THREE.Mesh(new THREE.CylinderGeometry(.12,.22,h,5),
-          new THREE.MeshLambertMaterial({color:col,emissive:col,emissiveIntensity:.12}));
+          _dsMat({color:col,emissive:col,emissiveIntensity:.12},{metalness:0.0,roughness:0.50},'aqua-wet'));
         seg.position.set(cx+(Math.random()-.5)*3,(h/2),cz+(Math.random()-.5)*3);
         seg.rotation.set((Math.random()-.5)*.4,Math.random()*Math.PI*2,(Math.random()-.5)*.4);
         scene.add(seg);
@@ -441,7 +461,7 @@ function buildCoralReefs(){
         // Fan coral — flat disc
         const r=1.2+Math.random()*1.8;
         const fan=new THREE.Mesh(new THREE.CircleGeometry(r,8),
-          new THREE.MeshLambertMaterial({color:col,emissive:col,emissiveIntensity:.10,side:THREE.DoubleSide,transparent:true,opacity:.85}));
+          _dsMat({color:col,emissive:col,emissiveIntensity:.10,side:THREE.DoubleSide,transparent:true,opacity:.85},{metalness:0.0,roughness:0.50},'aqua-wet'));
         fan.position.set(cx+(Math.random()-.5)*2,r*.6+Math.random()*1.2,cz+(Math.random()-.5)*2);
         fan.rotation.set(Math.PI/2+( Math.random()-.5)*.6,Math.random()*Math.PI*2,0);
         scene.add(fan);
@@ -449,7 +469,7 @@ function buildCoralReefs(){
         // Brain/bulb coral
         const r=.7+Math.random()*1.1;
         const bulb=new THREE.Mesh(new THREE.SphereGeometry(r,7,5),
-          new THREE.MeshLambertMaterial({color:col,emissive:col,emissiveIntensity:.08}));
+          _dsMat({color:col,emissive:col,emissiveIntensity:.08},{metalness:0.0,roughness:0.50},'aqua-wet'));
         bulb.scale.y=.55+Math.random()*.3;
         bulb.position.set(cx+(Math.random()-.5)*2.5,r*.5,cz+(Math.random()-.5)*2.5);
         scene.add(bulb);
@@ -457,7 +477,7 @@ function buildCoralReefs(){
         // Tube coral — tall thin cylinder
         const h=2.2+Math.random()*3;
         const tube=new THREE.Mesh(new THREE.CylinderGeometry(.18,.24,h,6),
-          new THREE.MeshLambertMaterial({color:col,emissive:col,emissiveIntensity:.15}));
+          _dsMat({color:col,emissive:col,emissiveIntensity:.15},{metalness:0.0,roughness:0.50},'aqua-wet'));
         tube.position.set(cx+(Math.random()-.5)*2.5,h/2,cz+(Math.random()-.5)*2.5);
         tube.rotation.set((Math.random()-.5)*.3,Math.random()*Math.PI*2,(Math.random()-.5)*.3);
         scene.add(tube);
@@ -476,7 +496,7 @@ function buildCoralReefs(){
 function buildKelp(){
   const _M = !!window._isMobile;
   _kelpList.length=0;
-  const kelpMat=new THREE.MeshLambertMaterial({color:0x228833,side:THREE.DoubleSide,transparent:true,opacity:.88});
+  const kelpMat=_dsMat({color:0x228833,side:THREE.DoubleSide,transparent:true,opacity:.88},{metalness:0.0,roughness:0.75},'aqua-wet');
   const KN = _M ? 14 : 30;
   for(let ki=0;ki<KN;ki++){
     const t=(ki/KN+.015)%1;
@@ -515,8 +535,8 @@ function buildKelp(){
 
 function buildShipwreck(){
   // Tilted old ship in infield
-  const woodMat=new THREE.MeshLambertMaterial({color:0x4a3020});
-  const darkMat=new THREE.MeshLambertMaterial({color:0x2a1a10});
+  const woodMat=_dsMat({color:0x4a3020},{metalness:0.0,roughness:0.65},'aqua-wet');
+  const darkMat=_dsMat({color:0x2a1a10},{metalness:0.0,roughness:0.75},'aqua-wet');
   // metalMat was dead — never bound to a mesh
   const hull=new THREE.Mesh(new THREE.BoxGeometry(24,6,9),woodMat);
   hull.position.set(-55,-2,-30);hull.rotation.set(.18,-.62,.22);scene.add(hull);
@@ -530,14 +550,14 @@ function buildShipwreck(){
   const mast2=new THREE.Mesh(new THREE.CylinderGeometry(.22,.28,8,6),woodMat);
   mast2.position.set(-62,1.2,-31);mast2.rotation.set(1.3,-.5,.85);scene.add(mast2);
   // Torn sail fragments
-  const sailMat=new THREE.MeshLambertMaterial({color:0x887766,side:THREE.DoubleSide,transparent:true,opacity:.65});
+  const sailMat=_dsMat({color:0x887766,side:THREE.DoubleSide,transparent:true,opacity:.65},{metalness:0.0,roughness:0.70},'aqua-wet');
   const sail=new THREE.Mesh(new THREE.PlaneGeometry(6,4),sailMat);
   sail.position.set(-47,5,-29);sail.rotation.set(.4,-.3,.5);scene.add(sail);
   // Treasure chest
-  const chestMat=new THREE.MeshLambertMaterial({color:0x8b5c1a});
+  const chestMat=_dsMat({color:0x8b5c1a},{metalness:0.0,roughness:0.65},'aqua-wet');
   const chest=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.1,1.1),chestMat);
   chest.position.set(-58,-.2,-27);scene.add(chest);
-  const lid=new THREE.Mesh(new THREE.BoxGeometry(1.6,.55,1.1),new THREE.MeshLambertMaterial({color:0x7a4e12}));
+  const lid=new THREE.Mesh(new THREE.BoxGeometry(1.6,.55,1.1),_dsMat({color:0x7a4e12},{metalness:0.0,roughness:0.65},'aqua-wet'));
   lid.position.set(-58,.55,-27);lid.rotation.x=-.65;scene.add(lid);
   // Gold glow inside chest
   const treasureGlow=new THREE.PointLight(0xffcc44,1.8,8);treasureGlow.position.set(-58,.6,-27);scene.add(treasureGlow);
@@ -561,11 +581,11 @@ function buildShipwreck(){
 
 function buildSubmarineStation(){
   // Near S/F line — futuristic underwater base replacing pit building
-  const subMat=new THREE.MeshLambertMaterial({color:0x334455});
+  const subMat=_dsMat({color:0x334455},{metalness:0.30,roughness:0.55},'aqua-metal');
   const glowMat=new THREE.MeshBasicMaterial({color:0x00ffcc,transparent:true,opacity:.8});
   // Main dome
   const dome=new THREE.Mesh(new THREE.SphereGeometry(8,14,10,0,Math.PI*2,0,Math.PI/2),
-    new THREE.MeshLambertMaterial({color:0x223344,transparent:true,opacity:.9}));
+    _dsMat({color:0x223344,transparent:true,opacity:.9},{metalness:0.30,roughness:0.55},'aqua-metal'));
   dome.position.set(40,0,310);scene.add(dome);
   // Base cylinder
   const base=new THREE.Mesh(new THREE.CylinderGeometry(8,10,3,14),subMat);
@@ -597,7 +617,7 @@ function buildSubmarineStation(){
   const ganLbl=new THREE.Sprite(new THREE.SpriteMaterial({map:ganTex,transparent:true}));
   ganLbl.position.set(40,14,310);ganLbl.scale.set(28,4.5,1);scene.add(ganLbl);
   // Anchor chain
-  const chainMat=new THREE.MeshLambertMaterial({color:0x888888});
+  const chainMat=_dsMat({color:0x888888},{metalness:0.30,roughness:0.45},'aqua-metal');
   for(let l=0;l<6;l++){
     const link=new THREE.Mesh(new THREE.TorusGeometry(.4,.12,4,6),chainMat);
     link.position.set(40,l*.8,310);link.rotation.y=l*.5;scene.add(link);
@@ -607,14 +627,14 @@ function buildSubmarineStation(){
 
 function buildSeaGate(){
   // Coral arch over S/F line
-  const archMat=new THREE.MeshLambertMaterial({color:0xff5533,emissive:0x441100,emissiveIntensity:.2});
+  const archMat=_dsMat({color:0xff5533,emissive:0x441100,emissiveIntensity:.2},{metalness:0.30,roughness:0.50},'aqua-metal');
   const leftPillar=new THREE.Mesh(new THREE.CylinderGeometry(.8,1.2,12,8),archMat);
   leftPillar.position.set(-10,.5,230);scene.add(leftPillar);
   const rightPillar=new THREE.Mesh(new THREE.CylinderGeometry(.8,1.2,12,8),archMat);
   rightPillar.position.set(10,.5,230);scene.add(rightPillar);
   // Top arch (torus segment)
   const arch=new THREE.Mesh(new THREE.TorusGeometry(10,.9,8,12,Math.PI),
-    new THREE.MeshLambertMaterial({color:0xff6644,emissive:0x221100,emissiveIntensity:.15}));
+    _dsMat({color:0xff6644,emissive:0x221100,emissiveIntensity:.15},{metalness:0.30,roughness:0.50},'aqua-metal'));
   arch.position.set(0,12,230);arch.rotation.set(0,Math.PI/2,0);scene.add(arch);
   // Glow on arch pillars
   const gL=new THREE.PointLight(0xff8844,1.2,14);gL.position.set(-10,8,230);scene.add(gL);trackLightList.push(gL);
@@ -623,7 +643,7 @@ function buildSeaGate(){
   for(let h=0;h<6;h++){
     const hangPos=new THREE.Vector3(-8+h*3.2,10.5,230);
     const hang=new THREE.Mesh(new THREE.CylinderGeometry(.08,.18,1.4+Math.random()*.8,5),
-      new THREE.MeshLambertMaterial({color:[0xff4488,0xffcc00,0x44ffaa][h%3]}));
+      _dsMat({color:[0xff4488,0xffcc00,0x44ffaa][h%3]},{metalness:0.0,roughness:0.50},'aqua-wet'));
     hang.position.copy(hangPos);scene.add(hang);
   }
   // S/F line canvas texture
@@ -709,7 +729,7 @@ function buildJellyfish(){
 
 function buildSeaCreatures(){
   // Manta ray — gliding silhouette circling the infield
-  const mantaMat=new THREE.MeshLambertMaterial({color:0x223344,side:THREE.DoubleSide});
+  const mantaMat=_dsMat({color:0x223344,side:THREE.DoubleSide},{metalness:0.0,roughness:0.60},'aqua-wet');
   const mantaGroup=new THREE.Group();
   // Wing shape using triangles
   const wingGeo=new THREE.BufferGeometry();
@@ -725,7 +745,7 @@ function buildSeaCreatures(){
   _dsaCreatures.manta={group:mantaGroup,t:0,speed:.018,radius:140,angle:0,wavePhase:0};
 
   // Distant whale — slow, high above
-  const whaleMat=new THREE.MeshLambertMaterial({color:0x2a3a4a});
+  const whaleMat=_dsMat({color:0x2a3a4a},{metalness:0.0,roughness:0.60},'aqua-wet');
   const whaleGroup=new THREE.Group();
   const wBody=new THREE.Mesh(new THREE.SphereGeometry(5.5,10,7),whaleMat);wBody.scale.set(1,.55,2.8);
   const wHead=new THREE.Mesh(new THREE.SphereGeometry(4,8,6),whaleMat);wHead.scale.set(.9,.5,1.2);wHead.position.set(0,0,-10);
@@ -737,7 +757,7 @@ function buildSeaCreatures(){
 
   // Fish schools — 3 small groups of instanced fish; per-school count reduced on mobile
   const _M_fs = !!window._isMobile;
-  const fishMat=new THREE.MeshLambertMaterial({color:0xffaa44});
+  const fishMat=_dsMat({color:0xffaa44},{metalness:0.0,roughness:0.65},'aqua-wet');
   const fishGeo=new THREE.ConeGeometry(.4,.8,4);fishGeo.rotateX(Math.PI/2);
   for(let fs=0;fs<3;fs++){
     const count = _M_fs ? 10 : 18;
