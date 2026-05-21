@@ -30,6 +30,10 @@ const WORLD_ID_TO_CODENAME = {
 // Per-material-type IBL base-factoren. envMapIntensity = baseEnv[envTag] *
 // visuals.ibl * (envTag==='paint' ? visuals.carPaintEnvMul : 1).
 // 'wet-asphalt' is gereserveerd voor Guangzhou (rain) wet-streets in Brok 1b.
+// 'wet-prop'   is Guangzhou-specifiek voor solid-volume props (guardrails,
+// palen, kiosks, etc.) — bewust 0.55 i.p.v. de generieke 0.70 voor world-prop
+// zodat ze natte sfeer pakken zonder chroom-effect. Andere werelden gebruiken
+// 'world-prop' (0.70) en blijven ongewijzigd.
 const BASE_ENV_BY_TAG = {
   paint:        0.85,
   chrome:       0.75,
@@ -38,6 +42,7 @@ const BASE_ENV_BY_TAG = {
   carbon:       0.40,
   rim:          0.85,
   'world-prop': 0.70,
+  'wet-prop':   0.55,
   'wet-asphalt':0.70
 };
 
@@ -115,9 +120,9 @@ const _STABLE = {
     speedBlur: 0.25, fovBoost: 4
   }),
   rain: _preset({
-    ibl: 0.55, exposureDay: 1.08, exposureNight: 0.90,
+    ibl: 0.60, exposureDay: 1.08, exposureNight: 0.90,
     fog: {type:'exp2', color:0x0e0c1a, density:0.00750},
-    emissiveMul: 2.4, carPaintEnvMul: 0.50,
+    emissiveMul: 2.4, carPaintEnvMul: 0.55,
     bloomMul: 1.10, bloomThresholdDay: 0.82, bloomThresholdDark: 0.78,
     speedBlur: 0.30, fovBoost: 5
   })

@@ -210,6 +210,17 @@
   window.showPerf = showPerf;
   window.hidePerf = hidePerf;
   window.togglePerf = togglePerf;
+
+  // ?fps URL-param — auto-toggle HUD bij page-load. Werkt op mobile waar
+  // F3/Ctrl+Shift+P niet bereikbaar zijn. showPerf() bouwt _perfEl pas op
+  // document.body, dus wacht op DOMContentLoaded als die nog niet klaar is.
+  if (new URLSearchParams(location.search).has('fps')) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', showPerf, { once: true });
+    } else {
+      showPerf();
+    }
+  }
 })();
 
 // ES module marker — laat esbuild dit bestand als module bundelen. De IIFE

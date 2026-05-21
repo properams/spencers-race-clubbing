@@ -83,6 +83,25 @@ function _gzGetLightTex(){
   return _gzLightTex;
 }
 
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Guangzhou-specifiek): solid-volume props krijgen op
+// desktop een MeshStandardMaterial met envTag 'wet-prop' zodat ze IBL-
+// reflectie pakken (natte stad-look). Mobile blijft Lambert om de
+// PBR-shader-kosten te vermijden op LOW-tier waar de reflection probe
+// toch uit staat. Glow-laag (additive sprites, hoge-intensity emissive
+// neon) gaat hier NIET doorheen — die blijven MeshBasicMaterial.
+//
+// Usage:
+//   const mat = _gzWetMat({color: 0x1a1c24}, {metalness: 0.10, roughness: 0.55});
+function _gzWetMat(lambertDef, stdExtras){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = 'wet-prop';
+  return mat;
+}
+
 // ── Palette pin ──────────────────────────────────────────────────────────
 //
 // Single-source hex constants. Over-saturated by design — .cinematicCard
@@ -2865,13 +2884,13 @@ function _gzBuildGuardrails(){
   const N    = mob ? 30 : 60;
   // Guardrail segment geometry — thin horizontal slab
   const railGeo = new THREE.BoxGeometry(4.0, 0.35, 0.18);
-  const railMat = new THREE.MeshLambertMaterial({ color: 0x1a1c24 });
+  const railMat = _gzWetMat({ color: 0x1a1c24 }, { metalness: 0.10, roughness: 0.55 });
   _gzGuardrailMesh = new THREE.InstancedMesh(railGeo, railMat, N);
   _gzGuardrailMesh.receiveShadow = false;
   _gzGuardrailMesh.castShadow    = false;
   // Post geometry — thin cylinder under each rail segment
   const postGeo  = new THREE.BoxGeometry(0.12, 0.8, 0.12);
-  const postMat  = new THREE.MeshLambertMaterial({ color: 0x141618 });
+  const postMat  = _gzWetMat({ color: 0x141618 }, { metalness: 0.10, roughness: 0.55 });
   const postMesh = new THREE.InstancedMesh(postGeo, postMat, N);
   const dummy = new THREE.Object3D();
   const SIDE_OFF = BARRIER_OFF + 4.5;  // river side: further out than lamp poles
@@ -2942,7 +2961,7 @@ function _gzBuildBillboards(){
   // poleMat: single MeshLambertMaterial compile instead of COUNT separate ones.
   // poleGeo: CylinderGeometry at median pole height (11.5u); pole position.y
   //   still derived from per-billboard bh so visual fit is close across all poles.
-  const poleMat = new THREE.MeshLambertMaterial({ color: 0x141820 });
+  const poleMat = _gzWetMat({ color: 0x141820 }, { metalness: 0.15, roughness: 0.50 });
   const poleGeo = new THREE.CylinderGeometry(0.10, 0.14, 11.5, 6);
 
   for(let i = 0; i < COUNT; i++){
@@ -3196,7 +3215,7 @@ async function buildGuangzhouEnvironment(){
   } else {
     _gzGroundMat = new THREE.MeshStandardMaterial(Object.assign({
       metalness:       0.0,
-      roughness:       0.30,
+      roughness:       0.25,
       envMapIntensity: 0.70
     }, _gzGroundDef));
     _gzGroundMat.userData = _gzGroundMat.userData || {};
@@ -3404,7 +3423,7 @@ function _buildGuangzhouSkywalks(){
     // Skywalk deck (perpendicular to track tangent so it spans across)
     const deck = new THREE.Mesh(
       new THREE.BoxGeometry(38, 3, 5),
-      new THREE.MeshLambertMaterial({color:0x223344, emissive:0x101820, emissiveIntensity:0.2})
+      _gzWetMat({color:0x223344, emissive:0x101820, emissiveIntensity:0.2}, {metalness:0.0, roughness:0.75})
     );
     deck.position.set(0, 11, 0);
     deck.rotation.y = Math.PI/2;  // span across track perpendicular
@@ -3428,7 +3447,7 @@ function _buildGuangzhouSkywalks(){
     group.add(winIm);
     // 4 support pillars
     const pGeo = new THREE.CylinderGeometry(0.4, 0.5, 10, 5);
-    const pMat = new THREE.MeshLambertMaterial({color:0x202830});
+    const pMat = _gzWetMat({color:0x202830}, {metalness:0.0, roughness:0.65});
     [[-19, 0, -2.5], [19, 0, -2.5], [-19, 0, 2.5], [19, 0, 2.5]].forEach(p => {
       const pillar = new THREE.Mesh(pGeo, pMat);
       pillar.position.set(p[0], 5, p[2]);
@@ -3450,7 +3469,7 @@ function _buildGuangzhouMidVariety(){
   // Planter boxes
   const planterCount = (typeof _mobCount==='function')?_mobCount(18):18;
   const planterGeo = new THREE.BoxGeometry(1.6, 0.8, 1.6);
-  const planterMat = new THREE.MeshLambertMaterial({color:0x556644, emissive:0x223322, emissiveIntensity:0.2});
+  const planterMat = _gzWetMat({color:0x556644, emissive:0x223322, emissiveIntensity:0.2}, {metalness:0.0, roughness:0.85});
   const planterIm = new THREE.InstancedMesh(planterGeo, planterMat, planterCount*2);
   _populateMidRing(planterIm, {
     perSide: planterCount, offsetMin:12, offsetMax:22,
@@ -3461,7 +3480,7 @@ function _buildGuangzhouMidVariety(){
   // Kiosks — taller stalls
   const kioskCount = (typeof _mobCount==='function')?_mobCount(10):10;
   const kioskGeo = new THREE.BoxGeometry(2.4, 3.0, 2.0);
-  const kioskMat = new THREE.MeshLambertMaterial({color:0x8a4030, emissive:0x331100, emissiveIntensity:0.3});
+  const kioskMat = _gzWetMat({color:0x8a4030, emissive:0x331100, emissiveIntensity:0.3}, {metalness:0.0, roughness:0.70});
   const kioskIm = new THREE.InstancedMesh(kioskGeo, kioskMat, kioskCount*2);
   _populateMidRing(kioskIm, {
     perSide: kioskCount, offsetMin:14, offsetMax:24,
@@ -3478,7 +3497,7 @@ function _buildGuangzhouCloseBand(){
   // Vending stalls — box body with cone roof
   const stallCount = (typeof _mobCount==='function')?_mobCount(20):20;
   const stallGeo = new THREE.BoxGeometry(1.8, 1.4, 1.2);
-  const stallMat = new THREE.MeshLambertMaterial({color:0x553322, emissive:0xff5500, emissiveIntensity:0.25});
+  const stallMat = _gzWetMat({color:0x553322, emissive:0xff5500, emissiveIntensity:0.25}, {metalness:0.0, roughness:0.80});
   const stallIm = new THREE.InstancedMesh(stallGeo, stallMat, stallCount*2);
   _populateMidRing(stallIm, {
     perSide: stallCount, offsetMin:5, offsetMax:9,
@@ -3491,7 +3510,7 @@ function _buildGuangzhouCloseBand(){
   const bagPerColor = (typeof _mobCount==='function')?_mobCount(12):12;
   const bagGeo = new THREE.SphereGeometry(0.4, 6, 4);
   BAG_COLS.forEach((col, ci) => {
-    const mat = new THREE.MeshLambertMaterial({color:col});
+    const mat = _gzWetMat({color:col}, {metalness:0.10, roughness:0.60});
     const im = new THREE.InstancedMesh(bagGeo, mat, bagPerColor*2);
     _populateMidRing(im, {
       perSide: bagPerColor, offsetMin:4, offsetMax:7,
@@ -3526,7 +3545,7 @@ function _buildGuangzhouMidRing(){
   const perColor = (typeof _mobCount==='function')?_mobCount(30):30;
   const pGeo = new THREE.BoxGeometry(2.5, 1.2, 0.15);
   const sGeo = new THREE.BoxGeometry(0.3, 4.0, 0.3);
-  const sMat = new THREE.MeshLambertMaterial({color:0x111111});
+  const sMat = _gzWetMat({color:0x111111}, {metalness:0.10, roughness:0.60});
   // One pole IM total (color-agnostic), reused across sign-positions
   const poleIm = new THREE.InstancedMesh(sGeo, sMat, perColor*COLS.length*2);
   _populateMidRing(poleIm, {
