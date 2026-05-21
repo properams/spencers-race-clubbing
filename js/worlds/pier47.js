@@ -233,6 +233,26 @@ function _pier47GroundTex(){
 //
 // Mobile halves the count and skips the yard's 3-high tier.
 //
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Pier 47-specifiek): solid-volume props krijgen op
+// desktop een MeshStandardMaterial met envTag 'harbor-metal' of
+// 'harbor-wet' zodat ze IBL-reflectie pakken (industrieel-natte
+// haven-look). Mobile blijft Lambert om PBR-shader-kosten te vermijden
+// op LOW-tier waar de reflection probe toch uit staat. Glow-laag
+// (booth window 0.7 emissive, yellow bollards 0.5 emissive) gaat hier
+// NIET doorheen — die blijven Lambert.
+//
+// Usage:
+//   const mat = _p47Mat({color:0x4a4a52}, {metalness:0.20, roughness:0.50}, 'harbor-metal');
+function _p47Mat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 // Procedural texture on the container body adds vertical corrugation hint
 // + faded paint streaks. Shared across all instances.
 function _p47ContainerTex(){
@@ -475,7 +495,7 @@ function _p47BuildContainers(){
   // Shared geo + mat — one InstancedMesh for all containers.
   const tex=_p47ContainerTex();
   const cGeo=new THREE.BoxGeometry(12,2.6,2.4);
-  const cMat=new THREE.MeshLambertMaterial({color:0xffffff,map:tex});
+  const cMat=_p47Mat({color:0xffffff,map:tex},{metalness:0.20,roughness:0.50},'harbor-metal');
   const im=new THREE.InstancedMesh(cGeo,cMat,TOTAL);
   // Allocate per-instance colour buffer.
   im.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(TOTAL*3),3);
@@ -580,7 +600,7 @@ function _p47BuildWarehouse(){
   const ang=Math.atan2(tg.x,tg.z);
   // Body — 30 × 8 × 18 (length × height × depth)
   const tex=_p47ContainerTex();
-  const bodyMat=new THREE.MeshLambertMaterial({color:0x4a463e,map:tex});
+  const bodyMat=_p47Mat({color:0x4a463e,map:tex},{metalness:0.0,roughness:0.40},'harbor-wet');
   const body=new THREE.Mesh(new THREE.BoxGeometry(30,8,18),bodyMat);
   body.position.set(cx,4,cz);
   body.rotation.y=ang;
@@ -589,7 +609,7 @@ function _p47BuildWarehouse(){
   // Roof — slightly larger, darker, sits 8u above ground
   const roof=new THREE.Mesh(
     new THREE.BoxGeometry(31,0.6,19),
-    new THREE.MeshLambertMaterial({color:0x2a2820})
+    _p47Mat({color:0x2a2820},{metalness:0.0,roughness:0.50},'harbor-wet')
   );
   roof.position.set(cx,8.3,cz);
   roof.rotation.y=ang;
@@ -597,7 +617,7 @@ function _p47BuildWarehouse(){
   if(window._freezeMatrix)window._freezeMatrix(roof);
   // Loading dock — a smaller box jutting out toward the track at ground level
   const dockGeo=new THREE.BoxGeometry(10,1.4,2);
-  const dockMat=new THREE.MeshLambertMaterial({color:0x3a3530});
+  const dockMat=_p47Mat({color:0x3a3530},{metalness:0.0,roughness:0.50},'harbor-wet');
   const dock=new THREE.Mesh(dockGeo,dockMat);
   dock.position.set(
     cx-nr.x*side*(18*0.5+1),
@@ -640,10 +660,10 @@ function _p47BuildWarehouse(){
 function _p47BuildCranes(){
   const mob=window._isMobile;
   const cranes=mob?[0.91]:[0.86,0.94];
-  const steelMat=new THREE.MeshLambertMaterial({color:0x4a4a52});
-  const beamMat=new THREE.MeshLambertMaterial({color:0x3a3a42});
-  const cableMat=new THREE.MeshLambertMaterial({color:0x1a1a1a});
-  const hookMat=new THREE.MeshLambertMaterial({color:0x6a6a72});
+  const steelMat=_p47Mat({color:0x4a4a52},{metalness:0.20,roughness:0.50},'harbor-metal');
+  const beamMat=_p47Mat({color:0x3a3a42},{metalness:0.20,roughness:0.50},'harbor-metal');
+  const cableMat=_p47Mat({color:0x1a1a1a},{metalness:0.0,roughness:0.80},'harbor-metal');
+  const hookMat=_p47Mat({color:0x6a6a72},{metalness:0.20,roughness:0.50},'harbor-metal');
   cranes.forEach(t=>{
     const p=trackCurve.getPoint(t);
     const tg=trackCurve.getTangent(t).normalize();
@@ -732,10 +752,10 @@ function _p47BuildOphaalbrug(){
   // Group the bridge so future sessie-3 animation can rotate the whole
   // assembly together. _p47Bridge stores the THREE.Group ref.
   const grp=new THREE.Group();
-  const towerMat=new THREE.MeshLambertMaterial({color:0x3a3a40});
-  const beamMat=new THREE.MeshLambertMaterial({color:0x2a2a30});
-  const cableMat=new THREE.MeshLambertMaterial({color:0x1a1a1a});
-  const boothMat=new THREE.MeshLambertMaterial({color:0x55452a});
+  const towerMat=_p47Mat({color:0x3a3a40},{metalness:0.0,roughness:0.50},'harbor-wet');
+  const beamMat=_p47Mat({color:0x2a2a30},{metalness:0.0,roughness:0.50},'harbor-wet');
+  const cableMat=_p47Mat({color:0x1a1a1a},{metalness:0.0,roughness:0.80},'harbor-metal');
+  const boothMat=_p47Mat({color:0x55452a},{metalness:0.0,roughness:0.75},'harbor-wet');
   // Phase 13C — winMat met emissive zodat we "occupied building" warmth
   // kunnen pulsen in update (booth window).
   const winMat=new THREE.MeshLambertMaterial({
@@ -994,7 +1014,7 @@ function _p47BuildDockClutter(){
   {
     const N=mob?18:36;
     const geo=new THREE.CylinderGeometry(0.55,0.6,1.4,10);
-    const mat=new THREE.MeshLambertMaterial({color:0xffffff,map:tex});
+    const mat=_p47Mat({color:0xffffff,map:tex},{metalness:0.20,roughness:0.55},'harbor-metal');
     const im=buildIM(geo,mat,N);
     let idx=0;
     // Verspreid over t = [0.10, 0.65] — yard t/m warehouse-aanloop
@@ -1034,7 +1054,7 @@ function _p47BuildDockClutter(){
   {
     const N=mob?12:24;
     const geo=new THREE.BoxGeometry(1.2,0.7,1.2);
-    const mat=new THREE.MeshLambertMaterial({color:0xffffff});
+    const mat=_p47Mat({color:0xffffff},{metalness:0.0,roughness:0.75},'harbor-wet');
     const im=buildIM(geo,mat,N);
     let idx=0;
     const woodPal=[
@@ -1078,7 +1098,7 @@ function _p47BuildDockClutter(){
     const N=mob?8:14;
     // Cylinder ligt op zijn kant — roteer ±90° rond Z bij placement
     const geo=new THREE.CylinderGeometry(0.95,0.95,1.0,12);
-    const mat=new THREE.MeshLambertMaterial({color:0xffffff,map:tex});
+    const mat=_p47Mat({color:0xffffff,map:tex},{metalness:0.20,roughness:0.55},'harbor-metal');
     const im=buildIM(geo,mat,N);
     let idx=0;
     const spoolPoints=[
@@ -1116,7 +1136,7 @@ function _p47BuildDockClutter(){
   {
     const N=mob?14:28;
     const geo=new THREE.CylinderGeometry(0.32,0.40,1.1,8);
-    const mat=new THREE.MeshLambertMaterial({color:0xffffff,map:tex});
+    const mat=_p47Mat({color:0xffffff,map:tex},{metalness:0.20,roughness:0.50},'harbor-metal');
     const im=buildIM(geo,mat,N);
     let idx=0;
     for(let bi=0;bi<N;bi++){
@@ -1148,7 +1168,7 @@ function _p47BuildDockClutter(){
   // Cylinder. Eén shared material.
   {
     const N=mob?2:3;
-    const pipeMat=new THREE.MeshLambertMaterial({color:0x5a5048,map:tex});
+    const pipeMat=_p47Mat({color:0x5a5048,map:tex},{metalness:0.20,roughness:0.50},'harbor-metal');
     // 3 pipe-segments langs verschillende sectie-randen.
     const pipeDefs=[
       {t0:0.55,t1:0.72,side: 1,y:5.2},  // langs warehouse approach (sector 3-4)
@@ -1256,7 +1276,7 @@ function buildPier47Environment(){
   // sandstorm/arctic pattern. y=-0.15 sits below the y=0.005 track ribbon.
   const g=new THREE.Mesh(
     new THREE.PlaneGeometry(2400,2400),
-    new THREE.MeshLambertMaterial({color:0x2a2a30,map:_pier47GroundTex()})
+    _p47Mat({color:0x2a2a30,map:_pier47GroundTex()},{metalness:0.0,roughness:0.40},'harbor-wet')
   );
   g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
   g.userData._isProcGround=true; // hookable by asset-bridge if PBR concrete loaded later
@@ -1390,7 +1410,7 @@ function _buildPier47Crane2(){
   const tg = trackCurve.getTangent(t).normalize();
   const rotY = Math.atan2(tg.x, tg.z);
   const right = new THREE.Vector3(-tg.z, 0, tg.x);
-  const mat = new THREE.MeshLambertMaterial({color:0x886611, emissive:0x221100, emissiveIntensity:0.18});
+  const mat = _p47Mat({color:0x886611, emissive:0x221100, emissiveIntensity:0.18},{metalness:0.20,roughness:0.55},'harbor-metal');
   const group = new THREE.Group();
   group.position.set(pt.x + right.x*25, 0, pt.z + right.z*25);  // tower off to one side
   group.rotation.y = rotY;
@@ -1424,8 +1444,8 @@ function _buildPier47Crane2(){
 function _buildPier47FarSilhouette(){
   const hullGeo = new THREE.BoxGeometry(8, 1.4, 2.4);
   const mastGeo = new THREE.CylinderGeometry(0.1, 0.1, 5, 5);
-  const hullMat = new THREE.MeshLambertMaterial({color:0x202830, emissive:0x4488aa, emissiveIntensity:0.1});
-  const mastMat = new THREE.MeshLambertMaterial({color:0x101820});
+  const hullMat = _p47Mat({color:0x202830, emissive:0x4488aa, emissiveIntensity:0.1},{metalness:0.0,roughness:0.80},'harbor-metal');
+  const mastMat = _p47Mat({color:0x101820},{metalness:0.0,roughness:0.80},'harbor-metal');
   for(let i=0;i<5;i++){
     const ang = -Math.PI/2 + (i/4 - 0.5) * Math.PI * 0.9;  // spread across +z hemisphere
     const r = 200 + Math.random()*60;
@@ -1454,7 +1474,7 @@ function _buildPier47MidVariety(){
   // Flat cargo pallets — wide low boxes
   const palletCount = (typeof _mobCount==='function')?_mobCount(20):20;
   const palletGeo = new THREE.BoxGeometry(1.5, 0.2, 1.5);
-  const palletMat = new THREE.MeshLambertMaterial({color:0x5a4020, emissive:0x110800, emissiveIntensity:0.1});
+  const palletMat = _p47Mat({color:0x5a4020, emissive:0x110800, emissiveIntensity:0.1},{metalness:0.0,roughness:0.75},'harbor-wet');
   const palletIm = new THREE.InstancedMesh(palletGeo, palletMat, palletCount*2);
   _populateMidRing(palletIm, {
     perSide: palletCount, offsetMin:20, offsetMax:42,
@@ -1465,7 +1485,7 @@ function _buildPier47MidVariety(){
   // Rope bollards — dark CylinderGeo, taller dan yellow bollards
   const rbCount = (typeof _mobCount==='function')?_mobCount(15):15;
   const rbGeo = new THREE.CylinderGeometry(0.4, 0.5, 1.6, 8);
-  const rbMat = new THREE.MeshLambertMaterial({color:0x222230, emissive:0x000011, emissiveIntensity:0.15});
+  const rbMat = _p47Mat({color:0x222230, emissive:0x000011, emissiveIntensity:0.15},{metalness:0.20,roughness:0.55},'harbor-metal');
   const rbIm = new THREE.InstancedMesh(rbGeo, rbMat, rbCount*2);
   _populateMidRing(rbIm, {
     perSide: rbCount, offsetMin:20, offsetMax:42,
@@ -1499,7 +1519,7 @@ function _buildPier47MidRing(){
   const perColor = (typeof _mobCount==='function')?_mobCount(12):12;
   const cGeo = new THREE.BoxGeometry(6, 2.4, 2.4);
   CONT_COLS.forEach((col, ci) => {
-    const mat = new THREE.MeshLambertMaterial({color:col, emissive:col, emissiveIntensity:0.04});
+    const mat = _p47Mat({color:col, emissive:col, emissiveIntensity:0.04},{metalness:0.20,roughness:0.55},'harbor-metal');
     const im  = new THREE.InstancedMesh(cGeo, mat, perColor*2);
     _populateMidRing(im, {
       perSide: perColor, offsetMin:28, offsetMax:50,
@@ -1529,7 +1549,7 @@ function _buildPier47CloseBand(){
   // Fire hydrants — red CylinderGeo with chunky proportions
   const hCount = (typeof _mobCount==='function')?_mobCount(18):18;
   const hGeo = new THREE.CylinderGeometry(0.3, 0.35, 1.0, 6);
-  const hMat = new THREE.MeshLambertMaterial({color:0xcc2222, emissive:0x441111, emissiveIntensity:0.3});
+  const hMat = _p47Mat({color:0xcc2222, emissive:0x441111, emissiveIntensity:0.3},{metalness:0.20,roughness:0.50},'harbor-metal');
   const hIm = new THREE.InstancedMesh(hGeo, hMat, hCount*2);
   _populateMidRing(hIm, {
     perSide: hCount, offsetMin:4, offsetMax:7,
@@ -1540,7 +1560,7 @@ function _buildPier47CloseBand(){
   // Stacked crates — wooden boxes
   const cCount = (typeof _mobCount==='function')?_mobCount(22):22;
   const cGeo = new THREE.BoxGeometry(1.2, 0.9, 1.2);
-  const cMat = new THREE.MeshLambertMaterial({color:0x6a4a2a, emissive:0x110800, emissiveIntensity:0.15});
+  const cMat = _p47Mat({color:0x6a4a2a, emissive:0x110800, emissiveIntensity:0.15},{metalness:0.0,roughness:0.75},'harbor-wet');
   const cIm = new THREE.InstancedMesh(cGeo, cMat, cCount*2);
   _populateMidRing(cIm, {
     perSide: cCount, offsetMin:6, offsetMax:12,

@@ -43,7 +43,9 @@ const BASE_ENV_BY_TAG = {
   rim:          0.85,
   'world-prop': 0.70,
   'wet-prop':   0.55,
-  'wet-asphalt':0.70
+  'wet-asphalt':0.70,
+  'harbor-metal':0.65,
+  'harbor-wet': 0.50
 };
 
 // Helper: vorm één preset uit een gedeelde basis. Houdt de tabel scanbaar.
@@ -113,7 +115,7 @@ const _STABLE = {
     speedBlur: 0.20, fovBoost: 4
   }),
   harbor: _preset({
-    ibl: 0.65, exposureDay: 1.12, exposureNight: 0.95,
+    ibl: 0.70, exposureDay: 1.12, exposureNight: 0.95,
     fog: {type:'exp2', color:0x252030, density:0.01200},
     emissiveMul: 2.0, carPaintEnvMul: 0.55,
     bloomMul: 1.05, bloomThresholdDay: 0.82, bloomThresholdDark: 0.78,
