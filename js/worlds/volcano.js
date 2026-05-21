@@ -45,13 +45,32 @@ function _applyVolcanoDayLighting(){
 }
 if(typeof window!=='undefined')window._applyVolcanoDayLighting=_applyVolcanoDayLighting;
 
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Volcano-specifiek): solid-volume props met emissive < 0.3
+// krijgen op desktop een MeshStandardMaterial met envTag 'lava-rock' zodat
+// ze IBL-reflectie pakken (matte volcanic rock look). Mobile blijft Lambert
+// om PBR-shader-kosten te vermijden op LOW-tier. Glow-laag (geyser shaft 1.5,
+// hanging vines 0.5, basalt chunks 0.6/0.7, scoria 0.4, lava pool 1.4,
+// bridge deck) gaat hier NIET doorheen — die blijven Lambert.
+//
+// Usage:
+//   const mat = _vMat({color:0x1a0800}, {metalness:0.0, roughness:0.85}, 'lava-rock');
+function _vMat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 function buildVolcanoEnvironment(){
   // Reset Track Identity Pass state on each rebuild so a quit→restart
   // doesn't carry the previous race's lap-3 intensity into lap 1.
   _volcanoIntensity=1.0;_volcanoLap=1;_volcanoBigEruptionFired=false;
   // Ground
   const g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
-    new THREE.MeshLambertMaterial({color:0x4a2515,map:_rockGroundTex()}));
+    _vMat({color:0x4a2515,map:_rockGroundTex()},{metalness:0.0,roughness:0.85},'lava-rock'));
   g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
   g.userData._isProcGround=true;
   scene.add(g);
@@ -91,7 +110,7 @@ function buildVolcanoEnvironment(){
   //      van caldera-lip naar cone-base via per-channel Y-rotated Group
   //      met rotation.z = atan(105/150) en position.x = 67.5
   //      (slope-midpoint).
-  const vm=new THREE.MeshLambertMaterial({color:0x1a0800});
+  const vm=_vMat({color:0x1a0800},{metalness:0.0,roughness:0.85},'lava-rock');
   // Phase 13A — lava materials MeshStandard voor speculaire highlights
   // op molten rims. Lava is "wet" molten rock dus lage roughness.
   const lm=new THREE.MeshStandardMaterial({
@@ -282,7 +301,7 @@ function buildVolcanoEnvironment(){
   // Geysers
   [.22,.52,.78].forEach(function(t,gi){
     var p=trackCurve.getPoint(t).clone();
-    var plat=new THREE.Mesh(new THREE.CylinderGeometry(3,3.5,.5,8),new THREE.MeshLambertMaterial({color:0x1a0800}));
+    var plat=new THREE.Mesh(new THREE.CylinderGeometry(3,3.5,.5,8),_vMat({color:0x1a0800},{metalness:0.0,roughness:0.85},'lava-rock'));
     plat.position.copy(p);plat.position.y=.25;scene.add(plat);
     if(window._freezeMatrix)window._freezeMatrix(plat);
     var gey=new THREE.Mesh(new THREE.CylinderGeometry(.8,1.2,2,8),
