@@ -176,13 +176,33 @@ function _buildCandyDonutHoops(){
   _candyNightEmissives.push({material: hoopMat});
 }
 
+// ── Solid-volume PBR helper ──────────────────────────────────────────────
+//
+// Proef-conversie (Candy-specifiek): solid-volume props krijgen op desktop
+// een MeshStandardMaterial met envTag 'candy-glaze' zodat ze IBL-reflectie
+// pakken (pastel-glaze sugar-look). Mobile blijft Lambert om PBR-shader-
+// kosten te vermijden op LOW-tier waar de reflection probe toch uit staat.
+// Glow-laag (donut hoops 0.55, mini gumdrops 0.22, gumdrop ring 0.18,
+// candy gate red 0.3, track light heads 0.30) gaat hier NIET doorheen —
+// die blijven Lambert zodat decoratieve glow behouden blijft.
+//
+// Usage:
+//   const mat = _cMat({color:0xffffff}, {metalness:0.0, roughness:0.35}, 'candy-glaze');
+function _cMat(lambertDef, stdExtras, tag){
+  if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+  const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+  mat.userData = mat.userData || {};
+  mat.userData.envTag = tag;
+  return mat;
+}
+
 // Phase 12B — mid-band variety: tall candy-cane sticks (no head) op
 // 22-52u zodat de 4-color gumdrop ring niet als enige geometry leest.
 function _buildCandyMidVariety(){
   if(typeof _populateMidRing!=='function')return;
   const caneCount = (typeof _mobCount==='function')?_mobCount(40):40;
   const caneGeo = new THREE.CylinderGeometry(0.18, 0.22, 2, 6);
-  const caneMat = new THREE.MeshLambertMaterial({color:0xfff5f5, emissive:0xff88aa, emissiveIntensity:0.15});
+  const caneMat = _cMat({color:0xfff5f5, emissive:0xff88aa, emissiveIntensity:0.15},{metalness:0.0,roughness:0.35},'candy-glaze');
   const caneIm = new THREE.InstancedMesh(caneGeo, caneMat, caneCount*2);
   _populateMidRing(caneIm, {
     perSide: caneCount, offsetMin:22, offsetMax:52,
@@ -229,7 +249,7 @@ function _buildCandyStacks(){
   }
   const stackGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(parts);
   if(!stackGeo) return;
-  const mat = new THREE.MeshLambertMaterial({vertexColors:true, emissive:new THREE.Color(0xff66aa), emissiveIntensity:0.15});
+  const mat = _cMat({vertexColors:true, emissive:new THREE.Color(0xff66aa), emissiveIntensity:0.15},{metalness:0.0,roughness:0.30},'candy-glaze');
   const count = (typeof _mobCount==='function') ? _mobCount(24) : 24;
   const stackIm = new THREE.InstancedMesh(stackGeo, mat, count*2);
   _populateMidRing(stackIm, {
@@ -278,7 +298,7 @@ function _buildCandyWrappers(){
   const count = (typeof _mobCount==='function') ? _mobCount(10) : 10;
   for(let ci=0;ci<wrapColors.length;ci++){
     const col = wrapColors[ci];
-    const mat = new THREE.MeshLambertMaterial({color:col, emissive:new THREE.Color(col), emissiveIntensity:0.15});
+    const mat = _cMat({color:col, emissive:new THREE.Color(col), emissiveIntensity:0.15},{metalness:0.0,roughness:0.35},'candy-glaze');
     const im = new THREE.InstancedMesh(geo, mat, count*2);
     _populateMidRing(im, {
       perSide: count, offsetMin:14, offsetMax:42,
@@ -335,7 +355,7 @@ function _buildCandyCloseBand(){
   // Candy-cane sticks — thin white cylinders, slight random tilt
   const caneCount = (typeof _mobCount==='function')?_mobCount(30):30;
   const caneGeo = new THREE.CylinderGeometry(0.18, 0.22, 2, 6);
-  const caneMat = new THREE.MeshLambertMaterial({color:0xfff5f5, emissive:0xff88aa, emissiveIntensity:0.1});
+  const caneMat = _cMat({color:0xfff5f5, emissive:0xff88aa, emissiveIntensity:0.1},{metalness:0.0,roughness:0.35},'candy-glaze');
   const caneIm = new THREE.InstancedMesh(caneGeo, caneMat, caneCount*2);
   _populateMidRing(caneIm, {
     perSide: caneCount, offsetMin:8, offsetMax:14,
@@ -372,7 +392,7 @@ function buildCandyGround(){
   const _candyGroundMap=(window.ProcTextures&&ProcTextures.frostingGlaze)
     ? ProcTextures.frostingGlaze({repeatX:12,repeatY:12,baseColor:'#7dd6c4',bumpAlpha:0.30,sprinkles:false})
     : null;
-  const gMat=new THREE.MeshLambertMaterial({color:0x7dd6c4,map:_candyGroundMap});
+  const gMat=_cMat({color:0x7dd6c4,map:_candyGroundMap},{metalness:0.0,roughness:0.92},'candy-glaze');
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),gMat);
   ground.rotation.x=-Math.PI/2;ground.position.y=-.12;ground.receiveShadow=true;
   ground.userData._isProcGround=true; // Phase 5 hookable
@@ -382,7 +402,7 @@ function buildCandyGround(){
   const _infMap=(window.ProcTextures&&ProcTextures.frostingGlaze)
     ? ProcTextures.frostingGlaze({repeatX:6,repeatY:6,baseColor:'#dcb0e0',bumpAlpha:0.30,sprinkles:false})
     : null;
-  const infMat=new THREE.MeshLambertMaterial({color:0xbb88bb,map:_infMap});
+  const infMat=_cMat({color:0xbb88bb,map:_infMap},{metalness:0.0,roughness:0.92},'candy-glaze');
   const inf=new THREE.Mesh(new THREE.PlaneGeometry(440,580),infMat);
   inf.rotation.x=-Math.PI/2;inf.position.set(-40,-.11,-60);scene.add(inf);
   // Coloured candy spot circles on the ground (keep — small visual texture).
@@ -390,7 +410,7 @@ function buildCandyGround(){
   for(let i=0;i<28;i++){
     const col=spotColors[i%spotColors.length];
     const r=6+Math.random()*10;
-    const sm=new THREE.MeshLambertMaterial({color:col,transparent:true,opacity:.55});
+    const sm=_cMat({color:col,transparent:true,opacity:.55},{metalness:0.0,roughness:0.92},'candy-glaze');
     const sp=new THREE.Mesh(new THREE.CircleGeometry(r,12),sm);
     sp.rotation.x=-Math.PI/2;
     sp.position.set((Math.random()-.5)*700,.01,(Math.random()-.5)*700);
@@ -552,7 +572,7 @@ function buildChocolateRiver(){
   const river=new THREE.Mesh(geo,chocoMat);scene.add(river);
   _chocoHighlight=river;
   // Foam edges — thin white ribbon
-  const foamMat=new THREE.MeshLambertMaterial({color:0xffe4cc,transparent:true,opacity:.7,side:THREE.DoubleSide});
+  const foamMat=_cMat({color:0xffe4cc,transparent:true,opacity:.7,side:THREE.DoubleSide},{metalness:0.0,roughness:0.80},'candy-glaze');
   [-1,1].forEach(side=>{
     const fpos=[];const fidx=[];
     for(let i=0;i<=N;i++){
@@ -659,7 +679,7 @@ function buildCakeBuilding(){
       const _layerMap=(window.ProcTextures&&ProcTextures.frostingGlaze)
         ? ProcTextures.frostingGlaze({repeatX:4,repeatY:2,baseColor:'#'+layer.col.toString(16).padStart(6,'0'),bumpAlpha:0.40,sprinkles:false})
         : null;
-      const mat=new THREE.MeshLambertMaterial({color:layer.col,map:_layerMap,emissive:new THREE.Color(layer.col),emissiveIntensity:.15});
+      const mat=_cMat({color:layer.col,map:_layerMap,emissive:new THREE.Color(layer.col),emissiveIntensity:.15},{metalness:0.0,roughness:0.30},'candy-glaze');
       const cake=new THREE.Mesh(new THREE.CylinderGeometry(layer.r-.5,layer.r,layer.h,16),mat);
       cake.position.set(cx,y+layer.h*.5,cz);scene.add(cake);
       _candyNightEmissives.push(cake);
@@ -674,7 +694,7 @@ function buildCakeBuilding(){
   const candleR = 2.5 * castleScale;  // ring around centre spire
   for(let c=0;c<CCN;c++){
     const ang=c*(Math.PI*2/CCN);
-    const candleMat=new THREE.MeshLambertMaterial({color:candleColors[c]});
+    const candleMat=_cMat({color:candleColors[c]},{metalness:0.0,roughness:0.85},'candy-glaze');
     const candle=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,1.5,6),candleMat);
     candle.position.set(cx+Math.cos(ang)*candleR,candleY+.75,cz+Math.sin(ang)*candleR);scene.add(candle);
     // Flame
@@ -695,7 +715,7 @@ function buildCandyGate(){
   const nr=new THREE.Vector3(-tg.z,0,tg.x);
   const hw=TW+5;
   const redMat=new THREE.MeshLambertMaterial({color:0xee1122,emissive:0x550000,emissiveIntensity:.3});
-  const whiteMat=new THREE.MeshLambertMaterial({color:0xffffff});
+  const whiteMat=_cMat({color:0xffffff},{metalness:0.0,roughness:0.35},'candy-glaze');
   // Two vertical columns (alternating segments)
   [-1,1].forEach(side=>{
     const base=p.clone().addScaledVector(nr,side*hw);
@@ -859,9 +879,9 @@ function buildCottonCandyClouds(){
   for(let ci = 0; ci < palette.length; ci++){
     const blobs = buckets[ci];
     if(!blobs.length) continue;
-    const mat = new THREE.MeshLambertMaterial({
+    const mat = _cMat({
       color: palette[ci], transparent: true, opacity: 0.72
-    });
+    },{metalness:0.0,roughness:0.92},'candy-glaze');
     const im = new THREE.InstancedMesh(sphereGeo, mat, blobs.length);
     for(let bi = 0; bi < blobs.length; bi++){
       const b = blobs[bi];
@@ -930,12 +950,12 @@ function buildCandyBarriers(){
   const lowDensity = !!(window._isLowDensity && window._isLowDensity());
   const N = lowDensity ? 120 : 200;
   const segGeo = new THREE.BoxGeometry(.55, 1.1, 1.05 / (N / 200));
-  const redMat = new THREE.MeshLambertMaterial({
+  const redMat = _cMat({
     color: 0xee1122, emissive: new THREE.Color(0x440000), emissiveIntensity: .2
-  });
-  const whiteMat = new THREE.MeshLambertMaterial({
+  },{metalness:0.0,roughness:0.35},'candy-glaze');
+  const whiteMat = _cMat({
     color: 0xffffff, emissive: new THREE.Color(0x111111), emissiveIntensity: .2
-  });
+  },{metalness:0.0,roughness:0.92},'candy-glaze');
   // Elke side krijgt N segmenten; rood/wit alterneren per index. Totaal
   // per kleur = N (helft van 2*N). InstancedMesh capaciteit dus = N.
   const redIM = new THREE.InstancedMesh(segGeo, redMat, N);
@@ -991,7 +1011,7 @@ function buildCandyBarriers(){
   const headColors = [0xff2266, 0xff8800, 0x22ccff, 0xaadd00, 0xcc44ff, 0xff44aa, 0xffcc00];
   const LN = 48; // 24 langs de baan × 2 zijden
   const poleGeo = new THREE.CylinderGeometry(.1, .12, 3, 5);
-  const poleMat = new THREE.MeshLambertMaterial({color: 0xffffff});
+  const poleMat = _cMat({color: 0xffffff},{metalness:0.0,roughness:0.85},'candy-glaze');
   const headGeo = new THREE.SphereGeometry(.5, 8, 6);
   const headMat = new THREE.MeshLambertMaterial({
     color: 0xffffff,
@@ -1098,7 +1118,7 @@ function buildCookieSpectators(){
 
   // Cookie bodies — 1 InstancedMesh, 32 instances, shared cylinder
   const cookieGeo=new THREE.CylinderGeometry(1.2,1.2,.22,12);
-  const cookieMat=new THREE.MeshLambertMaterial({color:0xcc8844});
+  const cookieMat=_cMat({color:0xcc8844},{metalness:0.0,roughness:0.65},'candy-glaze');
   const cookies=new THREE.InstancedMesh(cookieGeo, cookieMat, positions.length);
   const _m=new THREE.Matrix4();
   const _q=new THREE.Quaternion();
@@ -1120,7 +1140,7 @@ function buildCookieSpectators(){
 
   // Chocolate chips — 1 InstancedMesh, 96 instances (3 chips per cookie)
   const chipGeo=new THREE.SphereGeometry(.14,4,4);
-  const chipMat=new THREE.MeshLambertMaterial({color:0x331100});
+  const chipMat=_cMat({color:0x331100},{metalness:0.0,roughness:0.85},'candy-glaze');
   const chips=new THREE.InstancedMesh(chipGeo, chipMat, positions.length * 3);
   const _qChip=new THREE.Quaternion();  // identity quaternion
   let chipIdx=0;
