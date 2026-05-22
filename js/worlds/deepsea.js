@@ -9,6 +9,10 @@ let _jellyfishList=[];
 let _dsaBubbleGeo=null,_dsaBubblePos=null;
 let _dsaLightRays=[];
 let _dsaBioEdges=[];
+// Fase 2 plankton: drijvende bio-particles in het volume rond de track.
+// Geo/pos hoisted zodat updateDeepSeaWorld de positie-attribuut per frame
+// kan muteren zonder GC-allocaties.
+let _dsaPlanktonGeo=null,_dsaPlanktonPos=null,_dsaPlanktonPhase=null;
 let _dsaCreatures={manta:null,whale:null,fishSchools:[]};
 let _dsaTreasures=[];
 
@@ -211,6 +215,8 @@ async function buildDeepSeaEnvironment(){
   await Y();
   buildDeepSeaBubbles();
   buildDeepSeaLightRays();
+  buildDeepSeaPlankton();
+  buildDistantSilhouettes();
   buildDeepSeaNightObjects();
   await Y();
   // GLTF roadside props (coral chunks / wreck boxes). No-op if cache is
@@ -461,7 +467,8 @@ function buildCoralReefs(){
   const _M = !!window._isMobile;
   const coralColors=[0xff5533,0xff8800,0xff4488,0x44ddaa,0xffcc00,0xff6622,0xcc44ff,0x22ddff];
   // Reef clusters scattered off-track — halved on mobile
-  const CC = _M ? 18 : 35;
+  // Fase 2 density boost: 35→52 desktop (×1.5), 18→23 mobile (×1.3 — FPS-safe).
+  const CC = _M ? 23 : 52;
   for(let ci=0;ci<CC;ci++){
     const t=(ci/CC+Math.random()*.012)%1;
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
@@ -521,7 +528,8 @@ function buildKelp(){
   const _M = !!window._isMobile;
   _kelpList.length=0;
   const kelpMat=_dsMat({color:0x228833,side:THREE.DoubleSide,transparent:true,opacity:.88},{metalness:0.0,roughness:0.75},'aqua-wet');
-  const KN = _M ? 14 : 30;
+  // Fase 2 density boost: 30→45 desktop (×1.5), 14→18 mobile (×1.3 — FPS-safe).
+  const KN = _M ? 18 : 45;
   for(let ki=0;ki<KN;ki++){
     const t=(ki/KN+.015)%1;
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
@@ -686,6 +694,7 @@ function buildBioluminescentTrackEdges(){
   _dsaBioEdges.length=0;
   const N=180;
   [1,-1].forEach(side=>{
+    // Existing thin Line — stays for sharp edge accent.
     const geo=new THREE.BufferGeometry();
     const pos=new Float32Array(N*3);
     for(let i=0;i<N;i++){
@@ -700,14 +709,51 @@ function buildBioluminescentTrackEdges(){
     const mat=new THREE.LineBasicMaterial({color:0x00ffcc,transparent:true,opacity:.95,linewidth:2,blending:THREE.AdditiveBlending,depthWrite:false});
     const line=new THREE.Line(geo,mat);
     scene.add(line);
-    _dsaBioEdges.push({line,mat,phase:side>0?0:Math.PI});
+    // Fase 2 — bredere additive glow-ribbon naast de lijn voor dramatischer
+    // bioluminescente baan-rand. TriangleStrip via PlaneGeometry pad: 180
+    // segments × 2 vertices (inner + outer offset over normaal). Volgt
+    // dezelfde curve-points als de lijn, 1.4u breed buitenwaarts. Additive,
+    // depthWrite uit, geen impact op asphalt-rendering (no-go-conditie OK).
+    const RIBBON_W = 1.4;
+    const ribbonPos=new Float32Array(N*2*3);
+    const ribbonIdx=new Uint16Array((N-1)*6);
+    for(let i=0;i<N;i++){
+      const t=i/(N-1);
+      const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
+      const nr=new THREE.Vector3(-tg.z,0,tg.x);
+      const innerX=p.x+nr.x*side*(TW*.5+.8);
+      const innerZ=p.z+nr.z*side*(TW*.5+.8);
+      const outerX=p.x+nr.x*side*(TW*.5+.8+RIBBON_W);
+      const outerZ=p.z+nr.z*side*(TW*.5+.8+RIBBON_W);
+      ribbonPos[i*6]=innerX; ribbonPos[i*6+1]=.07; ribbonPos[i*6+2]=innerZ;
+      ribbonPos[i*6+3]=outerX; ribbonPos[i*6+4]=.07; ribbonPos[i*6+5]=outerZ;
+    }
+    for(let i=0;i<N-1;i++){
+      const a=i*2, b=i*2+1, c=(i+1)*2, d=(i+1)*2+1;
+      ribbonIdx[i*6]=a; ribbonIdx[i*6+1]=b; ribbonIdx[i*6+2]=c;
+      ribbonIdx[i*6+3]=b; ribbonIdx[i*6+4]=d; ribbonIdx[i*6+5]=c;
+    }
+    const ribbonGeo=new THREE.BufferGeometry();
+    ribbonGeo.setAttribute('position',new THREE.BufferAttribute(ribbonPos,3));
+    ribbonGeo.setIndex(new THREE.BufferAttribute(ribbonIdx,1));
+    const ribbonMat=new THREE.MeshBasicMaterial({color:0x00ffcc,transparent:true,opacity:.18,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
+    const ribbon=new THREE.Mesh(ribbonGeo,ribbonMat);
+    // Track-lengte ribbon heeft grote bounding-sphere; opt-out van LOD-cull
+    // zodat hij niet aan- en uit-popt bij verre camera-posities (zelfde
+    // patroon als track.js' ribbon() helper).
+    ribbon.userData._noLodCull=true;
+    scene.add(ribbon);
+    _dsaBioEdges.push({line,mat,ribbon,ribbonMat,phase:side>0?0:Math.PI});
   });
 }
 
 
 function buildJellyfish(){
   _jellyfishList.length=0;
-  const N=15;
+  // Fase 2 density boost: 15 → 22 desktop (×1.5), 15 → 18 mobile (×1.2,
+  // jellyfish hebben veel children dus voorzichtiger op LOW-tier).
+  const _M = !!window._isMobile;
+  const N = _M ? 18 : 22;
   for(let ji=0;ji<N;ji++){
     const t=(ji/N+.03)%1;
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
@@ -844,6 +890,77 @@ function buildDeepSeaLightRays(){
 }
 
 
+// Fase 2 — Plankton / bio-particle ambient laag. Drijvende cyaan-getinte
+// dots in het volume rond de baan geven depth-perception en "diepzee-leeft-
+// erin"-feel. Hergebruikt _getDustTex (white-alpha radial dot, kleur via
+// material). Additive blending, depthWrite uit, geen z-fight met track of
+// floor. Per-frame drift via _dsaPlanktonPhase (Y-bob) en kleine X/Z trend.
+function buildDeepSeaPlankton(){
+  const _M = !!window._isMobile;
+  const N = _M ? 200 : 600;
+  const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(N*3);
+  const phase=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    pos[i*3]   = (Math.random()-.5)*400;
+    pos[i*3+1] =  4 + Math.random()*70;
+    pos[i*3+2] = (Math.random()-.5)*400;
+    phase[i]   = Math.random()*Math.PI*2;
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const tex = (typeof _getDustTex==='function') ? _getDustTex() : null;
+  const mat=new THREE.PointsMaterial({
+    color: 0x88ddff,
+    size: 0.55,
+    map: tex,
+    transparent: true,
+    opacity: 0.65,
+    sizeAttenuation: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const pts=new THREE.Points(geo,mat);
+  // Volume-distributed particle cloud; bounding-sphere centreert op origin
+  // maar plankton moet altijd zichtbaar zijn ongeacht camera-positie.
+  pts.userData._noLodCull=true;
+  scene.add(pts);
+  _dsaPlanktonGeo=geo; _dsaPlanktonPos=pos; _dsaPlanktonPhase=phase;
+}
+
+
+// Fase 2 — Distant silhouette shapes. Donkere statische vormen op de rand
+// van de fog-cutoff voor scale + sense-of-vast-world. MeshBasicMaterial
+// zodat ze fog-tinted blijven ongeacht lighting (geen ndotl-flicker). Geen
+// per-frame update, geen state-tracking nodig.
+function buildDistantSilhouettes(){
+  const _M = !!window._isMobile;
+  const count = _M ? 3 : 6;
+  const RADIUS = 650;
+  const silMat = new THREE.MeshBasicMaterial({color:0x081420, fog:true});
+  for(let i=0;i<count;i++){
+    const ang = (i/count) * Math.PI*2 + (Math.random()-.5)*0.4;
+    const sx = Math.cos(ang) * (RADIUS + (Math.random()-.5)*80);
+    const sz = Math.sin(ang) * (RADIUS + (Math.random()-.5)*80);
+    if(i % 2 === 0){
+      // Whale-shape silhouet: stretched sphere
+      const wBody = new THREE.Mesh(new THREE.SphereGeometry(7,8,6), silMat);
+      wBody.scale.set(1.2, 0.5, 3.2);
+      wBody.position.set(sx, 22 + Math.random()*18, sz);
+      wBody.rotation.y = ang + Math.PI/2;
+      wBody.userData._noLodCull = true;
+      scene.add(wBody);
+    } else {
+      // Kelp-tower silhouet: tall thin cylinder
+      const towerH = 18 + Math.random()*10;
+      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.4, towerH, 6), silMat);
+      tower.position.set(sx, towerH/2, sz);
+      tower.userData._noLodCull = true;
+      scene.add(tower);
+    }
+  }
+}
+
+
 function buildDeepSeaNightObjects(){
   // Stars not visible underwater, use subtle bio particles instead
   // Reuse trackLightList for coral glow poles
@@ -901,11 +1018,34 @@ function updateDeepSeaWorld(dt){
     // Tentacle writhe: scale bell slightly
     j.children[0].scale.y=.9+Math.sin(j._bobPhase*2.2)*.15;
   }
-  // Bioluminescent edges pulse — wider amplitude, drives bloom on bright peaks
+  // Fase 2 plankton drift — Y-bob + minimale X/Z trend. _dsaPlanktonPhase
+  // houdt per-particle phase offsets bij zodat ze niet synchroon bobben.
+  // Hergebruik _dsaSin LUT (al actief) om Math.sin calls te besparen.
+  if(_dsaPlanktonGeo && _dsaPlanktonPos && _dsaPlanktonPhase){
+    const pPos=_dsaPlanktonPos, pPh=_dsaPlanktonPhase;
+    const len=pPh.length;
+    for(let i=0;i<len;i++){
+      pPh[i] += dt*0.4;
+      pPos[i*3+1] += _dsaSin(pPh[i]) * dt * 0.6;
+      pPos[i*3]   += dt * 0.08;      // gentle current X
+      pPos[i*3+2] += dt * 0.04;      // gentle current Z
+      // Wrap-around box (~±200u) zodat particles altijd in zicht blijven
+      if(pPos[i*3]    >  220) pPos[i*3]    -= 440;
+      if(pPos[i*3+2]  >  220) pPos[i*3+2]  -= 440;
+      if(pPos[i*3+1]  >   80) pPos[i*3+1]  -=  74;
+      if(pPos[i*3+1]  <    4) pPos[i*3+1]  +=  74;
+    }
+    _dsaPlanktonGeo.attributes.position.needsUpdate=true;
+  }
+  // Bioluminescent edges pulse — wider amplitude, drives bloom on bright peaks.
+  // Fase 2: bredere ribbon meegekoppeld; subtieler pulse (lager base, kleinere
+  // amplitude) zodat de lijn-accent dominant blijft maar de glow-halo meeleeft.
   for(let _ei=0;_ei<_dsaBioEdges.length;_ei++){
     const e=_dsaBioEdges[_ei];
     e.phase+=dt*.9;
-    e.mat.opacity=.65+Math.sin(e.phase)*.35;
+    const s=Math.sin(e.phase);
+    e.mat.opacity=.65+s*.35;
+    if(e.ribbonMat) e.ribbonMat.opacity=.12+s*.10;
   }
   // Light rays pulsing
   for(let _ri=0;_ri<_dsaLightRays.length;_ri++){
