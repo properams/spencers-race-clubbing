@@ -914,6 +914,12 @@ async function buildScene(){
   if(typeof _dsaBioEdges!=='undefined')_dsaBioEdges.length=0;
   if(typeof _dsaBubbleGeo!=='undefined')_dsaBubbleGeo=null;
   if(typeof _dsaBubblePos!=='undefined')_dsaBubblePos=null;
+  // Fase 2 plankton state — match het bestaande _dsa*-reset patroon zodat
+  // disposed BufferGeometry + Float32Arrays niet als stale-refs blijven hangen
+  // bij world-switch (~10 KB / wereld zonder deze reset).
+  if(typeof _dsaPlanktonGeo!=='undefined')_dsaPlanktonGeo=null;
+  if(typeof _dsaPlanktonPos!=='undefined')_dsaPlanktonPos=null;
+  if(typeof _dsaPlanktonPhase!=='undefined')_dsaPlanktonPhase=null;
   if(typeof _dsaTreasures!=='undefined')_dsaTreasures.length=0;
   if(typeof _dsaCreatures!=='undefined'){_dsaCreatures.manta=null;_dsaCreatures.whale=null;_dsaCreatures.fishSchools.length=0;}
   if(typeof _dsaCurrentDir!=='undefined')_dsaCurrentDir=0;
