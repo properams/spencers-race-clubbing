@@ -37,74 +37,6 @@ const DS_FLOOR_RELIEF_AMP     = 3.5;      // max vertex-displacement (units)
 const DS_TRACK_FLATTEN_RADIUS = 26;       // vlakgemaakt binnen X u van trackCurve (4u defense-in-depth buffer t.o.v. SAMPLES=200 max fout ~3.75u)
 const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d desktop)
 
-// ── Diagnostic helper (tijdelijk) ────────────────────────────────────────
-// Iteratieve elimination voor de zwarte vlakken op de baan op iPhone 12.
-// Gebruik via URL: ?dsdiag=streams (skipt buildCurrentStreams), =cracks
-// (buildAbyssCracks), =bioedges (buildBioluminescentTrackEdges), =wear
-// (buildRacingLineWear), =all (alle vier). Comma-separated combineren mag.
-// Logt bij world-build welke params actief zijn. NIET voor productie —
-// verwijderen zodra culprit geïdentificeerd is.
-window._dsDiagHas = function(name){
-  try {
-    const p = new URLSearchParams(window.location.search).get('dsdiag') || '';
-    if(!p) return false;
-    if(p === 'all') return true;
-    return p.split(',').map(s=>s.trim()).includes(name);
-  } catch(e){ return false; }
-};
-(function _dsDiagLog(){
-  try {
-    const p = new URLSearchParams(window.location.search).get('dsdiag');
-    if(p && typeof console !== 'undefined') console.log('[Deep Sea diag] active params:', p);
-  } catch(e){}
-})();
-
-// Tap-panel voor mobile diagnostic-cycling (geen URL-typen meer nodig).
-// Verschijnt zodra ?dsdiag in URL staat (welke waarde dan ook). Knoppen
-// zetten URL-param en reloaden. Niet-productie — verwijderen met de rest
-// van de diagnostic.
-(function _dsDiagPanel(){
-  try {
-    const cur = new URLSearchParams(window.location.search).get('dsdiag');
-    if(cur === null) return;
-    if(typeof document === 'undefined') return;
-    function mkPanel(){
-      if(document.getElementById('_dsdiag_panel')) return;
-      const panel = document.createElement('div');
-      panel.id = '_dsdiag_panel';
-      panel.style.cssText = 'position:fixed;top:50%;left:6px;transform:translateY(-50%);'
-        + 'z-index:99999;background:rgba(0,0,0,0.88);padding:8px;border-radius:6px;'
-        + 'font:11px monospace;color:#fff;border:1px solid #0af;'
-        + 'max-width:120px;-webkit-user-select:none;user-select:none;';
-      const title = document.createElement('div');
-      title.textContent = 'DSDIAG: ' + (cur || 'off');
-      title.style.cssText = 'margin-bottom:6px;color:#0af;font-weight:bold;';
-      panel.appendChild(title);
-      const opts = ['streams','cracks','wear','bioedges','all','off'];
-      opts.forEach(name => {
-        const btn = document.createElement('button');
-        btn.textContent = name;
-        const active = (name === cur) || (name === 'off' && !cur);
-        btn.style.cssText = 'display:block;width:100%;padding:8px 6px;margin:3px 0;'
-          + 'background:' + (active ? '#0af' : '#333') + ';color:#fff;'
-          + 'border:none;border-radius:3px;font:11px monospace;cursor:pointer;'
-          + 'touch-action:manipulation;';
-        btn.addEventListener('click', function(ev){
-          ev.preventDefault(); ev.stopPropagation();
-          const url = new URL(window.location.href);
-          if(name === 'off') url.searchParams.delete('dsdiag');
-          else url.searchParams.set('dsdiag', name);
-          window.location.href = url.toString();
-        });
-        panel.appendChild(btn);
-      });
-      document.body.appendChild(panel);
-    }
-    if(document.body) mkPanel();
-    else document.addEventListener('DOMContentLoaded', mkPanel);
-  } catch(e){}
-})();
-
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
 //
 // Proef-conversie (Deep Sea-specifiek): solid-volume props krijgen op
@@ -203,7 +135,6 @@ function _seaFloorTex(){
 }
 
 function buildCurrentStreams(){
-  if(window._dsDiagHas && window._dsDiagHas('streams')) return;
   const defs=[{t:.20,side:1},{t:.45,side:-1},{t:.70,side:1}];
   defs.forEach((def,di)=>{
     const p=trackCurve.getPoint(def.t),tg=trackCurve.getTangent(def.t).normalize();
@@ -240,7 +171,6 @@ function checkCurrentStreams(dt){
 
 
 function buildAbyssCracks(){
-  if(window._dsDiagHas && window._dsDiagHas('cracks')) return;
   const defs=[{t:.33},{t:.60},{t:.88}];
   defs.forEach(def=>{
     const p=trackCurve.getPoint(def.t),tg=trackCurve.getTangent(def.t).normalize();
@@ -834,7 +764,6 @@ function buildSeaGate(){
 
 
 function buildBioluminescentTrackEdges(){
-  if(window._dsDiagHas && window._dsDiagHas('bioedges')) return;
   _dsaBioEdges.length=0;
   const N=180;
   [1,-1].forEach(side=>{

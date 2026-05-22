@@ -184,11 +184,20 @@ function buildTrack(){
   const _surfaceTex=_buildTrackSurfaceTex(_laneOpts);
   const _trackMat=(function(){
     const profile=_WORLD_TRACK_MAT_PROFILE[activeWorld]||_WORLD_TRACK_MAT_PROFILE.gp;
+    // Deepsea-mobile override: op LOW-tier is er geen IBL/envMap, dus de
+    // metalness-component (45% van material-response) draagt ZERO bij —
+    // dat deel van de output is effectief zwart. Combinatie met donker
+    // base-color (0x1a2830) + strenge fase-1 deepsea-lighting maakt de
+    // asphalt pikzwart in alle gebieden waar geen headlight-cone schijnt.
+    // Op mobile zetten we metalness naar 0 zodat de diffuse-respons de
+    // volle bijdrage levert. Andere worlds blijven zoals ze waren (hun
+    // asphalt is lichter of hun lighting voller).
+    const _isDeepseaMobile = (activeWorld === 'deepsea') && window._isMobile;
     const m=new THREE.MeshStandardMaterial({
       color:_baseTrackColor,
       map:_surfaceTex,
       roughness:profile.roughness,
-      metalness:profile.metalness,
+      metalness:_isDeepseaMobile ? 0 : profile.metalness,
       envMapIntensity:profile.envMul
     });
     if(window.ProcTextures && typeof ProcTextures.deriveNormalMap==='function' && !window._isMobile){
