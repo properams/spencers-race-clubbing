@@ -922,6 +922,11 @@ async function buildScene(){
   if(typeof _dsaPlanktonPhase!=='undefined')_dsaPlanktonPhase=null;
   if(typeof _dsaPlanktonCol!=='undefined')_dsaPlanktonCol=null;
   if(typeof _dsaPlanktonGlowing!=='undefined')_dsaPlanktonGlowing=false;
+  if(typeof _dsaHGGeo!=='undefined')_dsaHGGeo=null;
+  if(typeof _dsaHGPos!=='undefined')_dsaHGPos=null;
+  if(typeof _dsaHGCol!=='undefined')_dsaHGCol=null;
+  if(typeof _dsaHGN!=='undefined')_dsaHGN=0;
+  if(typeof _dsaHGGlowing!=='undefined')_dsaHGGlowing=false;
   if(typeof _dsaTreasures!=='undefined')_dsaTreasures.length=0;
   if(typeof _dsaCreatures!=='undefined'){_dsaCreatures.manta=null;_dsaCreatures.whale=null;_dsaCreatures.fishSchools.length=0;}
   if(typeof _dsaCurrentDir!=='undefined')_dsaCurrentDir=0;

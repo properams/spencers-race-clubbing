@@ -17,6 +17,10 @@ let _dsaPlanktonGeo=null,_dsaPlanktonPos=null,_dsaPlanktonPhase=null;
 // die alleen oplicht binnen de koplampbundel. _dsaPlanktonGlowing trackt of
 // er momenteel oplichtende particles zijn, zodat day-mode 1× kan resetten.
 let _dsaPlanktonCol=null,_dsaPlanktonGlowing=false;
+// Headlamp-glow particle systeem (apart van #34's wereld-vaste plankton). Car-
+// relatieve lage slab (y 0.3..6) op beam-hoogte. Default vertex-color (0,0,0)
+// = onzichtbaar buiten cone, oplicht in cyan-groen binnen cone.
+let _dsaHGGeo=null,_dsaHGPos=null,_dsaHGCol=null,_dsaHGN=0,_dsaHGGlowing=false;
 let _dsaCreatures={manta:null,whale:null,fishSchools:[]};
 let _dsaTreasures=[];
 
@@ -220,6 +224,7 @@ async function buildDeepSeaEnvironment(){
   buildDeepSeaBubbles();
   buildDeepSeaLightRays();
   buildDeepSeaPlankton();
+  buildDeepSeaHeadlampGlow();
   buildDistantSilhouettes();
   buildDeepSeaNightObjects();
   await Y();
@@ -940,6 +945,42 @@ function buildDeepSeaPlankton(){
 }
 
 
+// Headlamp-glow particle laag — apart van #34's ambient plankton zodat de cloud
+// car-relatief is en exact op beam-hoogte zit (y 0.3..6). Default vertex-color
+// (0,0,0) = onzichtbaar; update-loop in updateDeepSeaWorld() boost particles
+// binnen de koplampbundel naar cyan-groen via additive blending. Geen map
+// (sharper dots dan dust-tex blobs voor scherper glow-effect).
+function buildDeepSeaHeadlampGlow(){
+  const _M = !!window._isMobile;
+  const N = _M ? 150 : 300;
+  const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(N*3);
+  const col=new Float32Array(N*3); // init (0,0,0) — invisible until lit
+  const car0=carObjs[playerIdx];
+  const cx=car0?car0.mesh.position.x:0, cz=car0?car0.mesh.position.z:0;
+  for(let i=0;i<N;i++){
+    pos[i*3]   = cx+(Math.random()-.5)*400;
+    pos[i*3+1] = .3+Math.random()*5.7;
+    pos[i*3+2] = cz+(Math.random()-.5)*400;
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const mat=new THREE.PointsMaterial({
+    vertexColors:true,
+    size:0.4,
+    sizeAttenuation:true,
+    transparent:true,
+    opacity:0.95,
+    blending:THREE.AdditiveBlending,
+    depthWrite:false
+  });
+  const pts=new THREE.Points(geo,mat);
+  pts.userData._noLodCull=true;
+  scene.add(pts);
+  _dsaHGGeo=geo; _dsaHGPos=pos; _dsaHGCol=col; _dsaHGN=N; _dsaHGGlowing=false;
+}
+
+
 // Fase 2 — Distant silhouette shapes. Donkere statische vormen op de rand
 // van de fog-cutoff voor scale + sense-of-vast-world. MeshBasicMaterial
 // zodat ze fog-tinted blijven ongeacht lighting (geen ndotl-flicker). Geen
@@ -1156,6 +1197,85 @@ function updateDeepSeaWorld(dt){
         _dsaPlanktonGeo.attributes.color.needsUpdate=true;
         _dsaPlanktonGlowing=false;
       }
+    }
+  }
+  // Headlamp-glow particles (apart van #34 ambient plankton) — car-relatieve
+  // lage slab, vertex-color (0,0,0) default → oplicht in cone via additive boost.
+  // Cone-oorsprong: car-centerline + 0.45 up + _plFwd*1.9. Desktop full sweep
+  // (stride 1) voor scherp meedraaien bij sturen; mobiel stride 4.
+  if(_dsaHGGeo && _dsaHGCol){
+    const car=carObjs[playerIdx];
+    if(car && isDark && (typeof _plFwd!=='undefined')){
+      const pos=_dsaHGPos, col=_dsaHGCol, N=_dsaHGN;
+      const cpos=car.mesh.position;
+      const ox=cpos.x+_plFwd.x*1.9;
+      const oy=cpos.y+0.45+_plFwd.y*1.9;
+      const oz=cpos.z+_plFwd.z*1.9;
+      const fx=_plFwd.x, fy=_plFwd.y, fz=_plFwd.z;
+      const cosHalf=Math.cos(Math.PI*.16);
+      const maxDist=50, maxDist2=maxDist*maxDist, invMax=1/maxDist;
+      const cx=cpos.x, cz=cpos.z;
+      const stride=window._isMobile?4:1;
+      const step=stride===1?0:Math.floor(_nowSec*240)%stride;
+      let anyChange=false, posChanged=false;
+      for(let i=step;i<N;i+=stride){
+        const px=pos[i*3], py=pos[i*3+1], pz=pos[i*3+2];
+        // Rebound: particle te ver van auto → herplaats car-relatief, met
+        // rejection-sample tegen pop-in inside cone (max 6 attempts).
+        const dxc=px-cx, dzc=pz-cz;
+        if(dxc*dxc+dzc*dzc > 240*240){
+          let nx=0, nz=0, accepted=false;
+          for(let a=0;a<6;a++){
+            nx = cx+(Math.random()-.5)*420;
+            nz = cz+(Math.random()-.5)*420;
+            const ddx=nx-ox, ddz=nz-oz;
+            const dd2=ddx*ddx+ddz*ddz;
+            if(dd2 > 60*60){accepted=true;break;}     // far genoeg — veilig
+            const inv=1/Math.sqrt(dd2+.0001);
+            if((ddx*fx+ddz*fz)*inv < cosHalf){accepted=true;break;} // dichtbij maar buiten cone-richting
+            // else: close AND in cone direction → pop-in risico, retry
+          }
+          pos[i*3]   = nx;
+          pos[i*3+1] = .3+Math.random()*5.7;
+          pos[i*3+2] = nz;
+          // Fallback: ook als alle 6 attempts faalden (accepted=false) zetten
+          // we col onvoorwaardelijk op (0,0,0) — vangnet tegen in-pop bij
+          // sharp turns waar veel particles tegelijk rebounden.
+          if(col[i*3]||col[i*3+1]||col[i*3+2]){
+            col[i*3]=0; col[i*3+1]=0; col[i*3+2]=0;
+            anyChange=true;
+          }
+          posChanged=true;
+          continue;
+        }
+        // Cone zone test
+        const dx=px-ox, dy=py-oy, dz=pz-oz;
+        const d2=dx*dx+dy*dy+dz*dz;
+        let r=0, g=0, b=0;
+        if(d2<maxDist2 && d2>.01){
+          const inv=1/Math.sqrt(d2);
+          const cs=(dx*fx+dy*fy+dz*fz)*inv;
+          if(cs>cosHalf){
+            const edge=(cs-cosHalf)/(1-cosHalf);    // 0..1, 1 op-as
+            const dist=Math.sqrt(d2)*invMax;         // 0..1
+            const k=edge*edge*(1-dist*.85);          // soft falloff
+            r=.30*k; g=.95*k; b=.85*k;               // bioluminescent cyan-groen
+          }
+        }
+        if(col[i*3]!==r||col[i*3+1]!==g||col[i*3+2]!==b){
+          col[i*3]=r; col[i*3+1]=g; col[i*3+2]=b;
+          anyChange=true;
+        }
+      }
+      if(anyChange) _dsaHGGeo.attributes.color.needsUpdate=true;
+      if(posChanged) _dsaHGGeo.attributes.position.needsUpdate=true;
+      _dsaHGGlowing=true;
+    } else if(_dsaHGGlowing){
+      // Day mode / no car / no _plFwd: snap alle particles 1× naar (0,0,0)
+      const col=_dsaHGCol;
+      for(let i=0;i<col.length;i++) col[i]=0;
+      _dsaHGGeo.attributes.color.needsUpdate=true;
+      _dsaHGGlowing=false;
     }
   }
   // Bioluminescent edges pulse — wider amplitude, drives bloom on bright peaks.
