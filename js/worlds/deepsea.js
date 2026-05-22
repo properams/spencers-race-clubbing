@@ -59,6 +59,52 @@ window._dsDiagHas = function(name){
   } catch(e){}
 })();
 
+// Tap-panel voor mobile diagnostic-cycling (geen URL-typen meer nodig).
+// Verschijnt zodra ?dsdiag in URL staat (welke waarde dan ook). Knoppen
+// zetten URL-param en reloaden. Niet-productie — verwijderen met de rest
+// van de diagnostic.
+(function _dsDiagPanel(){
+  try {
+    const cur = new URLSearchParams(window.location.search).get('dsdiag');
+    if(cur === null) return;
+    if(typeof document === 'undefined') return;
+    function mkPanel(){
+      if(document.getElementById('_dsdiag_panel')) return;
+      const panel = document.createElement('div');
+      panel.id = '_dsdiag_panel';
+      panel.style.cssText = 'position:fixed;top:50%;left:6px;transform:translateY(-50%);'
+        + 'z-index:99999;background:rgba(0,0,0,0.88);padding:8px;border-radius:6px;'
+        + 'font:11px monospace;color:#fff;border:1px solid #0af;'
+        + 'max-width:120px;-webkit-user-select:none;user-select:none;';
+      const title = document.createElement('div');
+      title.textContent = 'DSDIAG: ' + (cur || 'off');
+      title.style.cssText = 'margin-bottom:6px;color:#0af;font-weight:bold;';
+      panel.appendChild(title);
+      const opts = ['streams','cracks','wear','bioedges','all','off'];
+      opts.forEach(name => {
+        const btn = document.createElement('button');
+        btn.textContent = name;
+        const active = (name === cur) || (name === 'off' && !cur);
+        btn.style.cssText = 'display:block;width:100%;padding:8px 6px;margin:3px 0;'
+          + 'background:' + (active ? '#0af' : '#333') + ';color:#fff;'
+          + 'border:none;border-radius:3px;font:11px monospace;cursor:pointer;'
+          + 'touch-action:manipulation;';
+        btn.addEventListener('click', function(ev){
+          ev.preventDefault(); ev.stopPropagation();
+          const url = new URL(window.location.href);
+          if(name === 'off') url.searchParams.delete('dsdiag');
+          else url.searchParams.set('dsdiag', name);
+          window.location.href = url.toString();
+        });
+        panel.appendChild(btn);
+      });
+      document.body.appendChild(panel);
+    }
+    if(document.body) mkPanel();
+    else document.addEventListener('DOMContentLoaded', mkPanel);
+  } catch(e){}
+})();
+
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
 //
 // Proef-conversie (Deep Sea-specifiek): solid-volume props krijgen op
