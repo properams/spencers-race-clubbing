@@ -13,6 +13,10 @@ let _dsaBioEdges=[];
 // Geo/pos hoisted zodat updateDeepSeaWorld de positie-attribuut per frame
 // kan muteren zonder GC-allocaties.
 let _dsaPlanktonGeo=null,_dsaPlanktonPos=null,_dsaPlanktonPhase=null;
+// Headlamp zone-glow overlay op de bestaande plankton: vertex-color attribute
+// die alleen oplicht binnen de koplampbundel. _dsaPlanktonGlowing trackt of
+// er momenteel oplichtende particles zijn, zodat day-mode 1× kan resetten.
+let _dsaPlanktonCol=null,_dsaPlanktonGlowing=false;
 let _dsaCreatures={manta:null,whale:null,fishSchools:[]};
 let _dsaTreasures=[];
 
@@ -901,18 +905,25 @@ function buildDeepSeaPlankton(){
   const geo=new THREE.BufferGeometry();
   const pos=new Float32Array(N*3);
   const phase=new Float32Array(N);
+  // Headlamp glow: vertex-color per particle, multiplicatief op material.color
+  // via vertexColors=true. Default (1,1,1) = master's cyaan ambient ongewijzigd;
+  // de update-loop zet alleen particles in de cone op hogere waarden voor extra glow.
+  const col=new Float32Array(N*3);
   for(let i=0;i<N;i++){
     pos[i*3]   = (Math.random()-.5)*400;
     pos[i*3+1] =  4 + Math.random()*70;
     pos[i*3+2] = (Math.random()-.5)*400;
     phase[i]   = Math.random()*Math.PI*2;
+    col[i*3]=1; col[i*3+1]=1; col[i*3+2]=1;
   }
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
   const tex = (typeof _getDustTex==='function') ? _getDustTex() : null;
   const mat=new THREE.PointsMaterial({
     color: 0x88ddff,
     size: 0.55,
     map: tex,
+    vertexColors: true,
     transparent: true,
     opacity: 0.65,
     sizeAttenuation: true,
@@ -925,6 +936,7 @@ function buildDeepSeaPlankton(){
   pts.userData._noLodCull=true;
   scene.add(pts);
   _dsaPlanktonGeo=geo; _dsaPlanktonPos=pos; _dsaPlanktonPhase=phase;
+  _dsaPlanktonCol=col; _dsaPlanktonGlowing=false;
 }
 
 
@@ -1036,6 +1048,52 @@ function updateDeepSeaWorld(dt){
       if(pPos[i*3+1]  <    4) pPos[i*3+1]  +=  74;
     }
     _dsaPlanktonGeo.attributes.position.needsUpdate=true;
+    // Headlamp zone-glow overlay: vertex-color per particle. Zone-check (geen
+    // per-particle light sampling), reuse _plFwd + plHeadL/R.position die
+    // night.js's updateCarLights al eerder deze frame heeft bijgewerkt.
+    // Stride sweep (desktop 50%, mobile 25%) — responsief in bochten, mobile-veilig.
+    if(_dsaPlanktonCol){
+      const car=carObjs[playerIdx];
+      if(car && isDark && plHeadL){
+        const col=_dsaPlanktonCol;
+        const ox=(plHeadL.position.x+plHeadR.position.x)*.5;
+        const oy=(plHeadL.position.y+plHeadR.position.y)*.5;
+        const oz=(plHeadL.position.z+plHeadR.position.z)*.5;
+        const fx=_plFwd.x, fy=_plFwd.y, fz=_plFwd.z;
+        const cosHalf=Math.cos(Math.PI*.16);
+        const maxDist=50, maxDist2=maxDist*maxDist, invMax=1/maxDist;
+        const stride=window._isMobile?4:2;
+        const step=Math.floor(_nowSec*240)%stride;
+        let anyChange=false;
+        for(let i=step;i<len;i+=stride){
+          const dx=pPos[i*3]-ox, dy=pPos[i*3+1]-oy, dz=pPos[i*3+2]-oz;
+          const d2=dx*dx+dy*dy+dz*dz;
+          let r=1, g=1, b=1;
+          if(d2<maxDist2 && d2>.01){
+            const inv=1/Math.sqrt(d2);
+            const cs=(dx*fx+dy*fy+dz*fz)*inv;
+            if(cs>cosHalf){
+              const edge=(cs-cosHalf)/(1-cosHalf);   // 0..1, 1 op-as
+              const dist=Math.sqrt(d2)*invMax;        // 0..1
+              const k=edge*edge*(1-dist*.85);         // soft falloff
+              r=1+k*.5; g=1+k*1.5; b=1+k*.8;          // cyaan-groene glow boost
+            }
+          }
+          if(col[i*3]!==r||col[i*3+1]!==g||col[i*3+2]!==b){
+            col[i*3]=r; col[i*3+1]=g; col[i*3+2]=b;
+            anyChange=true;
+          }
+        }
+        if(anyChange) _dsaPlanktonGeo.attributes.color.needsUpdate=true;
+        _dsaPlanktonGlowing=true;
+      } else if(_dsaPlanktonGlowing){
+        // Day mode / no car / headlamps off: snap alle particles 1× terug naar ambient (1,1,1)
+        const col=_dsaPlanktonCol;
+        for(let i=0;i<col.length;i++) col[i]=1;
+        _dsaPlanktonGeo.attributes.color.needsUpdate=true;
+        _dsaPlanktonGlowing=false;
+      }
+    }
   }
   // Bioluminescent edges pulse — wider amplitude, drives bloom on bright peaks.
   // Fase 2: bredere ribbon meegekoppeld; subtieler pulse (lager base, kleinere
