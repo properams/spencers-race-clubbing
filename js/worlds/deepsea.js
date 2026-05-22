@@ -36,14 +36,6 @@ const DS_FLOOR_BASE_COLOR     = 0x1a2830; // match track asphalt (was 0x2a3540 �
 const DS_FLOOR_RELIEF_AMP     = 3.5;      // max vertex-displacement (units)
 const DS_TRACK_FLATTEN_RADIUS = 26;       // vlakgemaakt binnen X u van trackCurve (4u defense-in-depth buffer t.o.v. SAMPLES=200 max fout ~3.75u)
 const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d desktop)
-// Mobile-only emissive op de floor: zonder IBL en met multiplicatieve
-// color × map verdonkering rendert de seafloor anders bijna pikzwart op
-// LOW-tier. Cyaan-shifted (B/R = 3.0×) om in lijn te leggen met de track
-// asphalt-tint i.p.v. neutraal grijs. Intensity 0.55 zet de baseline
-// onder de track lit-response — floor leest niet meer als het lichtste
-// vlak op het scherm.
-const DS_FLOOR_MOBILE_EMISSIVE     = 0x14283c;
-const DS_FLOOR_MOBILE_EMISSIVE_INT = 0.55;
 
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
 //
@@ -103,46 +95,6 @@ function _displaceSeaFloorVertices(geo, curve){
   pos.needsUpdate = true;
 }
 
-// _seaFloorTex: eigen donkere silt/sedimente-tex (los van het gedeelde
-// _sandGroundTex dat Sandstorm gebruikt). 256² canvas met cool donker basis,
-// noise-vlekken voor silt en ~3% fijne lichtere grit-stippels.
-function _seaFloorTex(){
-  const S=256, c=document.createElement('canvas');
-  c.width=S; c.height=S;
-  const g=c.getContext('2d');
-  // Basis iets donkerder dan DS_FLOOR_BASE_COLOR zodat material.color hem oplicht.
-  g.fillStyle='#1a2230'; g.fillRect(0,0,S,S);
-  // Per-pixel koele noise (R<G<B blauwgrijs-bereik).
-  const id=g.getImageData(0,0,S,S), d=id.data;
-  for(let i=0;i<d.length;i+=4){
-    const n=22+(Math.random()*18)|0;
-    d[i]   = n;
-    d[i+1] = n+8;
-    d[i+2] = n+18;
-    d[i+3] = 255;
-  }
-  g.putImageData(id,0,0);
-  // Donkere silt-vlekken (lossere patches voor variatie tegen banding in fog).
-  for(let i=0;i<40;i++){
-    g.fillStyle=`rgba(8,12,20,${.18+Math.random()*.22})`;
-    const r=8+Math.random()*22;
-    g.beginPath();g.arc(Math.random()*S, Math.random()*S, r, 0, Math.PI*2);g.fill();
-  }
-  // Lichtere sediment-grit (~3% area) — cyaan-shifted `#2a3a4a` (B/R = 1.73×)
-  // i.p.v. het oudere neutrale `#3a4252`, zodat detail-laag in het cyaan-
-  // koel-domein blijft i.p.v. grijs-perceptie op LOW-tier te triggeren.
-  const gritCount = Math.floor(S*S*0.03 / 3);
-  g.fillStyle='#2a3a4a';
-  for(let i=0;i<gritCount;i++){
-    g.fillRect(Math.random()*S, Math.random()*S, 1+Math.random()*1.2, 1+Math.random()*1.2);
-  }
-  const t=new THREE.CanvasTexture(c);
-  t.wrapS=t.wrapT=THREE.RepeatWrapping;
-  t.repeat.set(7,7);
-  t.anisotropy=window._isMobile?2:4;
-  t.needsUpdate=true;
-  return t;
-}
 
 function buildCurrentStreams(){
   const defs=[{t:.20,side:1},{t:.45,side:-1},{t:.70,side:1}];
@@ -520,21 +472,19 @@ function buildSeaFloor(){
   const fGeo = new THREE.PlaneGeometry(2400, 2400, SEG, SEG);
   _displaceSeaFloorVertices(fGeo, trackCurve);
   fGeo.computeVertexNormals();
-  // Mobile-only emissive (DS_FLOOR_MOBILE_EMISSIVE/_INT): op LOW-tier is er
-  // geen IBL, en de combinatie van DS_FLOOR_BASE_COLOR × _seaFloorTex levert
-  // multiplicatief een te donker effective material color. Subtiele cyaan-
-  // shifted emissive geeft een minimum baseline-helderheid die de
-  // multiplicatie niet kan verstoren, terwijl de hue de track-asphalt
-  // tint matched (i.p.v. neutraal grijs). Desktop blijft ongewijzigd:
-  // _dsMat() op desktop maakt MeshStandardMaterial zonder de emissive-
-  // velden uit het mobile-pad, en IBL via 'aqua-wet' vult daar de gaten op.
-  const _floorLambertDef = window._isMobile
-    ? { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex(),
-        emissive: DS_FLOOR_MOBILE_EMISSIVE,
-        emissiveIntensity: DS_FLOOR_MOBILE_EMISSIVE_INT }
-    : { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex() };
+  // Seafloor hergebruikt de track's eigen _buildTrackSurfaceTex (gedeclareerd
+  // in js/track/track.js, top-level non-module → globaal beschikbaar). Dezelfde
+  // bright-neutral basis (#9a9a9a) × DS_FLOOR_BASE_COLOR (= track asphalt
+  // 0x1a2830) levert identieke dim cyaan-blauw als de track zelf. Geen aparte
+  // donkere _seaFloorTex meer, geen emissive lift; floor en track zijn nu
+  // visueel hetzelfde surface-domein, met alleen displacement-reliëf en kerb/
+  // lane-stripe-emissive als visuele asymmetrie. lanes:0/wetness:0 = deepsea-
+  // palette default; repeat 60×60 schaalt de tile-density op het 2400u plane.
+  const _floorTex = _buildTrackSurfaceTex({lanes:0, wetness:0});
+  _floorTex.repeat.set(60, 60);
+  _floorTex.needsUpdate = true;
   const floorMat = _dsMat(
-    _floorLambertDef,
+    { color: DS_FLOOR_BASE_COLOR, map: _floorTex },
     { metalness: 0.0, roughness: 0.85 },
     'aqua-wet'
   );
