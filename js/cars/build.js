@@ -78,6 +78,11 @@ function _attachContactShadow(carMesh){
       // Slight color bias toward warm so on cool worlds (arctic, neon)
       // the shadow doesn't read as harsh blue-black.
       color: 0x2a2624,
+      // Parity met sandstorm-variant — zonder expliciete opacity defaultt
+      // three.js naar 1.0 wat in combinatie met polygonOffset op LOW-tier
+      // iPhone 12 WebGL de 20-segment CircleGeometry als polygonale dark
+      // patch laat lezen i.p.v. soft radial-shadow (zichtbaar op deepsea).
+      opacity: 0.78,
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1
