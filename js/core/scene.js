@@ -1235,7 +1235,13 @@ async function buildScene(){
   // Phase 8.6 — racing-line wear streaks bij corners. LineSegments-mesh
   // bovenop asphalt waar curvature een donker rubber-stain produceert.
   // Loopt na buildTrack zodat trackCurve gegarandeerd bestaat.
-  if(typeof buildRacingLineWear === 'function') buildRacingLineWear();
+  if(typeof buildRacingLineWear === 'function'){
+    // Diagnostic gate (deepsea-scoped): ?dsdiag=wear skipt racing-line-wear
+    // alleen op deepsea. Tijdelijk — verwijderen na culprit-identificatie.
+    const _diagSkipWear = activeWorld === 'deepsea'
+      && window._dsDiagHas && window._dsDiagHas('wear');
+    if(!_diagSkipWear) buildRacingLineWear();
+  }
   // Issue 12 (V5.3): buildGantry() was defined in track.js but never called.
   // Gantry has world-specific text + colour via WORLD_TRACK_PALETTE + _gantryFrameText.
   // Guangzhou entry exists: 'GUANGZHOU NIGHT GP' + accent #ff2080. Calling here,

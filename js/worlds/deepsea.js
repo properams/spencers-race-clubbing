@@ -37,6 +37,28 @@ const DS_FLOOR_RELIEF_AMP     = 3.5;      // max vertex-displacement (units)
 const DS_TRACK_FLATTEN_RADIUS = 26;       // vlakgemaakt binnen X u van trackCurve (4u defense-in-depth buffer t.o.v. SAMPLES=200 max fout ~3.75u)
 const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d desktop)
 
+// ── Diagnostic helper (tijdelijk) ────────────────────────────────────────
+// Iteratieve elimination voor de zwarte vlakken op de baan op iPhone 12.
+// Gebruik via URL: ?dsdiag=streams (skipt buildCurrentStreams), =cracks
+// (buildAbyssCracks), =bioedges (buildBioluminescentTrackEdges), =wear
+// (buildRacingLineWear), =all (alle vier). Comma-separated combineren mag.
+// Logt bij world-build welke params actief zijn. NIET voor productie —
+// verwijderen zodra culprit geïdentificeerd is.
+window._dsDiagHas = function(name){
+  try {
+    const p = new URLSearchParams(window.location.search).get('dsdiag') || '';
+    if(!p) return false;
+    if(p === 'all') return true;
+    return p.split(',').map(s=>s.trim()).includes(name);
+  } catch(e){ return false; }
+};
+(function _dsDiagLog(){
+  try {
+    const p = new URLSearchParams(window.location.search).get('dsdiag');
+    if(p && typeof console !== 'undefined') console.log('[Deep Sea diag] active params:', p);
+  } catch(e){}
+})();
+
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
 //
 // Proef-conversie (Deep Sea-specifiek): solid-volume props krijgen op
@@ -135,6 +157,7 @@ function _seaFloorTex(){
 }
 
 function buildCurrentStreams(){
+  if(window._dsDiagHas && window._dsDiagHas('streams')) return;
   const defs=[{t:.20,side:1},{t:.45,side:-1},{t:.70,side:1}];
   defs.forEach((def,di)=>{
     const p=trackCurve.getPoint(def.t),tg=trackCurve.getTangent(def.t).normalize();
@@ -171,6 +194,7 @@ function checkCurrentStreams(dt){
 
 
 function buildAbyssCracks(){
+  if(window._dsDiagHas && window._dsDiagHas('cracks')) return;
   const defs=[{t:.33},{t:.60},{t:.88}];
   defs.forEach(def=>{
     const p=trackCurve.getPoint(def.t),tg=trackCurve.getTangent(def.t).normalize();
@@ -764,6 +788,7 @@ function buildSeaGate(){
 
 
 function buildBioluminescentTrackEdges(){
+  if(window._dsDiagHas && window._dsDiagHas('bioedges')) return;
   _dsaBioEdges.length=0;
   const N=180;
   [1,-1].forEach(side=>{
