@@ -1038,9 +1038,16 @@ async function buildScene(){
     scene.fog=new THREE.FogExp2(0x010018,.0014);
     _fogColorDay.setHex(0x10085a);_fogColorNight.setHex(0x0a0a30);
   }else if(isDeepSea){
+    // Fase 1 afgrond-tune: fog-kleur matcht skybox-foot (#001825) zodat horizon
+    // naadloos overgaat in de skybox-gradiënt — geen aparte verticale dome-fog
+    // nodig, donkere watermassa "in de hoogte" volgt uit de bestaande sky.
+    // Tier-dependent density: mobile 30% dunner voor LOW-tier leesbaarheid
+    // (hardgrens: baan + bocht moeten leesbaar blijven op iPhone 12).
+    // Constanten gedefinieerd bovenin js/worlds/deepsea.js (live-tweakbaar).
     scene.background=_getOrBuildSkyTex(makeDeepSeaSkyTex);
-    scene.fog=new THREE.FogExp2(0x003355,.0017);
-    _fogColorDay.setHex(0x003355);_fogColorNight.setHex(0x03202e);
+    const _dsDensity = window._isMobile ? DS_FOG_DENSITY_MOBILE : DS_FOG_DENSITY_DESKTOP;
+    scene.fog=new THREE.FogExp2(DS_FOG_COLOR_DAY,_dsDensity);
+    _fogColorDay.setHex(DS_FOG_COLOR_DAY);_fogColorNight.setHex(DS_FOG_COLOR_NIGHT);
   }else if(isCandy){
     scene.background=_getOrBuildSkyTex(makeCandySkyTex);
     // Pastel-pink fog matches the new 4-stop skybox foot so the seam
@@ -1142,13 +1149,19 @@ async function buildScene(){
   // disposeScene op wereld-switch.
   if(typeof window._initContactShadows === 'function')window._initContactShadows();
   if(typeof window._reattachContactShadows === 'function')window._reattachContactShadows();
-  camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.2,900);
+  // Per-world camera far-plane. Deep Sea krijgt 800u afgestemd op fog-cutoff
+  // (~2/d met d=0.0028 desktop) — voorkomt onnodig tekenen achter de fog-muur
+  // en blijft binnen sunLight.shadow.camera.far (700). Andere worlds blijven 900.
+  const _camFar = isDeepSea ? DS_CAM_FAR : 900;
+  camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.2,_camFar);
   camera.position.set(0,12,330);camera.lookAt(0,0,280);
   camPos.copy(camera.position);
   mirrorCamera=new THREE.PerspectiveCamera(68,204/80,.1,400);
 
-  const _dirLightColor=isSpace?0xaaaaff:isDeepSea?0x44aacc:isCandy?0xfff0e0:0xfff5e0;
-  const _dirLightInt=isSpace?.06:isDeepSea?.45:isCandy?1.5:1.65;
+  // Deep Sea fase 1: sun ietsje koeler + dimmer (0x4477aa @ 0.40) zodat de
+  // afgrond donker leest, baan blijft zichtbaar door kerb-emissive.
+  const _dirLightColor=isSpace?0xaaaaff:isDeepSea?0x4477aa:isCandy?0xfff0e0:0xfff5e0;
+  const _dirLightInt=isSpace?.06:isDeepSea?.40:isCandy?1.5:1.65;
   sunLight=new THREE.DirectionalLight(_dirLightColor,_dirLightInt);
   sunLight.position.set(180,320,80);
   // Tier flag dictates whether the sun casts shadows (low tier = no shadows).
@@ -1173,12 +1186,16 @@ async function buildScene(){
   sunLight.shadow.normalBias = 0.02;
   sunLight.shadow.camera.updateProjectionMatrix();
   scene.add(sunLight);
-  const _ambColor=isSpace?0x334466:isDeepSea?0x003355:isCandy?0xffccdd:0x88aacc;
-  const _ambInt=isSpace?.18:isDeepSea?.55:isCandy?.65:.50;
+  // Deep Sea fase 1: ambient drop 0.55→0.30 + kleur matcht fog (0x001828) zodat
+  // open vlakte niet meer "groenig licht" leest. Hemi naar 0.20 met donkerder
+  // sky/ground voor een afgrond-impressie. Mobile niet apart geknepen — de
+  // tier-dependent fog-density doet de leesbaarheid lift.
+  const _ambColor=isSpace?0x334466:isDeepSea?0x001828:isCandy?0xffccdd:0x88aacc;
+  const _ambInt=isSpace?.18:isDeepSea?.30:isCandy?.65:.50;
   ambientLight=new THREE.AmbientLight(_ambColor,_ambInt);scene.add(ambientLight);
-  const _hemiSky=isSpace?0x334466:isDeepSea?0x0055aa:isCandy?0xffd4e8:0x9bbfdd;
-  const _hemiGnd=isSpace?0x110022:isDeepSea?0x001122:isCandy?0xffccaa:0x4a7a3d;
-  const _hemiInt=isSpace?.14:isDeepSea?.30:isCandy?.45:.36;
+  const _hemiSky=isSpace?0x334466:isDeepSea?0x003560:isCandy?0xffd4e8:0x9bbfdd;
+  const _hemiGnd=isSpace?0x110022:isDeepSea?0x000508:isCandy?0xffccaa:0x4a7a3d;
+  const _hemiInt=isSpace?.14:isDeepSea?.20:isCandy?.45:.36;
   hemiLight=new THREE.HemisphereLight(_hemiSky,_hemiGnd,_hemiInt);scene.add(hemiLight);
 
   // Per-world rim-light: 2nd DirectionalLight from the opposite side of the
@@ -1192,7 +1209,7 @@ async function buildScene(){
   // is most visible on car clearcoat + side facets of props.
   const _RIM_LIGHT_CONFIG = {
     space:               { color: 0x6688aa, int: 0.10, pos: [-140, 220,-80] },
-    deepsea:             { color: 0x88ccee, int: 0.14, pos: [-160, 180,-60] },
+    deepsea:             { color: 0x88ccee, int: 0.10, pos: [-160, 180,-60] },
     candy:               { color: 0xff8ec0, int: 0.16, pos: [-180, 240,-60] },
     volcano:             { color: 0x4488cc, int: 0.16, pos: [-180, 240,-60] },
     arctic:              { color: 0xffb877, int: 0.14, pos: [-140, 220,-80] },

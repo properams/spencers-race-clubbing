@@ -24,6 +24,19 @@ let _dsaFrame=0; // per-frame counter for mobile staggering
 // var (niet const) — script-globaal voor cross-script reset in core/scene.js.
 var _wpCurrentStreams=[],_wpAbyssCracks=[],_wpTreasureTrail=[];
 
+// ── Deep Sea atmosfeer- en bodem-knoppen (fase 1, live-tweakbaar) ────────
+// Named constants voor de afgrond-sfeer. Tweaken zonder rebuild-ritueel:
+// kleuren pakken bij volgende buildScene mee; density wordt op buildScene
+// vastgezet via _isMobile-switch in core/scene.js.
+const DS_FOG_COLOR_DAY        = 0x001828; // diep marineblauw, matcht skybox-foot (#001825)
+const DS_FOG_COLOR_NIGHT      = 0x000812; // bijna-zwart voor nacht-mode
+const DS_FOG_DENSITY_DESKTOP  = 0.0028;   // FogExp2 — ~99% opaak rond ~1070u (3/d)
+const DS_FOG_DENSITY_MOBILE   = 0.0020;   // 30% dunner voor LOW-tier leesbaarheid
+const DS_FLOOR_BASE_COLOR     = 0x2a3540; // koel donker grijsblauw (afgrond-bodem)
+const DS_FLOOR_RELIEF_AMP     = 3.5;      // max vertex-displacement (units)
+const DS_TRACK_FLATTEN_RADIUS = 22;       // vlakgemaakt binnen X u van trackCurve
+const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d desktop)
+
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
 //
 // Proef-conversie (Deep Sea-specifiek): solid-volume props krijgen op
@@ -42,6 +55,79 @@ function _dsMat(lambertDef, stdExtras, tag){
   mat.userData = mat.userData || {};
   mat.userData.envTag = tag;
   return mat;
+}
+
+// ── Bodem-reliëf + procedurale silt-textuur ─────────────────────────────
+// _displaceSeaFloorVertices: vervormt local-z (= world-y na rotation.x=-π/2)
+// via gestapelde sinussen. Vertices binnen DS_TRACK_FLATTEN_RADIUS worden
+// vlak gehouden zodat de baan zelf cosmetisch en functioneel ongemoeid blijft.
+// Eenmalige build-time kosten: ~SEG² × 40 dist-checks (<120ms op LOW).
+function _displaceSeaFloorVertices(geo, curve){
+  if(!curve) return;
+  const pos = geo.attributes.position;
+  const SAMPLES = 40;
+  const trackPts = new Array(SAMPLES);
+  for(let i=0; i<SAMPLES; i++) trackPts[i] = curve.getPoint(i/SAMPLES);
+  for(let v=0; v<pos.count; v++){
+    // Local x → world x. Local y → -world z (na rotation.x=-π/2).
+    const x = pos.getX(v);
+    const z = -pos.getY(v);
+    let dMin = Infinity;
+    for(let s=0; s<SAMPLES; s++){
+      const dx = x - trackPts[s].x, dz = z - trackPts[s].z;
+      const d2 = dx*dx + dz*dz;
+      if(d2 < dMin) dMin = d2;
+    }
+    const dist = Math.sqrt(dMin);
+    // 0..1 fade-out tussen flatten-radius en +28u; daarbinnen volledig vlak.
+    const flatten = Math.max(0, Math.min(1, (dist - DS_TRACK_FLATTEN_RADIUS) / 28));
+    // Gestapelde sinussen — drie freqs voor lange diepzee-richels + grovere hill-ruis.
+    const ny =
+        Math.sin(x*0.018) * Math.cos(z*0.022) * 0.6
+      + Math.sin(x*0.05 + 1.7) * 0.25
+      + Math.sin((x+z)*0.012) * 0.15;
+    pos.setZ(v, ny * DS_FLOOR_RELIEF_AMP * flatten);
+  }
+  pos.needsUpdate = true;
+}
+
+// _seaFloorTex: eigen donkere silt/sedimente-tex (los van het gedeelde
+// _sandGroundTex dat Sandstorm gebruikt). 256² canvas met cool donker basis,
+// noise-vlekken voor silt en ~3% fijne lichtere grit-stippels.
+function _seaFloorTex(){
+  const S=256, c=document.createElement('canvas');
+  c.width=S; c.height=S;
+  const g=c.getContext('2d');
+  // Basis iets donkerder dan DS_FLOOR_BASE_COLOR zodat material.color hem oplicht.
+  g.fillStyle='#1a2230'; g.fillRect(0,0,S,S);
+  // Per-pixel koele noise (R<G<B blauwgrijs-bereik).
+  const id=g.getImageData(0,0,S,S), d=id.data;
+  for(let i=0;i<d.length;i+=4){
+    const n=22+(Math.random()*18)|0;
+    d[i]   = n;
+    d[i+1] = n+8;
+    d[i+2] = n+18;
+    d[i+3] = 255;
+  }
+  g.putImageData(id,0,0);
+  // Donkere silt-vlekken (lossere patches voor variatie tegen banding in fog).
+  for(let i=0;i<40;i++){
+    g.fillStyle=`rgba(8,12,20,${.18+Math.random()*.22})`;
+    const r=8+Math.random()*22;
+    g.beginPath();g.arc(Math.random()*S, Math.random()*S, r, 0, Math.PI*2);g.fill();
+  }
+  // Lichtere sediment-grit (~3% area) — koel `#3a4252`, geen warme spikkels.
+  const gritCount = Math.floor(S*S*0.03 / 3);
+  g.fillStyle='#3a4252';
+  for(let i=0;i<gritCount;i++){
+    g.fillRect(Math.random()*S, Math.random()*S, 1+Math.random()*1.2, 1+Math.random()*1.2);
+  }
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.repeat.set(7,7);
+  t.anisotropy=window._isMobile?2:4;
+  t.needsUpdate=true;
+  return t;
 }
 
 function buildCurrentStreams(){
@@ -126,12 +212,14 @@ function buildTreasureTrail(){
     const offset=(Math.random()>.5?1:-1)*(TW+3+Math.random()*4);
     const pos=p.clone().addScaledVector(nr,offset);pos.y=2.0;
     const g=new THREE.Group();g.position.copy(pos);
-    // Golden treasure chest shape (box + lid)
-    const chestMat=new THREE.MeshLambertMaterial({color:0xddaa00,emissive:0x886600,emissiveIntensity:.7});
+    // Golden treasure chest shape (box + lid) — fase 1B: solid-volume naar
+    // _dsMat met aqua-metal tag. Emissive capped op 0.4 per herontwerp-regel
+    // (mits geen additive blending — geldt hier, deze meshes zijn opaque).
+    const chestMat=_dsMat({color:0xddaa00,emissive:0x886600,emissiveIntensity:.4},{metalness:0.40,roughness:0.45},'aqua-metal');
     const box=new THREE.Mesh(new THREE.BoxGeometry(.9,.65,.65),chestMat);
     box.position.y=-.1;g.add(box);
     const lid=new THREE.Mesh(new THREE.BoxGeometry(.9,.3,.65),
-      new THREE.MeshLambertMaterial({color:0xffcc00,emissive:0xaa8800,emissiveIntensity:.8}));
+      _dsMat({color:0xffcc00,emissive:0xaa8800,emissiveIntensity:.4},{metalness:0.40,roughness:0.45},'aqua-metal'));
     lid.position.y=.3;g.add(lid);
     // Glow ring
     const rng=new THREE.Mesh(new THREE.TorusGeometry(1,.1,6,20),
@@ -265,10 +353,14 @@ function _buildDeepseaMidVariety(){
   if(typeof _populateMidRing!=='function')return;
   const fanCount = (typeof _mobCount==='function')?_mobCount(35):35;
   const fanGeo = new THREE.PlaneGeometry(2, 3);
-  const fanMat = new THREE.MeshLambertMaterial({
-    color:0xff66aa, emissive:0xff3388, emissiveIntensity:0.4,
-    side:THREE.DoubleSide, transparent:true, opacity:0.85
-  });
+  // Fase 1B: solid-volume met alpha (geen additive) → _dsMat aqua-wet.
+  // Emissive al op cap 0.4.
+  const fanMat = _dsMat(
+    {color:0xff66aa, emissive:0xff3388, emissiveIntensity:0.4,
+     side:THREE.DoubleSide, transparent:true, opacity:0.85},
+    {metalness:0.0, roughness:0.55},
+    'aqua-wet'
+  );
   // Cross-plane: 2 IM, 90° rotation offset
   const fan1 = new THREE.InstancedMesh(fanGeo, fanMat, fanCount*2);
   _populateMidRing(fan1, {
@@ -406,25 +498,39 @@ function _buildDeepseaMidRing(){
 
 
 function buildSeaFloor(){
-  // Main sandy seafloor
-  const sandMat=_dsMat({color:0xc8a96a,map:_sandGroundTex()},{metalness:0.0,roughness:0.75},'aqua-wet');
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400,1,1),sandMat);
-  floor.rotation.x=-Math.PI/2;floor.position.y=-.18;floor.receiveShadow=true;
-  floor.userData._isProcGround=true;
+  // Fase 1 — afgrond-bodem met subtiel reliëf. Floor gaat door _dsMat zodat
+  // hij op desktop natte-sediment IBL-reflecties oppakt via aqua-wet tag;
+  // mobile valt _dsMat automatisch terug op MeshLambertMaterial.
+  // roughness 0.85 = zachte natte sediment-look, geen chrome-glare.
+  const SEG = window._isMobile ? 48 : 80;
+  const fGeo = new THREE.PlaneGeometry(2400, 2400, SEG, SEG);
+  _displaceSeaFloorVertices(fGeo, trackCurve);
+  fGeo.computeVertexNormals();
+  const floorMat = _dsMat(
+    { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex() },
+    { metalness: 0.0, roughness: 0.85 },
+    'aqua-wet'
+  );
+  const floor = new THREE.Mesh(fGeo, floorMat);
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = -0.18;
+  floor.receiveShadow = true;
+  floor.userData._isProcGround = true;
   scene.add(floor);
-  // Darker infield — ocean trench / crevice
-  const trenchMat=_dsMat({color:0x001830},{metalness:0.0,roughness:0.90},'aqua-wet');
+  // Trench — donkerder dan basis, smelt in fog. Roughness 0.90 voor matte
+  // afgrond-look (geen glans op het diepste punt).
+  const trenchMat=_dsMat({color:0x000a18},{metalness:0.0,roughness:0.90},'aqua-wet');
   const trench=new THREE.Mesh(new THREE.PlaneGeometry(380,320,1,1),trenchMat);
   trench.rotation.x=-Math.PI/2;trench.position.set(-30,-.15,-40);scene.add(trench);
-  // Seafloor hills (lumpy formations)
-  const hillMat=_dsMat({color:0xb89558},{metalness:0.0,roughness:0.70},'aqua-wet');
+  // Seafloor hills — iets lichter dan basis voor zachte hoogte-read.
+  const hillMat=_dsMat({color:0x35404a},{metalness:0.0,roughness:0.80},'aqua-wet');
   const hillPositions=[[210,-180,8],[-220,130,10],[150,280,7],[-80,-310,9],[300,100,6],[-310,-50,8],[80,-360,7],[-180,280,6]];
   hillPositions.forEach(([hx,hz,hr])=>{
     const hgeo=new THREE.SphereGeometry(hr+Math.random()*4,8,5);hgeo.scale(1,.38+Math.random()*.18,1);
     const h=new THREE.Mesh(hgeo,hillMat);h.position.set(hx,0,hz);h.receiveShadow=true;scene.add(h);
   });
-  // Sand ripple lines (flat thin boxes)
-  const rippleMat=_dsMat({color:0xd4b87a,transparent:true,opacity:.55},{metalness:0.0,roughness:0.75},'aqua-wet');
+  // Sand ripple lines — cool donker, geen warme tan meer.
+  const rippleMat=_dsMat({color:0x3a4550,transparent:true,opacity:.55},{metalness:0.0,roughness:0.75},'aqua-wet');
   for(let i=0;i<30;i++){
     const r=new THREE.Mesh(new THREE.BoxGeometry(60+Math.random()*120,.05,.6),rippleMat);
     r.position.set((Math.random()-.5)*600,-.12,(Math.random()-.5)*700);
@@ -561,8 +667,9 @@ function buildShipwreck(){
   lid.position.set(-58,.55,-27);lid.rotation.x=-.65;scene.add(lid);
   // Gold glow inside chest
   const treasureGlow=new THREE.PointLight(0xffcc44,1.8,8);treasureGlow.position.set(-58,.6,-27);scene.add(treasureGlow);
-  // Scattered gold coins
-  const coinMat=new THREE.MeshLambertMaterial({color:0xffd700,emissive:0x886600,emissiveIntensity:.5});
+  // Scattered gold coins — fase 1B: solid-volume naar _dsMat met aqua-metal,
+  // emissive capped op 0.4 (geen additive blending op deze meshes).
+  const coinMat=_dsMat({color:0xffd700,emissive:0x886600,emissiveIntensity:.4},{metalness:0.55,roughness:0.40},'aqua-metal');
   for(let c=0;c<8;c++){
     const coin=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,.08,8),coinMat);
     coin.position.set(-58+(Math.random()-.5)*4,-.14+(Math.random()*.3),-27+(Math.random()-.5)*3);
