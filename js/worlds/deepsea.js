@@ -1090,16 +1090,19 @@ function updateDeepSeaWorld(dt){
     }
     _dsaPlanktonGeo.attributes.position.needsUpdate=true;
     // Headlamp zone-glow overlay: vertex-color per particle. Zone-check (geen
-    // per-particle light sampling), reuse _plFwd + plHeadL/R.position die
-    // night.js's updateCarLights al eerder deze frame heeft bijgewerkt.
+    // per-particle light sampling). Cone-oorsprong direct uit car.mesh.position
+    // + _plFwd — deep-sea heeft geen plHeadL SpotLight (alleen cone-mesh kind
+    // van de auto, zie cars/build.js), dus geen afhankelijkheid op night.js
+    // koplamp-positions. _plFwd wordt elke frame in physics.js gezet.
     // Stride sweep (desktop 50%, mobile 25%) — responsief in bochten, mobile-veilig.
     if(_dsaPlanktonCol){
       const car=carObjs[playerIdx];
-      if(car && isDark && plHeadL){
+      if(car && isDark){
         const col=_dsaPlanktonCol;
-        const ox=(plHeadL.position.x+plHeadR.position.x)*.5;
-        const oy=(plHeadL.position.y+plHeadR.position.y)*.5;
-        const oz=(plHeadL.position.z+plHeadR.position.z)*.5;
+        const cpos=car.mesh.position;
+        const ox=cpos.x+_plFwd.x*1.9;
+        const oy=cpos.y+0.45+_plFwd.y*1.9;
+        const oz=cpos.z+_plFwd.z*1.9;
         const fx=_plFwd.x, fy=_plFwd.y, fz=_plFwd.z;
         const cosHalf=Math.cos(Math.PI*.16);
         const maxDist=50, maxDist2=maxDist*maxDist, invMax=1/maxDist;
