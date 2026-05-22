@@ -521,11 +521,6 @@ function buildSeaFloor(){
   floor.receiveShadow = true;
   floor.userData._isProcGround = true;
   scene.add(floor);
-  // Trench — donkerder dan basis, smelt in fog. Roughness 0.90 voor matte
-  // afgrond-look (geen glans op het diepste punt).
-  const trenchMat=_dsMat({color:0x000a18},{metalness:0.0,roughness:0.90},'aqua-wet');
-  const trench=new THREE.Mesh(new THREE.PlaneGeometry(380,320,1,1),trenchMat);
-  trench.rotation.x=-Math.PI/2;trench.position.set(-30,-.15,-40);scene.add(trench);
   // Seafloor hills — iets lichter dan basis voor zachte hoogte-read.
   const hillMat=_dsMat({color:0x35404a},{metalness:0.0,roughness:0.80},'aqua-wet');
   const hillPositions=[[210,-180,8],[-220,130,10],[150,280,7],[-80,-310,9],[300,100,6],[-310,-50,8],[80,-360,7],[-180,280,6]];
