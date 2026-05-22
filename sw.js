@@ -16,7 +16,7 @@
 
 'use strict';
 
-const SW_VERSION='src-v8-2026-05-19';
+const SW_VERSION='src-v9-2026-05-22';
 const CACHE_NAME='src-cache-'+SW_VERSION;
 
 // Pre-cache de absolute essentials. Rest wordt on-demand gecached via fetch
