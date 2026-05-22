@@ -1158,10 +1158,12 @@ async function buildScene(){
   camPos.copy(camera.position);
   mirrorCamera=new THREE.PerspectiveCamera(68,204/80,.1,400);
 
-  // Deep Sea fase 1: sun ietsje koeler + dimmer (0x4477aa @ 0.40) zodat de
-  // afgrond donker leest, baan blijft zichtbaar door kerb-emissive.
-  const _dirLightColor=isSpace?0xaaaaff:isDeepSea?0x4477aa:isCandy?0xfff0e0:0xfff5e0;
-  const _dirLightInt=isSpace?.06:isDeepSea?.40:isCandy?1.5:1.65;
+  // Deep Sea fase 1: sun ietsje koeler + dimmer (0x4477aa @ 0.40) op desktop
+  // voor afgrond-look. Op mobile geen IBL om de gaten op te vullen → daar
+  // brightere waarden (0x44aacc @ 0.50) zodat asphalt niet pikzwart rendert.
+  const _dsMobi = isDeepSea && window._isMobile;
+  const _dirLightColor=isSpace?0xaaaaff:isDeepSea?(_dsMobi?0x44aacc:0x4477aa):isCandy?0xfff0e0:0xfff5e0;
+  const _dirLightInt=isSpace?.06:isDeepSea?(_dsMobi?.50:.40):isCandy?1.5:1.65;
   sunLight=new THREE.DirectionalLight(_dirLightColor,_dirLightInt);
   sunLight.position.set(180,320,80);
   // Tier flag dictates whether the sun casts shadows (low tier = no shadows).
@@ -1186,16 +1188,18 @@ async function buildScene(){
   sunLight.shadow.normalBias = 0.02;
   sunLight.shadow.camera.updateProjectionMatrix();
   scene.add(sunLight);
-  // Deep Sea fase 1: ambient drop 0.55→0.30 + kleur matcht fog (0x001828) zodat
-  // open vlakte niet meer "groenig licht" leest. Hemi naar 0.20 met donkerder
-  // sky/ground voor een afgrond-impressie. Mobile niet apart geknepen — de
-  // tier-dependent fog-density doet de leesbaarheid lift.
-  const _ambColor=isSpace?0x334466:isDeepSea?0x001828:isCandy?0xffccdd:0x88aacc;
-  const _ambInt=isSpace?.18:isDeepSea?.30:isCandy?.65:.50;
+  // Deep Sea fase 1: ambient drop 0.55→0.30 + kleur matcht fog op DESKTOP voor
+  // afgrond-look (IBL vult de gaten op). Op mobile is er geen IBL → mijn
+  // oorspronkelijke fase-1 cut maakte asphalt pikzwart in alle non-headlight-
+  // gebieden. Mobile krijgt daarom brighter ambient (0x003355 @ 0.50) en hemi
+  // (0x0055aa/0x001a22 @ 0.28) — meer richting pré-fase-1, niet volledig terug
+  // maar genoeg om de baan los te trekken van puur zwart.
+  const _ambColor=isSpace?0x334466:isDeepSea?(_dsMobi?0x003355:0x001828):isCandy?0xffccdd:0x88aacc;
+  const _ambInt=isSpace?.18:isDeepSea?(_dsMobi?.50:.30):isCandy?.65:.50;
   ambientLight=new THREE.AmbientLight(_ambColor,_ambInt);scene.add(ambientLight);
-  const _hemiSky=isSpace?0x334466:isDeepSea?0x003560:isCandy?0xffd4e8:0x9bbfdd;
-  const _hemiGnd=isSpace?0x110022:isDeepSea?0x000508:isCandy?0xffccaa:0x4a7a3d;
-  const _hemiInt=isSpace?.14:isDeepSea?.20:isCandy?.45:.36;
+  const _hemiSky=isSpace?0x334466:isDeepSea?(_dsMobi?0x0055aa:0x003560):isCandy?0xffd4e8:0x9bbfdd;
+  const _hemiGnd=isSpace?0x110022:isDeepSea?(_dsMobi?0x001a22:0x000508):isCandy?0xffccaa:0x4a7a3d;
+  const _hemiInt=isSpace?.14:isDeepSea?(_dsMobi?.28:.20):isCandy?.45:.36;
   hemiLight=new THREE.HemisphereLight(_hemiSky,_hemiGnd,_hemiInt);scene.add(hemiLight);
 
   // Per-world rim-light: 2nd DirectionalLight from the opposite side of the
