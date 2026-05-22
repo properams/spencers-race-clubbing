@@ -32,10 +32,18 @@ const DS_FOG_COLOR_DAY        = 0x001828; // diep marineblauw, matcht skybox-foo
 const DS_FOG_COLOR_NIGHT      = 0x000812; // bijna-zwart voor nacht-mode
 const DS_FOG_DENSITY_DESKTOP  = 0.0028;   // FogExp2 — ~99% opaak rond ~1070u (3/d)
 const DS_FOG_DENSITY_MOBILE   = 0.0020;   // 30% dunner voor LOW-tier leesbaarheid
-const DS_FLOOR_BASE_COLOR     = 0x2a3540; // koel donker grijsblauw (afgrond-bodem)
+const DS_FLOOR_BASE_COLOR     = 0x1a2830; // match track asphalt (was 0x2a3540 — leesde grijs naast cyaan track)
 const DS_FLOOR_RELIEF_AMP     = 3.5;      // max vertex-displacement (units)
 const DS_TRACK_FLATTEN_RADIUS = 26;       // vlakgemaakt binnen X u van trackCurve (4u defense-in-depth buffer t.o.v. SAMPLES=200 max fout ~3.75u)
 const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d desktop)
+// Mobile-only emissive op de floor: zonder IBL en met multiplicatieve
+// color × map verdonkering rendert de seafloor anders bijna pikzwart op
+// LOW-tier. Cyaan-shifted (B/R = 3.0×) om in lijn te leggen met de track
+// asphalt-tint i.p.v. neutraal grijs. Intensity 0.55 zet de baseline
+// onder de track lit-response — floor leest niet meer als het lichtste
+// vlak op het scherm.
+const DS_FLOOR_MOBILE_EMISSIVE     = 0x14283c;
+const DS_FLOOR_MOBILE_EMISSIVE_INT = 0.55;
 
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
 //
@@ -120,9 +128,11 @@ function _seaFloorTex(){
     const r=8+Math.random()*22;
     g.beginPath();g.arc(Math.random()*S, Math.random()*S, r, 0, Math.PI*2);g.fill();
   }
-  // Lichtere sediment-grit (~3% area) — koel `#3a4252`, geen warme spikkels.
+  // Lichtere sediment-grit (~3% area) — cyaan-shifted `#2a3a4a` (B/R = 1.73×)
+  // i.p.v. het oudere neutrale `#3a4252`, zodat detail-laag in het cyaan-
+  // koel-domein blijft i.p.v. grijs-perceptie op LOW-tier te triggeren.
   const gritCount = Math.floor(S*S*0.03 / 3);
-  g.fillStyle='#3a4252';
+  g.fillStyle='#2a3a4a';
   for(let i=0;i<gritCount;i++){
     g.fillRect(Math.random()*S, Math.random()*S, 1+Math.random()*1.2, 1+Math.random()*1.2);
   }
@@ -510,17 +520,18 @@ function buildSeaFloor(){
   const fGeo = new THREE.PlaneGeometry(2400, 2400, SEG, SEG);
   _displaceSeaFloorVertices(fGeo, trackCurve);
   fGeo.computeVertexNormals();
-  // Mobile-only emissive: op LOW-tier is er geen IBL, en de combinatie van
-  // DS_FLOOR_BASE_COLOR (0x2a3540) × _seaFloorTex (#1a2230 basis) levert
-  // multiplicatief een effective material color van ~RGB(4,7,12). Zelfs met
-  // de #28 mobile-lighting boost is de lit-respons RGB(0.4, 2.7, 6.4) —
-  // bijna pikzwart. Resultaat: off-track void leest als gat in de wereld
-  // op iPhone. Subtiele emissive geeft de floor een minimum baseline-
-  // helderheid die de multiplicatie niet kan verstoren. Desktop blijft
-  // ongewijzigd (IBL vult daar de gaten op).
+  // Mobile-only emissive (DS_FLOOR_MOBILE_EMISSIVE/_INT): op LOW-tier is er
+  // geen IBL, en de combinatie van DS_FLOOR_BASE_COLOR × _seaFloorTex levert
+  // multiplicatief een te donker effective material color. Subtiele cyaan-
+  // shifted emissive geeft een minimum baseline-helderheid die de
+  // multiplicatie niet kan verstoren, terwijl de hue de track-asphalt
+  // tint matched (i.p.v. neutraal grijs). Desktop blijft ongewijzigd:
+  // _dsMat() op desktop maakt MeshStandardMaterial zonder de emissive-
+  // velden uit het mobile-pad, en IBL via 'aqua-wet' vult daar de gaten op.
   const _floorLambertDef = window._isMobile
     ? { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex(),
-        emissive: 0x1a2535, emissiveIntensity: 0.85 }
+        emissive: DS_FLOOR_MOBILE_EMISSIVE,
+        emissiveIntensity: DS_FLOOR_MOBILE_EMISSIVE_INT }
     : { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex() };
   const floorMat = _dsMat(
     _floorLambertDef,
