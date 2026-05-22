@@ -34,7 +34,7 @@ const DS_FOG_DENSITY_DESKTOP  = 0.0028;   // FogExp2 — ~99% opaak rond ~1070u 
 const DS_FOG_DENSITY_MOBILE   = 0.0020;   // 30% dunner voor LOW-tier leesbaarheid
 const DS_FLOOR_BASE_COLOR     = 0x2a3540; // koel donker grijsblauw (afgrond-bodem)
 const DS_FLOOR_RELIEF_AMP     = 3.5;      // max vertex-displacement (units)
-const DS_TRACK_FLATTEN_RADIUS = 22;       // vlakgemaakt binnen X u van trackCurve
+const DS_TRACK_FLATTEN_RADIUS = 26;       // vlakgemaakt binnen X u van trackCurve (4u defense-in-depth buffer t.o.v. SAMPLES=200 max fout ~3.75u)
 const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d desktop)
 
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
@@ -65,7 +65,11 @@ function _dsMat(lambertDef, stdExtras, tag){
 function _displaceSeaFloorVertices(geo, curve){
   if(!curve) return;
   const pos = geo.attributes.position;
-  const SAMPLES = 40;
+  // 200 samples → ~7.5u spacing op ~1500u-track → max nearest-sample-fout
+  // ~3.75u. Vertices binnen ware DS_TRACK_FLATTEN_RADIUS worden nu
+  // betrouwbaar als flat geklassificeerd; voorkomt zwarte driehoeken die
+  // door het wegdek prikten bij SAMPLES=40 (sample-spacing ~37u).
+  const SAMPLES = 200;
   const trackPts = new Array(SAMPLES);
   for(let i=0; i<SAMPLES; i++) trackPts[i] = curve.getPoint(i/SAMPLES);
   for(let v=0; v<pos.count; v++){
