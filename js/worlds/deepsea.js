@@ -948,11 +948,12 @@ function buildDeepSeaPlankton(){
 // Headlamp-glow particle laag — apart van #34's ambient plankton zodat de cloud
 // car-relatief is en exact op beam-hoogte zit (y 0.3..6). Default vertex-color
 // (0,0,0) = onzichtbaar; update-loop in updateDeepSeaWorld() boost particles
-// binnen de koplampbundel naar cyan-groen via additive blending. Geen map
-// (sharper dots dan dust-tex blobs voor scherper glow-effect).
+// binnen de koplampbundel naar cyan-groen via additive blending. Hergebruikt
+// _getSoftCloudTex (pure radial wit→transparant gradient, geen grain) voor
+// zachte glow-blobs in plaats van pixelige dots.
 function buildDeepSeaHeadlampGlow(){
   const _M = !!window._isMobile;
-  const N = _M ? 150 : 300;
+  const N = _M ? 300 : 600;
   const geo=new THREE.BufferGeometry();
   const pos=new Float32Array(N*3);
   const col=new Float32Array(N*3); // init (0,0,0) — invisible until lit
@@ -965,9 +966,11 @@ function buildDeepSeaHeadlampGlow(){
   }
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
   geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const tex = (typeof _getSoftCloudTex==='function') ? _getSoftCloudTex() : null;
   const mat=new THREE.PointsMaterial({
     vertexColors:true,
     size:0.4,
+    map:tex,
     sizeAttenuation:true,
     transparent:true,
     opacity:0.95,
