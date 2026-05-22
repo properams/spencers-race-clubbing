@@ -645,15 +645,15 @@ function updateCarLights(){
   _plFwd.set(0,0,-1).applyQuaternion(car.mesh.quaternion);
   _plRt.set(1,0,0).applyQuaternion(car.mesh.quaternion);
   _camV1.copy(car.mesh.position);_camV1.y+=.45; // reuse _camV1 as bH
-  plHeadL.position.copy(_camV1).addScaledVector(_plRt,-.62).addScaledVector(_plFwd,-1.9);
-  plHeadL.target.position.copy(plHeadL.position).addScaledVector(_plFwd,-12);
-  plHeadR.position.copy(_camV1).addScaledVector(_plRt,.62).addScaledVector(_plFwd,-1.9);
-  plHeadR.target.position.copy(plHeadR.position).addScaledVector(_plFwd,-12);
+  plHeadL.position.copy(_camV1).addScaledVector(_plRt,-.62).addScaledVector(_plFwd,1.9);
+  plHeadL.target.position.copy(plHeadL.position).addScaledVector(_plFwd,12);
+  plHeadR.position.copy(_camV1).addScaledVector(_plRt,.62).addScaledVector(_plFwd,1.9);
+  plHeadR.target.position.copy(plHeadR.position).addScaledVector(_plFwd,12);
   // Removed explicit plHeadL.target.updateMatrixWorld() / plHeadR.target.updateMatrixWorld()
   // calls — renderer.render() traverses + updates dirty matrices automatically
   // on the SpotLight's render-list pass. Two redundant matrix cascades per
   // frame saved during night mode.
-  plTail.position.copy(car.mesh.position).addScaledVector(_plFwd,1.9);plTail.position.y+=.42;
+  plTail.position.copy(car.mesh.position).addScaledVector(_plFwd,-1.9);plTail.position.y+=.42;
   // AI headlights: assign pool lights to nearest AI cars (no allocation)
   if(_aiHeadPool.length>0){
     let aiCount=0;
@@ -661,7 +661,7 @@ function updateCarLights(){
       if(i===playerIdx||carObjs[i].finished)continue;
       const ai=carObjs[i];
       _aiFwdRV.set(0,0,-1).applyQuaternion(ai.mesh.quaternion);
-      _aiHeadPool[aiCount].position.copy(ai.mesh.position).addScaledVector(_aiFwdRV,-1.6);
+      _aiHeadPool[aiCount].position.copy(ai.mesh.position).addScaledVector(_aiFwdRV,1.6);
       _aiHeadPool[aiCount].position.y+=.45;
       _aiHeadPool[aiCount].intensity=1.4;
       aiCount++;
