@@ -454,20 +454,6 @@ function buildSeaFloor(){
   floor.receiveShadow = true;
   floor.userData._isProcGround = true;
   scene.add(floor);
-  // Seafloor hills — iets lichter dan basis voor zachte hoogte-read.
-  const hillMat=_dsMat({color:0x35404a},{metalness:0.0,roughness:0.80},'aqua-wet');
-  const hillPositions=[[210,-180,8],[-220,130,10],[150,280,7],[-80,-310,9],[300,100,6],[-310,-50,8],[80,-360,7],[-180,280,6]];
-  hillPositions.forEach(([hx,hz,hr])=>{
-    const hgeo=new THREE.SphereGeometry(hr+Math.random()*4,8,5);hgeo.scale(1,.38+Math.random()*.18,1);
-    const h=new THREE.Mesh(hgeo,hillMat);h.position.set(hx,0,hz);h.receiveShadow=true;scene.add(h);
-  });
-  // Sand ripple lines — cool donker, geen warme tan meer.
-  const rippleMat=_dsMat({color:0x3a4550,transparent:true,opacity:.55},{metalness:0.0,roughness:0.75},'aqua-wet');
-  for(let i=0;i<30;i++){
-    const r=new THREE.Mesh(new THREE.BoxGeometry(60+Math.random()*120,.05,.6),rippleMat);
-    r.position.set((Math.random()-.5)*600,-.12,(Math.random()-.5)*700);
-    r.rotation.y=Math.random()*Math.PI;scene.add(r);
-  }
 }
 
 
