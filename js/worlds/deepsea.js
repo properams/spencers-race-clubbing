@@ -510,8 +510,20 @@ function buildSeaFloor(){
   const fGeo = new THREE.PlaneGeometry(2400, 2400, SEG, SEG);
   _displaceSeaFloorVertices(fGeo, trackCurve);
   fGeo.computeVertexNormals();
+  // Mobile-only emissive: op LOW-tier is er geen IBL, en de combinatie van
+  // DS_FLOOR_BASE_COLOR (0x2a3540) × _seaFloorTex (#1a2230 basis) levert
+  // multiplicatief een effective material color van ~RGB(4,7,12). Zelfs met
+  // de #28 mobile-lighting boost is de lit-respons RGB(0.4, 2.7, 6.4) —
+  // bijna pikzwart. Resultaat: off-track void leest als gat in de wereld
+  // op iPhone. Subtiele emissive geeft de floor een minimum baseline-
+  // helderheid die de multiplicatie niet kan verstoren. Desktop blijft
+  // ongewijzigd (IBL vult daar de gaten op).
+  const _floorLambertDef = window._isMobile
+    ? { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex(),
+        emissive: 0x1a2535, emissiveIntensity: 0.85 }
+    : { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex() };
   const floorMat = _dsMat(
-    { color: DS_FLOOR_BASE_COLOR, map: _seaFloorTex() },
+    _floorLambertDef,
     { metalness: 0.0, roughness: 0.85 },
     'aqua-wet'
   );
