@@ -1014,6 +1014,49 @@ function updateDeepSeaWorld(dt){
   const t=_nowSec;
   const _M = !!window._isMobile;
   _dsaFrame++;
+  // TEMP DIAGNOSTIC v2 — meet zone-mechaniek na cone-oorsprong fix.
+  // coneHits: full-scan particles met cs > cosHalf t.o.v. car-centerline + _plFwd
+  // colorsAboveAmbient: particles met enige vertex-color channel > 1 (boost in buffer)
+  // REMOVE NA DEBUG.
+  if(_dsaFrame%60===0){
+    let coneHits=0, colorsAboveAmbient=0, planktonN=0;
+    const car=carObjs[playerIdx];
+    if(typeof _dsaPlanktonPos!=='undefined' && _dsaPlanktonPos && typeof _dsaPlanktonPhase!=='undefined' && _dsaPlanktonPhase){
+      planktonN=_dsaPlanktonPhase.length;
+      const col=(typeof _dsaPlanktonCol!=='undefined') ? _dsaPlanktonCol : null;
+      if(col){
+        for(let i=0;i<planktonN;i++){
+          if(col[i*3]>1.0001||col[i*3+1]>1.0001||col[i*3+2]>1.0001) colorsAboveAmbient++;
+        }
+      }
+      if(car && (typeof isDark!=='undefined') && isDark && (typeof _plFwd!=='undefined')){
+        const cpos=car.mesh.position;
+        const ox=cpos.x+_plFwd.x*1.9;
+        const oy=cpos.y+0.45+_plFwd.y*1.9;
+        const oz=cpos.z+_plFwd.z*1.9;
+        const fx=_plFwd.x, fy=_plFwd.y, fz=_plFwd.z;
+        const cosHalf=Math.cos(Math.PI*.16);
+        const maxDist2=50*50;
+        for(let i=0;i<planktonN;i++){
+          const dx=_dsaPlanktonPos[i*3]-ox, dy=_dsaPlanktonPos[i*3+1]-oy, dz=_dsaPlanktonPos[i*3+2]-oz;
+          const d2=dx*dx+dy*dy+dz*dz;
+          if(d2<maxDist2 && d2>.01){
+            const inv=1/Math.sqrt(d2);
+            const cs=(dx*fx+dy*fy+dz*fz)*inv;
+            if(cs>cosHalf) coneHits++;
+          }
+        }
+      }
+    }
+    console.log('[DSA-DIAG2]', {
+      isDark: (typeof isDark!=='undefined')?isDark:'undef',
+      plFwd: (typeof _plFwd!=='undefined')?[_plFwd.x.toFixed(3), _plFwd.y.toFixed(3), _plFwd.z.toFixed(3)]:'undef',
+      coneHits: coneHits,
+      colorsAboveAmbient: colorsAboveAmbient,
+      planktonN: planktonN,
+      planktonColExists: (typeof _dsaPlanktonCol!=='undefined' && !!_dsaPlanktonCol)
+    });
+  }
   // Kelp sway — for-loop to drop per-frame closure.
   for(let _ki=0;_ki<_kelpList.length;_ki++){
     const k=_kelpList[_ki];
