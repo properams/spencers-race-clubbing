@@ -1014,13 +1014,16 @@ function updateDeepSeaWorld(dt){
   const t=_nowSec;
   const _M = !!window._isMobile;
   _dsaFrame++;
-  // TEMP DIAGNOSTIC v2 — meet zone-mechaniek na cone-oorsprong fix.
-  // coneHits: full-scan particles met cs > cosHalf t.o.v. car-centerline + _plFwd
-  // colorsAboveAmbient: particles met enige vertex-color channel > 1 (boost in buffer)
-  // REMOVE NA DEBUG.
+  // TEMP DIAGNOSTIC v3 — meet waar de plankton-wolk fysiek staat t.o.v. de auto.
+  // Vermoeden: wolk blijft bij world-origin (master's wraparound op ±220u),
+  // auto rijdt verder → hele wolk buiten 50u-cone. car_pos vs plankton_centroid
+  // + bounds + nearest_dist visualiseert de afstand. REMOVE NA DEBUG.
   if(_dsaFrame%60===0){
     let coneHits=0, colorsAboveAmbient=0, planktonN=0;
+    let nearestD2=Infinity, sumX=0, sumY=0, sumZ=0;
+    let minX=Infinity, maxX=-Infinity, minZ=Infinity, maxZ=-Infinity;
     const car=carObjs[playerIdx];
+    const cpos=car?car.mesh.position:null;
     if(typeof _dsaPlanktonPos!=='undefined' && _dsaPlanktonPos && typeof _dsaPlanktonPhase!=='undefined' && _dsaPlanktonPhase){
       planktonN=_dsaPlanktonPhase.length;
       const col=(typeof _dsaPlanktonCol!=='undefined') ? _dsaPlanktonCol : null;
@@ -1029,8 +1032,18 @@ function updateDeepSeaWorld(dt){
           if(col[i*3]>1.0001||col[i*3+1]>1.0001||col[i*3+2]>1.0001) colorsAboveAmbient++;
         }
       }
-      if(car && (typeof isDark!=='undefined') && isDark && (typeof _plFwd!=='undefined')){
-        const cpos=car.mesh.position;
+      for(let i=0;i<planktonN;i++){
+        const px=_dsaPlanktonPos[i*3], py=_dsaPlanktonPos[i*3+1], pz=_dsaPlanktonPos[i*3+2];
+        sumX+=px; sumY+=py; sumZ+=pz;
+        if(px<minX)minX=px; if(px>maxX)maxX=px;
+        if(pz<minZ)minZ=pz; if(pz>maxZ)maxZ=pz;
+        if(cpos){
+          const dx=px-cpos.x, dy=py-cpos.y, dz=pz-cpos.z;
+          const d2=dx*dx+dy*dy+dz*dz;
+          if(d2<nearestD2) nearestD2=d2;
+        }
+      }
+      if(cpos && (typeof isDark!=='undefined') && isDark && (typeof _plFwd!=='undefined')){
         const ox=cpos.x+_plFwd.x*1.9;
         const oy=cpos.y+0.45+_plFwd.y*1.9;
         const oz=cpos.z+_plFwd.z*1.9;
@@ -1048,13 +1061,17 @@ function updateDeepSeaWorld(dt){
         }
       }
     }
-    console.log('[DSA-DIAG2]', {
-      isDark: (typeof isDark!=='undefined')?isDark:'undef',
-      plFwd: (typeof _plFwd!=='undefined')?[_plFwd.x.toFixed(3), _plFwd.y.toFixed(3), _plFwd.z.toFixed(3)]:'undef',
+    const avgX=planktonN?sumX/planktonN:0, avgY=planktonN?sumY/planktonN:0, avgZ=planktonN?sumZ/planktonN:0;
+    console.log('[DSA-DIAG3]', {
+      car_pos: cpos?[cpos.x.toFixed(1), cpos.y.toFixed(1), cpos.z.toFixed(1)]:null,
+      plankton_centroid: planktonN?[avgX.toFixed(1), avgY.toFixed(1), avgZ.toFixed(1)]:null,
+      plankton_bounds_x: planktonN?[minX.toFixed(1), maxX.toFixed(1)]:null,
+      plankton_bounds_z: planktonN?[minZ.toFixed(1), maxZ.toFixed(1)]:null,
+      plankton_nearest_dist: (nearestD2!==Infinity)?Math.sqrt(nearestD2).toFixed(1):null,
       coneHits: coneHits,
       colorsAboveAmbient: colorsAboveAmbient,
       planktonN: planktonN,
-      planktonColExists: (typeof _dsaPlanktonCol!=='undefined' && !!_dsaPlanktonCol)
+      isDark: (typeof isDark!=='undefined')?isDark:'undef'
     });
   }
   // Kelp sway — for-loop to drop per-frame closure.
