@@ -33,8 +33,6 @@ const DS_FOG_COLOR_NIGHT      = 0x000812; // bijna-zwart voor nacht-mode
 const DS_FOG_DENSITY_DESKTOP  = 0.0028;   // FogExp2 — ~99% opaak rond ~1070u (3/d)
 const DS_FOG_DENSITY_MOBILE   = 0.0020;   // 30% dunner voor LOW-tier leesbaarheid
 const DS_FLOOR_BASE_COLOR     = 0x1a2830; // match track asphalt (was 0x2a3540 — leesde grijs naast cyaan track)
-const DS_FLOOR_RELIEF_AMP     = 3.5;      // max vertex-displacement (units)
-const DS_TRACK_FLATTEN_RADIUS = 26;       // vlakgemaakt binnen X u van trackCurve (4u defense-in-depth buffer t.o.v. SAMPLES=200 max fout ~3.75u)
 const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d desktop)
 
 // ── Solid-volume PBR helper ──────────────────────────────────────────────
@@ -56,45 +54,6 @@ function _dsMat(lambertDef, stdExtras, tag){
   mat.userData.envTag = tag;
   return mat;
 }
-
-// ── Bodem-reliëf + procedurale silt-textuur ─────────────────────────────
-// _displaceSeaFloorVertices: vervormt local-z (= world-y na rotation.x=-π/2)
-// via gestapelde sinussen. Vertices binnen DS_TRACK_FLATTEN_RADIUS worden
-// vlak gehouden zodat de baan zelf cosmetisch en functioneel ongemoeid blijft.
-// Eenmalige build-time kosten: ~SEG² × 40 dist-checks (<120ms op LOW).
-function _displaceSeaFloorVertices(geo, curve){
-  if(!curve) return;
-  const pos = geo.attributes.position;
-  // 200 samples → ~7.5u spacing op ~1500u-track → max nearest-sample-fout
-  // ~3.75u. Vertices binnen ware DS_TRACK_FLATTEN_RADIUS worden nu
-  // betrouwbaar als flat geklassificeerd; voorkomt zwarte driehoeken die
-  // door het wegdek prikten bij SAMPLES=40 (sample-spacing ~37u).
-  const SAMPLES = 200;
-  const trackPts = new Array(SAMPLES);
-  for(let i=0; i<SAMPLES; i++) trackPts[i] = curve.getPoint(i/SAMPLES);
-  for(let v=0; v<pos.count; v++){
-    // Local x → world x. Local y → -world z (na rotation.x=-π/2).
-    const x = pos.getX(v);
-    const z = -pos.getY(v);
-    let dMin = Infinity;
-    for(let s=0; s<SAMPLES; s++){
-      const dx = x - trackPts[s].x, dz = z - trackPts[s].z;
-      const d2 = dx*dx + dz*dz;
-      if(d2 < dMin) dMin = d2;
-    }
-    const dist = Math.sqrt(dMin);
-    // 0..1 fade-out tussen flatten-radius en +28u; daarbinnen volledig vlak.
-    const flatten = Math.max(0, Math.min(1, (dist - DS_TRACK_FLATTEN_RADIUS) / 28));
-    // Gestapelde sinussen — drie freqs voor lange diepzee-richels + grovere hill-ruis.
-    const ny =
-        Math.sin(x*0.018) * Math.cos(z*0.022) * 0.6
-      + Math.sin(x*0.05 + 1.7) * 0.25
-      + Math.sin((x+z)*0.012) * 0.15;
-    pos.setZ(v, ny * DS_FLOOR_RELIEF_AMP * flatten);
-  }
-  pos.needsUpdate = true;
-}
-
 
 function buildCurrentStreams(){
   const defs=[{t:.20,side:1},{t:.45,side:-1},{t:.70,side:1}];
@@ -464,14 +423,15 @@ function _buildDeepseaMidRing(){
 
 
 function buildSeaFloor(){
-  // Fase 1 — afgrond-bodem met subtiel reliëf. Floor gaat door _dsMat zodat
-  // hij op desktop natte-sediment IBL-reflecties oppakt via aqua-wet tag;
-  // mobile valt _dsMat automatisch terug op MeshLambertMaterial.
-  // roughness 0.85 = zachte natte sediment-look, geen chrome-glare.
-  const SEG = window._isMobile ? 48 : 80;
-  const fGeo = new THREE.PlaneGeometry(2400, 2400, SEG, SEG);
-  _displaceSeaFloorVertices(fGeo, trackCurve);
-  fGeo.computeVertexNormals();
+  // Floor is een perfect-vlakke 2400×2400 plane — dezelfde tex + color als
+  // de track (via _buildTrackSurfaceTex hieronder), zodat het floor-oppervlak
+  // visueel ononderscheidbaar is van de track-asphalt. Eerdere displacement-
+  // reliëf (DS_FLOOR_RELIEF_AMP=3.5, SEG=48/80) creëerde steile Lambert-
+  // faces met self-shadow → "black wedges" op iPhone na de tex-swap. Vlakke
+  // plane (SEG=1, twee driehoeken) elimineert die self-shadow zonder de
+  // afgrond-feel te verliezen (fog + skybox doen dat werk al).
+  // _dsMat geeft mobile Lambert; desktop Standard met aqua-wet IBL tag.
+  const fGeo = new THREE.PlaneGeometry(2400, 2400, 1, 1);
   // Seafloor hergebruikt de track's eigen _buildTrackSurfaceTex (gedeclareerd
   // in js/track/track.js, top-level non-module → globaal beschikbaar). Dezelfde
   // bright-neutral basis (#9a9a9a) × DS_FLOOR_BASE_COLOR (= track asphalt
