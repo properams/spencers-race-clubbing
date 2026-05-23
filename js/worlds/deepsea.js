@@ -853,7 +853,10 @@ function buildSeaCreatures(){
       dm2.rotation.y=Math.random()*Math.PI*2;dm2.updateMatrix();instMesh.setMatrixAt(fi,dm2.matrix);
     }
     instMesh.instanceMatrix.needsUpdate=true;scene.add(instMesh);
-    _dsaCreatures.fishSchools.push({mesh:instMesh,count,cx,cy,cz,phase:Math.random()*Math.PI*2,speed:.022+Math.random()*.015,radius:18+Math.random()*10});
+    // flee: per-fish XZ offset (fy slot ongebruikt, blijft 0) — populated door
+    // updateDeepSeaWorld op basis van car-proximity. Verzorgt scatter-reactie
+    // wanneer player door school heen rijdt, decay terug naar 0 als car weg is.
+    _dsaCreatures.fishSchools.push({mesh:instMesh,count,cx,cy,cz,phase:Math.random()*Math.PI*2,speed:.022+Math.random()*.015,radius:18+Math.random()*10,flee:new Float32Array(count*3)});
   }
 }
 
@@ -1285,18 +1288,44 @@ function updateDeepSeaWorld(dt){
     if(_dsaFishDummy===null)_dsaFishDummy=new THREE.Object3D();
     const _dm3=_dsaFishDummy;
     const _fsList=_dsaCreatures.fishSchools;
+    // Player-reaction: scatter fish in XZ binnen FLEE_RADIUS; smooth approach
+    // naar impulse-target binnen, decay buiten. Constants gepicked om ~3-4u
+    // scatter te geven bij close-pass, terugkeer ~0.3s na pass.
+    const _car=carObjs[playerIdx];
+    const _carX=_car?_car.mesh.position.x:0;
+    const _carZ=_car?_car.mesh.position.z:0;
+    const FLEE_R=8, FLEE_R2=64, BURST_K=0.6, APPROACH=0.5, DECAY=0.92;
     for(let _fsi=0;_fsi<_fsList.length;_fsi++){
       const fs=_fsList[_fsi];
       fs.phase+=dt*fs.speed;
       const fc = fs.count || 18;
+      const flee=fs.flee;
       for(let fi=0;fi<fc;fi++){
         const ang=fs.phase+fi*(Math.PI*2/fc);
         // LUT-versie: 5 Math.sin/cos calls → 5 array lookups.
-        _dm3.position.set(
-          fs.cx+_dsaCos(ang)*fs.radius+(_dsaSin(fi*1.3+t*.5)*3),
-          fs.cy+_dsaSin(fi*.8+t*.4)*2,
-          fs.cz+_dsaSin(ang)*fs.radius+(_dsaCos(fi*1.1+t*.4)*3)
-        );
+        const wx=fs.cx+_dsaCos(ang)*fs.radius+(_dsaSin(fi*1.3+t*.5)*3);
+        const wy=fs.cy+_dsaSin(fi*.8+t*.4)*2;
+        const wz=fs.cz+_dsaSin(ang)*fs.radius+(_dsaCos(fi*1.1+t*.4)*3);
+        // Player-flee in XZ
+        let fx=flee[fi*3], fz=flee[fi*3+2];
+        if(_car){
+          const dx=wx-_carX, dz=wz-_carZ;
+          const d2=dx*dx+dz*dz;
+          if(d2<FLEE_R2){
+            const dist=Math.sqrt(d2);
+            const imp=(FLEE_R-dist)*BURST_K;
+            const inv=1/(dist+.001);
+            const tx=dx*inv*imp, tz=dz*inv*imp;
+            fx+=(tx-fx)*APPROACH;
+            fz+=(tz-fz)*APPROACH;
+          } else {
+            fx*=DECAY; fz*=DECAY;
+          }
+        } else {
+          fx*=DECAY; fz*=DECAY;
+        }
+        flee[fi*3]=fx; flee[fi*3+2]=fz;
+        _dm3.position.set(wx+fx, wy, wz+fz);
         _dm3.rotation.y=ang+Math.PI/2;_dm3.updateMatrix();
         fs.mesh.setMatrixAt(fi,_dm3.matrix);
       }
