@@ -327,3 +327,96 @@ const WORLD_LIGHTING = {
 
 // Maak globally beschikbaar voor latere modules (fase 2: applyLighting).
 if (typeof window !== 'undefined') window.WORLD_LIGHTING = WORLD_LIGHTING;
+
+// ── _resolveMobile ──────────────────────────────────────────────────
+// Normalizer voor mobile-split lighting-velden. Een waarde met de
+// shape {desktop, mobile} wordt resolved via window._isMobile; pure
+// scalars (en objecten zonder die shape) vallen ongewijzigd door.
+// Gebruikt door applyWorldLighting voor sun.intensity (candy, sandstorm,
+// pier47, guangzhou) en hemi.intensity (sandstorm).
+function _resolveMobile(v){
+  if(v && typeof v === 'object' && 'desktop' in v && 'mobile' in v){
+    return window._isMobile ? v.mobile : v.desktop;
+  }
+  return v;
+}
+
+// ── applyWorldLighting ──────────────────────────────────────────────
+// Consumer voor de WORLD_LIGHTING tabel. Leest het (world, isDark)-
+// record en past elk aanwezig veld toe op de runtime-lights. Ontbrekend
+// veld = niets doen (geen reset naar default) — dat is het contract uit
+// fase 1.5 zodat het toggle-pad bit-identiek gereproduceerd kan worden.
+//
+// Niet binnen scope: per-wereld extras (trackPoles, stars, _dsaBioEdges,
+// _jellyfishList, _sunBillboard, PMREM-baked scene.background, etc.).
+// Die blijven inline in toggleNight() omdat ze niet onder het
+// gestandaardiseerde lighting-schema vallen.
+function applyWorldLighting(world, isDark){
+  const rec = WORLD_LIGHTING[world] || WORLD_LIGHTING.default;
+  if(!rec) return;
+  const mode = isDark ? rec.night : rec.day;
+  if(!mode) return;
+
+  // Sky — alleen literal-makeSkyTex worlds (deepsea, space).
+  if(mode.sky && typeof makeSkyTex === 'function' && typeof scene !== 'undefined'){
+    scene.background = makeSkyTex(mode.sky.top, mode.sky.bot);
+  }
+
+  // Fog — density skipt linear THREE.Fog (sandstorm), color schrijft
+  // altijd als scene.fog.color bestaat.
+  if(mode.fog && typeof scene !== 'undefined' && scene.fog){
+    if(mode.fog.density !== undefined && typeof scene.fog.density === 'number'){
+      scene.fog.density = mode.fog.density;
+    }
+    if(mode.fog.color !== undefined && scene.fog.color){
+      scene.fog.color.setHex(mode.fog.color);
+    }
+  }
+
+  // Directional sun.
+  if(mode.sun && typeof sunLight !== 'undefined' && sunLight){
+    if(mode.sun.intensity !== undefined) sunLight.intensity = _resolveMobile(mode.sun.intensity);
+    if(mode.sun.color !== undefined) sunLight.color.setHex(mode.sun.color);
+    if(mode.sun.position) sunLight.position.set(mode.sun.position[0], mode.sun.position[1], mode.sun.position[2]);
+  }
+
+  // Ambient fill.
+  if(mode.amb && typeof ambientLight !== 'undefined' && ambientLight){
+    if(mode.amb.intensity !== undefined) ambientLight.intensity = _resolveMobile(mode.amb.intensity);
+    if(mode.amb.color !== undefined) ambientLight.color.setHex(mode.amb.color);
+  }
+
+  // Hemisphere.
+  if(mode.hemi && typeof hemiLight !== 'undefined' && hemiLight){
+    if(mode.hemi.intensity !== undefined) hemiLight.intensity = _resolveMobile(mode.hemi.intensity);
+    if(mode.hemi.color !== undefined) hemiLight.color.setHex(mode.hemi.color);
+    if(mode.hemi.ground !== undefined) hemiLight.groundColor.setHex(mode.hemi.ground);
+  }
+
+  // Track-lights set-mode (alle huidige werelden gebruiken 'set';
+  // 'multiply'-tak komt pas als een wereld die nodig heeft).
+  if(mode.trackLights && mode.trackLights.mode === 'set' &&
+     typeof trackLightList !== 'undefined' && trackLightList){
+    const v = mode.trackLights.value;
+    for(let i=0;i<trackLightList.length;i++) trackLightList[i].intensity = v;
+  }
+
+  // Player headlights + tail.
+  if(mode.headlights){
+    if(typeof plHeadL !== 'undefined' && plHeadL){
+      plHeadL.intensity = mode.headlights.front;
+      if(typeof plHeadR !== 'undefined' && plHeadR) plHeadR.intensity = mode.headlights.front;
+    }
+    if(typeof plTail !== 'undefined' && plTail) plTail.intensity = mode.headlights.tail;
+  }
+
+  // AI headlight-pool baseline.
+  if(mode.aiHead !== undefined && typeof _aiHeadPool !== 'undefined' && _aiHeadPool){
+    for(let i=0;i<_aiHeadPool.length;i++) _aiHeadPool[i].intensity = mode.aiHead;
+  }
+}
+
+if(typeof window !== 'undefined'){
+  window._resolveMobile     = _resolveMobile;
+  window.applyWorldLighting = applyWorldLighting;
+}

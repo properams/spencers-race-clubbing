@@ -94,25 +94,26 @@ function toggleNight(){
       : (isDark ? 0.95 : 1.25);
   }
   if(activeWorld==='deepsea'){
-    // Underwater — toggle is shallow water (day) vs deep abyss (night)
+    // Underwater — toggle is shallow water (day) vs deep abyss (night).
+    // Pilot voor de WORLD_LIGHTING-extractie: lighting-waarden komen
+    // uit de tabel (sky/fog/sun/amb/hemi/trackLights/headlights/aiHead).
+    // Deepsea-extras (trackPoles, stars, biolum-edges, jellyfish,
+    // _sunBillboard) vallen niet onder het gestandaardiseerde schema
+    // en blijven daarom inline.
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('deepsea', isDark);
+    }
     if(isDark){
-      scene.background=makeSkyTex('#021420','#03202e');scene.fog.density=.0018;
-      sunLight.intensity=.18;ambientLight.intensity=.36;hemiLight.intensity=.24;
-      trackLightList.forEach(l=>l.intensity=1.6);trackPoles.forEach(p=>p.visible=true);
+      trackPoles.forEach(p=>p.visible=true);
       if(stars)stars.visible=true; // biolum particles
       _dsaBioEdges.forEach(e=>e.mat.opacity=.85);
       _jellyfishList.forEach(j=>{const pl=j.children.find(c=>c.isLight);if(pl)pl.intensity=1.4;});
     }else{
-      scene.background=makeSkyTex('#001825','#003355');scene.fog.density=.0019;
-      sunLight.intensity=.45;ambientLight.intensity=.55;hemiLight.intensity=.30;
-      trackLightList.forEach(l=>l.intensity=0);trackPoles.forEach(p=>p.visible=false);
+      trackPoles.forEach(p=>p.visible=false);
       if(stars)stars.visible=false;
       _dsaBioEdges.forEach(e=>e.mat.opacity=.45);
       _jellyfishList.forEach(j=>{const pl=j.children.find(c=>c.isLight);if(pl)pl.intensity=.6;});
     }
-    if(plHeadL){plHeadL.intensity=isDark?1.7:0;plHeadR.intensity=isDark?1.7:0;}
-    if(plTail)plTail.intensity=isDark?1.4:0;
-    _aiHeadPool.forEach(l=>l.intensity=isDark?1.0:0);
     if(_sunBillboard)_sunBillboard.visible=false;
   }else if(activeWorld==='arctic'){
     // Arctic night: aurora-ribbon skybox (green + violet + cyan) over
