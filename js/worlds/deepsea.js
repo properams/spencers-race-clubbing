@@ -857,6 +857,12 @@ function buildSeaCreatures(){
     // op trackCurve-waypoints t∈{0.15,0.48,0.82} en kunnen op LOW-tier (lodCull
     // 280u) anders wegvallen als de speler aan de overkant van de track rijdt.
     instMesh.userData._noLodCull=true;
+    // Three.js's ingebouwde frustum-cull gebruikt de bounding-sphere van de
+    // originele ConeGeometry (radius ~0.4 rond origin). Fish-posities komen via
+    // per-instance matrices; matrixWorld blijft identity → bounding-sphere blijft
+    // op wereld-origin → hele InstancedMesh wordt gecullt als camera daar niet
+    // naar kijkt. Match het patroon van candy.js:384, pier47.js:42-47, proc-decor.js:206-214.
+    instMesh.frustumCulled = false;
     // flee: per-fish XZ offset (fy slot ongebruikt, blijft 0) — populated door
     // updateDeepSeaWorld op basis van car-proximity. Verzorgt scatter-reactie
     // wanneer player door school heen rijdt, decay terug naar 0 als car weg is.
