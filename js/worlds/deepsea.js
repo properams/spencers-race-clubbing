@@ -906,7 +906,7 @@ function buildDeepSeaLightRays(){
 // floor. Per-frame drift via _dsaPlanktonPhase (Y-bob) en kleine X/Z trend.
 function buildDeepSeaPlankton(){
   const _M = !!window._isMobile;
-  const N = _M ? 200 : 600;
+  const N = _M ? 400 : 1200;
   const geo=new THREE.BufferGeometry();
   const pos=new Float32Array(N*3);
   const phase=new Float32Array(N);
