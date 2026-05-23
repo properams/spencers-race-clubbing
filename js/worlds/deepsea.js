@@ -853,6 +853,10 @@ function buildSeaCreatures(){
       dm2.rotation.y=Math.random()*Math.PI*2;dm2.updateMatrix();instMesh.setMatrixAt(fi,dm2.matrix);
     }
     instMesh.instanceMatrix.needsUpdate=true;scene.add(instMesh);
+    // Opt out van LOD-cull (matches #34 plankton patroon). Fish-schools spawnen
+    // op trackCurve-waypoints t∈{0.15,0.48,0.82} en kunnen op LOW-tier (lodCull
+    // 280u) anders wegvallen als de speler aan de overkant van de track rijdt.
+    instMesh.userData._noLodCull=true;
     // flee: per-fish XZ offset (fy slot ongebruikt, blijft 0) — populated door
     // updateDeepSeaWorld op basis van car-proximity. Verzorgt scatter-reactie
     // wanneer player door school heen rijdt, decay terug naar 0 als car weg is.
