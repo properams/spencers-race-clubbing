@@ -97,13 +97,7 @@ function toggleNight(){
     // Underwater — toggle is shallow water (day) vs deep abyss (night)
     if(isDark){
       scene.background=makeSkyTex('#021420','#03202e');scene.fog.density=.0018;
-      // Mobile-aware: scene.js's buildScene zet mobile deepsea-lighting op
-      // 0.50/0.50/0.28 (geen IBL → asphalt zou pikzwart renderen anders).
-      // Hier respecteren we die baseline ipv terugstompen naar desktop-donker.
-      const _isMobiDS = window._isMobile;
-      sunLight.intensity     = _isMobiDS ? .50 : .18;
-      ambientLight.intensity = _isMobiDS ? .50 : .36;
-      hemiLight.intensity    = _isMobiDS ? .28 : .24;
+      sunLight.intensity=.18;ambientLight.intensity=.36;hemiLight.intensity=.24;
       trackLightList.forEach(l=>l.intensity=1.6);trackPoles.forEach(p=>p.visible=true);
       if(stars)stars.visible=true; // biolum particles
       _dsaBioEdges.forEach(e=>e.mat.opacity=.85);
