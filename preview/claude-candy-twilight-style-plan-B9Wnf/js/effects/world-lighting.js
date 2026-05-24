@@ -136,12 +136,12 @@ const WORLD_LIGHTING = {
       fog:         { density: 0.0085, color: 0x2a1838 },  // diep indigo-aubergine
       sun:         {
         intensity: { desktop: 0.35, mobile: 0.25 },    // pier47-niveau — lamp-poles dragen de scene
-        color: 0xffa070,                               // BEHOUDEN: warmte van de zon achter dunne mist
+        color: 0x7a8aa8,                               // V2 grim: koud maan-grijs (was warm amber — gaf onbedoelde warmte)
         position: [60, 110, 80],                       // hoog en achter, gradient-bron ipv hoofdlicht
       },
       amb:         { intensity: 0.10, color: 0x1a1428 },                    // zeer donker aubergine
       hemi:        { intensity: 0.18, color: 0x3a2a55, ground: 0x2a1820 },  // donker paars sky / donker grond-bounce
-      trackLights: { mode: 'set', value: 1.4 },        // lampions feller — moeten knallen in het donker
+      trackLights: { mode: 'set', value: 0.3 },        // V2 grim: lampions zachter zodat carnival lamp-poles dominant zijn
       headlights:  { front: 0.8, tail: 0.6 },          // echte koplampen aan
       aiHead:      0.55,                               // AI matcht speler-helderheid
     },

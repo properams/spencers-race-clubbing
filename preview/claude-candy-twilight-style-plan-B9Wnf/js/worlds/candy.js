@@ -57,7 +57,7 @@ function _pushCandyEmissiveTree(root){
 // vermijden).
 function _applyCandyDayLighting(){
   if(!sunLight||!ambientLight||!hemiLight)return;
-  sunLight.color.setHex(0xffa070);
+  sunLight.color.setHex(0x7a8aa8);
   sunLight.intensity = window._isMobile ? 0.25 : 0.35;
   sunLight.position.set(60, 110, 80);
   ambientLight.color.setHex(0x1a1428); ambientLight.intensity = 0.10;
@@ -143,7 +143,10 @@ function _buildCandyLollipopGroupLights(){
     if(n===0)continue;
     cx /= n; cz /= n;
     const col = headColors[(i/groupSize)|0 % headColors.length];
-    const pl = new THREE.PointLight(col, 0.7, 14, 2);
+    // V2 grim: cluster-lights stevig dimmen (was 0.7) — ze fungeerden als
+    // egale ambient-vulling langs de hele baan, wat het "donkere dalen"
+    // contrast saboteerde. Carnival lamp-poles dragen het werk nu.
+    const pl = new THREE.PointLight(col, 0.25, 14, 2);
     pl.position.set(cx, 5, cz);
     pl.castShadow = false;
     scene.add(pl);
@@ -160,7 +163,11 @@ function _buildCandyLollipopGroupLights(){
 function _buildCandyCarnivalLights(){
   if(typeof buildCinematicLightPole!=='function')return;
   if(typeof trackCurve==='undefined'||!trackCurve)return;
-  const count = (typeof _mobCount==='function') ? _mobCount(10) : (window._isMobile?5:10);
+  // V2 grim: minder lampen (8/4 ipv 10/5) maar feller per stuk + compactere
+  // pools — duidelijkere "lichte eilanden vs donkere dalen". +1 lamp t.o.v.
+  // voorgestelde 7/4 als coverage-mitigatie zodat snoep niet té onleesbaar
+  // wegvalt buiten de pools.
+  const count = (typeof _mobCount==='function') ? _mobCount(8) : (window._isMobile?4:8);
   // Candy-palette cyclus — magenta, mint, amber, lilac, peach.
   const palette = [0xff66aa, 0x88ffcc, 0xffaa55, 0xcc88ff, 0xff8866];
   const tmpV = new THREE.Vector3();
@@ -174,8 +181,8 @@ function _buildCandyCarnivalLights(){
     tmpV.set(p.x - tg.z * offset * side, 0, p.z + tg.x * offset * side);
     buildCinematicLightPole(scene, tmpV, {
       color: palette[i % palette.length],
-      intensity: 2.2,
-      range: 28,
+      intensity: 3.6,        // V2 grim: feller binnen pool (was 2.2)
+      range: 22,             // V2 grim: compactere pool (was 28) — donkerdere dalen ertussen
       height: 8,
       poolRadius: 6,
       castVolumetricCone: true,
@@ -472,24 +479,25 @@ function _buildCandyMidRing(){
 }
 
 function buildCandyGround(){
-  // Mockup pass: turquoise grass main ground (was pink fondant) — matches
-  // the in-game Sugar Rush reference where the road area sits on a cyan/
-  // green grasvlakte. We keep the frostingGlaze map for sugary bumps so
-  // the ground doesn't read as flat colour, just tinted to turquoise base.
+  // V2 grim: ground + infield naar donkere asfalt-tinten ipv pastel mint/
+  // roze. Hoofdoorzaak "egale verlichting" V1 was de mint/roze grond die
+  // overal z'n pastel-DNA bleef tonen ondanks lage ambient. frostingGlaze
+  // texture-map blijft als bump-detail; alleen baseColor + material color
+  // verschuiven naar donker indigo. Spot circles en castle/cake area-zones
+  // blijven kleurig (lokale snoep-detailing).
   const _candyGroundMap=(window.ProcTextures&&ProcTextures.frostingGlaze)
-    ? ProcTextures.frostingGlaze({repeatX:12,repeatY:12,baseColor:'#7dd6c4',bumpAlpha:0.30,sprinkles:false})
+    ? ProcTextures.frostingGlaze({repeatX:12,repeatY:12,baseColor:'#2a2335',bumpAlpha:0.30,sprinkles:false})
     : null;
-  const gMat=_cMat({color:0x7dd6c4,map:_candyGroundMap},{metalness:0.0,roughness:0.92},'candy-glaze');
+  const gMat=_cMat({color:0x2a2335,map:_candyGroundMap},{metalness:0.0,roughness:0.92},'candy-glaze');
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),gMat);
   ground.rotation.x=-Math.PI/2;ground.position.y=-.12;ground.receiveShadow=true;
   ground.userData._isProcGround=true; // Phase 5 hookable
   scene.add(ground);
-  // Infield: keep a soft lavender-pink fondant for tonal variety — matches
-  // the candy castle/cake area while the rest is grass.
+  // Infield: zwart-aubergine, geen pastel-roze meer.
   const _infMap=(window.ProcTextures&&ProcTextures.frostingGlaze)
-    ? ProcTextures.frostingGlaze({repeatX:6,repeatY:6,baseColor:'#dcb0e0',bumpAlpha:0.30,sprinkles:false})
+    ? ProcTextures.frostingGlaze({repeatX:6,repeatY:6,baseColor:'#1a1428',bumpAlpha:0.30,sprinkles:false})
     : null;
-  const infMat=_cMat({color:0xbb88bb,map:_infMap},{metalness:0.0,roughness:0.92},'candy-glaze');
+  const infMat=_cMat({color:0x1a1428,map:_infMap},{metalness:0.0,roughness:0.92},'candy-glaze');
   const inf=new THREE.Mesh(new THREE.PlaneGeometry(440,580),infMat);
   inf.rotation.x=-Math.PI/2;inf.position.set(-40,-.11,-60);scene.add(inf);
   // Coloured candy spot circles on the ground (keep — small visual texture).

@@ -483,15 +483,15 @@ function makeCandyDuskSkyTex(){
   foot.addColorStop(0,'rgba(45,26,55,0.85)');
   foot.addColorStop(1,'rgba(42,24,56,1)');
   g.fillStyle=foot;g.fillRect(0,410,1024,102);
-  // Verre carnaval-glow-strip aan de horizon-foot — pretpark in de
-  // verte. Subtle warm-amber, lage alpha (0.22). Enige warmte in de
-  // verder kale lucht; gaat aan de randen naar 0 zodat het een band
-  // is, geen gradient.
-  const carnival=g.createLinearGradient(0,430,0,510);
-  carnival.addColorStop(0,'rgba(180,90,60,0)');
-  carnival.addColorStop(.5,'rgba(180,90,60,0.22)');
-  carnival.addColorStop(1,'rgba(180,90,60,0.04)');
-  g.fillStyle=carnival;g.fillRect(0,430,1024,80);
+  // V2 grim: verre stadsglow-strip naar koud teal-blauw (was warm
+  // amber). Voelt nu als verre stad / industriële mist ipv knus
+  // carnaval; coherent met de koele maan-sun en koel-violet grading.
+  // Alpha iets lager voor subtieler effect.
+  const farGlow=g.createLinearGradient(0,430,0,510);
+  farGlow.addColorStop(0,'rgba(60,90,120,0)');
+  farGlow.addColorStop(.5,'rgba(60,90,120,0.18)');
+  farGlow.addColorStop(1,'rgba(60,90,120,0.04)');
+  g.fillStyle=farGlow;g.fillRect(0,430,1024,80);
   return _skyTexFromCanvas(c);
 }
 
