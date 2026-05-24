@@ -15,6 +15,13 @@
 //   rotY           — true to randomise Y rotation (default true)
 //   tiltAmt        — small random X/Z tilt amplitude (default 0)
 //   stagger        — sample-phase offset 0..1 to break alignment between IMs
+//   clusterAnchors — optional array of t∈[0,1] anchor positions. When given,
+//                    instances spawn within ±clusterRadius of a random anchor
+//                    instead of uniform stratified spread. Used by candy to
+//                    cluster emissive props around lamp-pole t-positions —
+//                    light-eilanden with dark valleys between. Backward-compat:
+//                    omit to keep uniform stratified behavior.
+//   clusterRadius  — half-width of anchor spread in t-units (default 0.04 ≈ 4%).
 function _populateMidRing(im, opts){
   if(!im || typeof trackCurve==='undefined' || !trackCurve)return 0;
   const perSide   = Math.max(1, opts.perSide|0);
@@ -26,10 +33,10 @@ function _populateMidRing(im, opts){
   const tilt      = opts.tiltAmt || 0;
   const rotY      = opts.rotY !== false;
   const stagger   = (opts.stagger || 0) % 1;
+  const clusterAnchors = (opts.clusterAnchors && opts.clusterAnchors.length) ? opts.clusterAnchors : null;
+  const clusterRadius  = opts.clusterRadius != null ? opts.clusterRadius : 0.04;
   const pts       = trackCurve.getPoints(200);
   const N         = pts.length;
-  const step      = Math.max(1, Math.floor(N/perSide));
-  const startIdx  = Math.floor(stagger * step);
   const m4        = new THREE.Matrix4();
   const q         = new THREE.Quaternion();
   const v         = new THREE.Vector3();
@@ -38,7 +45,9 @@ function _populateMidRing(im, opts){
   const right     = new THREE.Vector3();
   let idx = 0;
   const maxInst = im.count;
-  for(let i=startIdx;i<N&&idx<maxInst;i+=step){
+
+  // Inner: place 2 side-mirrored instances at a given track-index i.
+  function placeAtIndex(i){
     const pt = pts[i];
     const tg = trackCurve.getTangentAt(i/N).normalize();
     right.set(-tg.z, 0, tg.x);
@@ -58,6 +67,24 @@ function _populateMidRing(im, opts){
       im.setMatrixAt(idx++, m4);
     }
   }
+
+  if(clusterAnchors){
+    // Cluster mode — sample perSide times, each near a random anchor.
+    for(let k=0;k<perSide&&idx<maxInst;k++){
+      const anchor = clusterAnchors[Math.floor(Math.random()*clusterAnchors.length)];
+      const tj = ((anchor + (Math.random()*2-1)*clusterRadius) % 1 + 1) % 1;
+      const i = Math.min(N-1, Math.max(0, Math.floor(tj*N)));
+      placeAtIndex(i);
+    }
+  } else {
+    // Uniform stratified mode — original behavior (preserved for non-candy worlds).
+    const step      = Math.max(1, Math.floor(N/perSide));
+    const startIdx  = Math.floor(stagger * step);
+    for(let i=startIdx;i<N&&idx<maxInst;i+=step){
+      placeAtIndex(i);
+    }
+  }
+
   im.count = idx;
   im.instanceMatrix.needsUpdate = true;
   if(!im.userData)im.userData = {};

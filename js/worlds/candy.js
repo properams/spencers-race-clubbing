@@ -94,6 +94,7 @@ function buildCandyEnvironment(){
   buildCandyGate();
   _buildCandyCarnivalLights();    // Verlaten-pretpark V1 — cinematic lamp-poles + cones
   _buildCandyCarnivalMist();      // Verlaten-pretpark V1 — ground fog + blinking markers
+  _buildCandyCarnivalLandmarks(); // V3 prop-herontwerp Laag 1 — silhouet-attracties (reuzenrad/tenten/boog)
   buildSprinkleParticles();
   buildFloatingCandyBits();
   buildCottonCandyClouds();
@@ -109,6 +110,7 @@ function buildCandyEnvironment(){
   _buildCandyStacks();            // Phase 15 Step 3 — merged-geo candy stacks
   _buildCandyWrappers();          // Phase 15 Step 4 — wrapped candies (4 IMs)
   _buildPeppermintScatter();      // Mockup pass — peppermint disks on grass
+  _buildCandyHorizonSpecks();     // V3 prop-herontwerp Laag 3 — diepte-scatter richting horizon
   // Chocolate-fountain bridge signature moment — drips lap 2, melts lap 3.
   if(typeof buildCandyChocoBridge==='function')buildCandyChocoBridge();
   // GLTF candy props — opt-in extra detail next to procedural ice-cream
@@ -171,8 +173,15 @@ function _buildCandyCarnivalLights(){
   // Candy-palette cyclus — magenta, mint, amber, lilac, peach.
   const palette = [0xff66aa, 0x88ffcc, 0xffaa55, 0xcc88ff, 0xff8866];
   const tmpV = new THREE.Vector3();
+  // V3 prop-herontwerp: anchors expose'n zodat mid-prop helpers
+  // emissive props rond lamp-pool clusteren ("licht-eilanden vs donkere dalen").
+  const anchors = [];
   for(let i=0;i<count;i++){
-    const t = ((i + Math.random()) / count) % 1;
+    // Skip-region rond start/finish: bias t∈[0.05, 0.95] zodat geen pole
+    // op de startgrid landt. Stratified ((i+rand)/count)%1 liet i=0
+    // (t∈[0, 0.125]) en i=count-1 (t∈[0.875, 1]) anders de start-area raken.
+    const t = 0.05 + ((i + Math.random()) / count) * 0.90;
+    anchors.push(t);
     const p = trackCurve.getPoint(t);
     const tg = trackCurve.getTangent(t).normalize();
     // Perpendicular naar tangent (XZ-vlak), alternerend links/rechts.
@@ -190,6 +199,7 @@ function _buildCandyCarnivalLights(){
       castHalo: true,
     });
   }
+  window._candyLampAnchors = anchors;
 }
 
 // Verlaten-pretpark V1 — ground fog + blinking warning-markers.
@@ -236,6 +246,81 @@ function _buildCandyCarnivalMist(){
       blinkInterval: 2.4,
     });
   }
+}
+
+// V3 prop-herontwerp Laag 1 — Vervallen pretpark landmarks. Donkere
+// silhouet-objecten tegen de paarse lucht (reuzenrad, circustenten,
+// achtbaan-boog, verre attractie-blok). Geen / nauwelijks emissive —
+// puur silhouet draagt het "verlaten" gevoel. 6 desktop / 3 mobile.
+// Handgekozen t + offset voor controleerbare compositie (geen stratified).
+function _buildCandyCarnivalLandmarks(){
+  if(typeof trackCurve==='undefined'||!trackCurve) return;
+  const isMobile = window._isMobile;
+  const group = new THREE.Group();
+  group.userData = {_noLodCull: true}; // mogen niet weg-culled op afstand
+  // Drie donker-tinten — verder = donkerder voor diepte-illusie.
+  const matNear = new THREE.MeshLambertMaterial({color: 0x1a0e28});
+  const matDark = new THREE.MeshLambertMaterial({color: 0x0e0820});
+  const matFar  = new THREE.MeshLambertMaterial({color: 0x080612});
+  // Project t∈[0,1] + lateral offset (side ±1) naar XZ-positie.
+  function landmarkPos(t, offset, side){
+    const p = trackCurve.getPoint(t);
+    const tg = trackCurve.getTangent(t).normalize();
+    const nr = new THREE.Vector3(-tg.z, 0, tg.x);
+    return new THREE.Vector3(p.x + nr.x * offset * side, 0, p.z + nr.z * offset * side);
+  }
+  // 1. Reuzenrad-silhouet — torus-ring + 4 spaak-balken (8 visuele armen) + mast.
+  // t=0.35, links 180u, ⌀ 48u.
+  const wheelGroup = new THREE.Group();
+  const wheelRadius = 24;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius, 0.7, 4, 24), matDark);
+  ring.rotation.y = Math.PI/2; // ring in YZ-plane → silhouet richting baan
+  wheelGroup.add(ring);
+  const spokeGeo = new THREE.BoxGeometry(0.5, wheelRadius*2, 0.5);
+  for(let s=0; s<4; s++){
+    const spoke = new THREE.Mesh(spokeGeo, matDark);
+    spoke.rotation.z = (s/4) * Math.PI;
+    wheelGroup.add(spoke);
+  }
+  // Mast onder het rad — gaat naar de grond.
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(1.4, 28, 1.4), matDark);
+  mast.position.y = -wheelRadius - 2;
+  wheelGroup.add(mast);
+  const wpos = landmarkPos(0.35, 180, -1);
+  wheelGroup.position.set(wpos.x, wheelRadius + 4, wpos.z);
+  group.add(wheelGroup);
+  // 2. Grote circustent A — cone. t=0.55, rechts 120u.
+  const tentA = new THREE.Mesh(new THREE.ConeGeometry(14, 28, 10), matNear);
+  const aPos = landmarkPos(0.55, 120, 1);
+  tentA.position.set(aPos.x, 14, aPos.z);
+  group.add(tentA);
+  // 3. Kleinere circustent B. t=0.75, rechts 90u.
+  const tentB = new THREE.Mesh(new THREE.ConeGeometry(9, 20, 8), matNear);
+  const bPos = landmarkPos(0.75, 90, 1);
+  tentB.position.set(bPos.x, 10, bPos.z);
+  group.add(tentB);
+  if(!isMobile){
+    // 4. Achtbaan-boog — half-torus. t=0.15, links 150u.
+    const arc = new THREE.Mesh(
+      new THREE.TorusGeometry(18, 0.8, 4, 16, Math.PI),
+      matDark
+    );
+    const arcPos = landmarkPos(0.15, 150, -1);
+    arc.position.set(arcPos.x, 0, arcPos.z);
+    arc.rotation.y = Math.PI * 0.25; // niet exact richting baan
+    group.add(arc);
+    // 5. Kleine tent C. t=0.90, links 60u (dichterbij — diepte-anchor).
+    const tentC = new THREE.Mesh(new THREE.ConeGeometry(7, 14, 8), matNear);
+    const cPos = landmarkPos(0.90, 60, -1);
+    tentC.position.set(cPos.x, 7, cPos.z);
+    group.add(tentC);
+    // 6. Verre attractie-blok — silhouet op de horizon. t=0.05, links 280u.
+    const farBlock = new THREE.Mesh(new THREE.BoxGeometry(20, 30, 20), matFar);
+    const fPos = landmarkPos(0.05, 280, -1);
+    farBlock.position.set(fPos.x, 15, fPos.z);
+    group.add(farBlock);
+  }
+  scene.add(group);
 }
 
 // Phase 12D — signature: floating donut-hoops over track. 5 desktop /
@@ -294,14 +379,19 @@ function _cMat(lambertDef, stdExtras, tag){
 // 22-52u zodat de 4-color gumdrop ring niet als enige geometry leest.
 function _buildCandyMidVariety(){
   if(typeof _populateMidRing!=='function')return;
-  const caneCount = (typeof _mobCount==='function')?_mobCount(40):40;
+  // V3 prop-herontwerp: count 40→12 desktop, scaleMax 3.5→5.0 (echte schaal-
+  // variatie), cluster rond lamp-pole anchors zodat emissive canes
+  // pakken op het licht en niets opzichtigs in donkere dalen.
+  const caneCount = (typeof _mobCount==='function')?_mobCount(12):12;
   const caneGeo = new THREE.CylinderGeometry(0.18, 0.22, 2, 6);
   const caneMat = _cMat({color:0xfff5f5, emissive:0xff88aa, emissiveIntensity:0.15},{metalness:0.0,roughness:0.35},'candy-glaze');
   const caneIm = new THREE.InstancedMesh(caneGeo, caneMat, caneCount*2);
   _populateMidRing(caneIm, {
     perSide: caneCount, offsetMin:22, offsetMax:52,
-    scaleMin:1.8, scaleMax:3.5, tiltAmt:0.15, stagger:0.6,
-    yFn: sc => 1.0 * sc
+    scaleMin:2.0, scaleMax:5.0, tiltAmt:0.15, stagger:0.6,
+    yFn: sc => 1.0 * sc,
+    clusterAnchors: window._candyLampAnchors,
+    clusterRadius: 0.05,
   });
   scene.add(caneIm);
 }
@@ -344,12 +434,15 @@ function _buildCandyStacks(){
   const stackGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(parts);
   if(!stackGeo) return;
   const mat = _cMat({vertexColors:true, emissive:new THREE.Color(0xff66aa), emissiveIntensity:0.15},{metalness:0.0,roughness:0.30},'candy-glaze');
-  const count = (typeof _mobCount==='function') ? _mobCount(24) : 24;
+  // V3 prop-herontwerp: count 24→8, scaleMax 1.4→2.0, cluster rond anchors.
+  const count = (typeof _mobCount==='function') ? _mobCount(8) : 8;
   const stackIm = new THREE.InstancedMesh(stackGeo, mat, count*2);
   _populateMidRing(stackIm, {
     perSide: count, offsetMin:20, offsetMax:50,
-    scaleMin:0.9, scaleMax:1.4, stagger:0.3,
-    yFn: () => 0
+    scaleMin:1.0, scaleMax:2.0, stagger:0.3,
+    yFn: () => 0,
+    clusterAnchors: window._candyLampAnchors,
+    clusterRadius: 0.05,
   });
   scene.add(stackIm);
   _candyNightEmissives.push({material: mat});
@@ -362,12 +455,22 @@ function _buildCandyWrappers(){
   // end cones per candy) i.p.v. de huidige kale ellipsoid-only versie.
   // Track-aware positie-generatie vervangt _populateMidRing.
   if(window.SugarRushProps && SugarRushProps.buildWrappedCandyCluster && typeof trackCurve!=='undefined'){
-    const count = (typeof _mobCount==='function') ? _mobCount(10) : 10;
+    // V3 prop-herontwerp: count 10→4 per side. Anchor-clustering — wrappers
+    // clusteren rond lamp-pole t-posities ipv stratified spread, zodat
+    // emissive candy-kleuren onder de pools "knallen" en de dalen leeg blijven.
+    const count = (typeof _mobCount==='function') ? _mobCount(4) : 4;
+    const anchors = window._candyLampAnchors && window._candyLampAnchors.length ? window._candyLampAnchors : null;
     const positions = [];
     const offMin = 14, offMax = 42;
-    // Genereer perSide * 2 wrappers, alternerend op de track-zijden.
+    const clusterR = 0.05;
     for(let i = 0; i < count * 2; i++){
-      const t = ((i / (count * 2)) + Math.random() * 0.04) % 1;
+      let t;
+      if(anchors){
+        const a = anchors[Math.floor(Math.random()*anchors.length)];
+        t = ((a + (Math.random()*2-1)*clusterR) % 1 + 1) % 1;
+      } else {
+        t = ((i / (count * 2)) + Math.random() * 0.04) % 1;
+      }
       const p = trackCurve.getPoint(t);
       const tg = trackCurve.getTangent(t).normalize();
       const nr = new THREE.Vector3(-tg.z, 0, tg.x);
@@ -389,15 +492,18 @@ function _buildCandyWrappers(){
   const geo = new THREE.SphereGeometry(0.35, window._isMobile?6:10, window._isMobile?4:6);
   geo.scale(1.6, 1, 1);
   const wrapColors = [0xee4466, 0xffd040, 0xff88cc, 0xaa66dd];
-  const count = (typeof _mobCount==='function') ? _mobCount(10) : 10;
+  // V3 fallback: count 10→4, scaleMax 1.5→2.2, cluster.
+  const count = (typeof _mobCount==='function') ? _mobCount(4) : 4;
   for(let ci=0;ci<wrapColors.length;ci++){
     const col = wrapColors[ci];
     const mat = _cMat({color:col, emissive:new THREE.Color(col), emissiveIntensity:0.15},{metalness:0.0,roughness:0.35},'candy-glaze');
     const im = new THREE.InstancedMesh(geo, mat, count*2);
     _populateMidRing(im, {
       perSide: count, offsetMin:14, offsetMax:42,
-      scaleMin:0.8, scaleMax:1.5, stagger:ci*0.25,
-      yFn: () => 0.4
+      scaleMin:1.0, scaleMax:2.2, stagger:ci*0.25,
+      yFn: () => 0.4,
+      clusterAnchors: window._candyLampAnchors,
+      clusterRadius: 0.05,
     });
     scene.add(im);
     _candyNightEmissives.push({material: mat});
@@ -411,7 +517,11 @@ function _buildCandyWrappers(){
 function _buildPeppermintScatter(){
   if(!(window.SugarRushProps && SugarRushProps.buildPeppermintScatter)) return;
   if(typeof trackCurve==='undefined') return;
-  const N = window._isLowDensity() ? 8 : 18;
+  // V3 prop-herontwerp: 18→8 desktop, scale 0.7-1.4 → 0.9-1.8 (echte
+  // schaalvariatie). Peppermint is matter (geen emissive) → BLIJFT
+  // uniform-stratified, vult de "donkere dalen" met silhouet-detail
+  // ipv overal te clusteren rond licht.
+  const N = window._isLowDensity() ? 4 : 8;
   const positions = [];
   for(let i = 0; i < N; i++){
     const t = ((i / N) + Math.random() * 0.05) % 1;
@@ -423,38 +533,81 @@ function _buildPeppermintScatter(){
     positions.push({
       x: p.x + nr.x * side * offset,
       z: p.z + nr.z * side * offset,
-      scale: 0.7 + Math.random() * 0.7,
+      scale: 0.9 + Math.random() * 0.9,
     });
   }
   scene.add(SugarRushProps.buildPeppermintScatter(positions));
+}
+
+// V3 prop-herontwerp Laag 3 — Diepte-scatter. Donker-paarse silhouet-
+// blokken ver van de baan (offset 200-380u) zodat de wereld niet abrupt
+// ophoudt bij de baanrand. Géén emissive, géén detail — puur "specks"
+// richting horizon voor diepte-illusie. Single InstancedMesh → 1 draw call.
+function _buildCandyHorizonSpecks(){
+  if(typeof trackCurve==='undefined'||!trackCurve) return;
+  const count = (typeof _mobCount==='function') ? _mobCount(12) : 12;
+  const geo = new THREE.BoxGeometry(4, 6, 4);
+  const mat = new THREE.MeshLambertMaterial({color: 0x120818});
+  const im = new THREE.InstancedMesh(geo, mat, count);
+  const m4 = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const v = new THREE.Vector3();
+  const s = new THREE.Vector3();
+  const e = new THREE.Euler();
+  const nr = new THREE.Vector3();
+  for(let i=0; i<count; i++){
+    const t = Math.random();
+    const p = trackCurve.getPoint(t);
+    const tg = trackCurve.getTangent(t).normalize();
+    nr.set(-tg.z, 0, tg.x);
+    const side = Math.random() < 0.5 ? 1 : -1;
+    const offset = 200 + Math.random() * 180;  // 200-380u from track
+    const sc = 1.0 + Math.random() * 1.6;
+    v.set(p.x + nr.x * offset * side, 0, p.z + nr.z * offset * side);
+    e.set(0, Math.random() * Math.PI * 2, 0);
+    q.setFromEuler(e);
+    s.set(sc * 0.8, sc * (1 + Math.random()*1.2), sc * 0.8);
+    m4.compose(v, q, s);
+    im.setMatrixAt(i, m4);
+  }
+  im.instanceMatrix.needsUpdate = true;
+  im.userData = {_noLodCull: true};
+  scene.add(im);
 }
 
 // Phase 12A — close-band foreground. Mini gumdrops (4 kleuren) op 6-13u
 // plus witte candy-cane sticks op 8-14u. Geeft "whoosh"-detail elke meter.
 function _buildCandyCloseBand(){
   if(typeof _populateMidRing!=='function')return;
+  // V3 prop-herontwerp: mini-gumdrops perColor 12→3 (96→24 totaal),
+  // caneCount 30→8. Beiden emissive → cluster rond lamp-pole anchors.
+  // scaleMax bumpen voor variatie zodat de overlevenden zichtbaar zijn.
   const COLS=[0xff6699,0xffeb66,0xa3e056,0xc77dff];
-  const perColor = (typeof _mobCount==='function')?_mobCount(12):12;  // 50 total/4 colors ≈ 12 per IM
+  const perColor = (typeof _mobCount==='function')?_mobCount(3):3;
   const miniGeo = new THREE.SphereGeometry(0.6, 6, 4, 0, Math.PI*2, 0, Math.PI/2);
   COLS.forEach((col, ci) => {
     const mat = new THREE.MeshLambertMaterial({color:col, emissive:col, emissiveIntensity:0.22});
     const im = new THREE.InstancedMesh(miniGeo, mat, perColor*2);
     _populateMidRing(im, {
       perSide: perColor, offsetMin:6, offsetMax:13,
-      scaleMin:0.7, scaleMax:1.3, stagger:0.1+ci*0.2,
-      yFn: () => 0.4
+      scaleMin:0.9, scaleMax:2.0, stagger:0.1+ci*0.2,
+      yFn: () => 0.4,
+      clusterAnchors: window._candyLampAnchors,
+      clusterRadius: 0.05,
     });
     scene.add(im);
   });
   // Candy-cane sticks — thin white cylinders, slight random tilt
-  const caneCount = (typeof _mobCount==='function')?_mobCount(30):30;
+  const caneCount = (typeof _mobCount==='function')?_mobCount(8):8;
   const caneGeo = new THREE.CylinderGeometry(0.18, 0.22, 2, 6);
   const caneMat = _cMat({color:0xfff5f5, emissive:0xff88aa, emissiveIntensity:0.1},{metalness:0.0,roughness:0.35},'candy-glaze');
   const caneIm = new THREE.InstancedMesh(caneGeo, caneMat, caneCount*2);
   _populateMidRing(caneIm, {
     perSide: caneCount, offsetMin:8, offsetMax:14,
-    scaleMin:0.85, scaleMax:1.4, tiltAmt:0.18, stagger:0.25,
-    yFn: () => 1.0
+    scaleMin:1.0, scaleMax:2.2, tiltAmt:0.18, stagger:0.25,
+    yFn: () => 1.0,
+    clusterAnchors: window._candyLampAnchors,
+    clusterRadius: 0.05,
   });
   scene.add(caneIm);
 }
@@ -464,15 +617,19 @@ function _buildCandyCloseBand(){
 // rings interleave instead of overlap.
 function _buildCandyMidRing(){
   if(typeof _populateMidRing!=='function')return;
+  // V3 prop-herontwerp: perSide 60→15 (240→60 totaal over 4 kleuren),
+  // scaleMax 1.4→2.4, cluster rond lamp-pole anchors.
   const COLS=[0xff6699,0xffeb66,0xa3e056,0xc77dff];  // pink/yellow/green/purple
-  const perSide = (typeof _mobCount==='function')?_mobCount(60):60;
+  const perSide = (typeof _mobCount==='function')?_mobCount(15):15;
   const geo = new THREE.SphereGeometry(1.8, 8, 6, 0, Math.PI*2, 0, Math.PI/2);
   COLS.forEach((col, ci) => {
     const mat = new THREE.MeshLambertMaterial({color:col, emissive:col, emissiveIntensity:0.18});
     const im  = new THREE.InstancedMesh(geo, mat, perSide*2);
     _populateMidRing(im, {
       perSide: perSide, offsetMin:22, offsetMax:52,
-      scaleMin:0.7, scaleMax:1.4, stagger: ci/4
+      scaleMin:0.9, scaleMax:2.4, stagger: ci/4,
+      clusterAnchors: window._candyLampAnchors,
+      clusterRadius: 0.05,
     });
     scene.add(im);
   });

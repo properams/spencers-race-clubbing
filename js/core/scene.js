@@ -471,7 +471,12 @@ function makeCandySkyTex(){
 // Live gebruikt door buildCandySky; oude makeCandySkyTex blijft staan
 // voor mogelijke historische rollback.
 function makeCandyDuskSkyTex(){
-  const {c,g}=_newSkyCanvas('#1a1028','#3a2245');
+  // Optie D — bg-gradient bot kleur = foot-color (#2a1838 = fog.color)
+  // zodat gradient zelf naar foot convergeert; geen lichter-paars
+  // mid-segment dat als horizontale naad leest bij hoge-jump cam-rotation.
+  // Zenith iets donkerder (#0e0820) zodat een subtiel verloop behouden
+  // blijft (zenith donkerder dan foot, niet plat-eenvormig).
+  const {c,g}=_newSkyCanvas('#0e0820','#2a1838');
   // Mid-band — donker paars zonder warmte, gradient naar fog-tint.
   const midBand=g.createLinearGradient(0,260,0,420);
   midBand.addColorStop(0,'rgba(58,34,69,0)');
