@@ -207,11 +207,23 @@ function updateSpeedLines(){
   const car=carObjs[playerIdx];
   if(!car||gameState!=='RACE'){_spdLinesSetOp('0');_speedLinesFadeT=0;return;}
   const dt2=1/60;
-  // Activatie alleen tijdens nitro — de high-speed fallback werd als te veel
-  // ervaren omdat de strepen ook zonder nitro verschenen.
+  // Speed-feel sessie — high-speed fallback heractiveert lines bij hoog
+  // tempo zonder nitro. Tunebaar via SPEED_FEEL_LINES_* constants in
+  // js/effects/speed-feel.js — threshold + max-alpha + nitro-alpha apart.
+  // Fallback op nitro-only gedrag als constants ontbreken (oud gedrag).
+  const _sfThr   = (typeof SPEED_FEEL_LINES_THRESHOLD   !== 'undefined') ? SPEED_FEEL_LINES_THRESHOLD   : 1.01; // >1 = never
+  const _sfMaxA  = (typeof SPEED_FEEL_LINES_MAX_ALPHA   !== 'undefined') ? SPEED_FEEL_LINES_MAX_ALPHA   : 0.55;
+  const _sfNitA  = (typeof SPEED_FEEL_LINES_NITRO_ALPHA !== 'undefined') ? SPEED_FEEL_LINES_NITRO_ALPHA : 1.0;
+  const _spdR    = (car.def && car.def.topSpd) ? Math.abs(car.speed) / car.def.topSpd : 0;
   if(nitroActive){
     _speedLinesFadeT=0.3;
-    _drawSpeedLines(dt2,_streakRgb(),1);
+    _drawSpeedLines(dt2,_streakRgb(),_sfNitA);
+    _spdLinesSetOp('1');
+  }else if(_spdR > _sfThr){
+    // High-speed fallback — alpha schaalt lineair vanaf threshold.
+    const _i = Math.min(1, (_spdR - _sfThr) / Math.max(0.001, 1 - _sfThr));
+    _speedLinesFadeT = 0.3; // keep fade-out budget topped up
+    _drawSpeedLines(dt2, _streakRgb(), _sfMaxA * _i);
     _spdLinesSetOp('1');
   }else{
     _speedLinesFadeT=Math.max(0,_speedLinesFadeT-dt2);
