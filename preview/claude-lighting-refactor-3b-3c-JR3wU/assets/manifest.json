@@ -1,0 +1,149 @@
+{
+  "_comment": "Asset slots per world. Slot value can be a single string OR an array of strings \u2014 the loader random-picks among loaded variants per spawn so dispatcher gets natural variety. Empty string or empty array = slot inactive (procedural fallback).",
+  "_format_version": 2,
+  "worlds": {
+    "volcano": {
+      "hdri": "assets/hdri/volcano_dusk_2k.hdr",
+      "hdri_mobile": "assets/hdri/volcano_dusk_1k.hdr",
+      "ground": {
+        "color": "assets/textures/volcano/lavarock_color.jpg",
+        "normal": "assets/textures/volcano/lavarock_normal.jpg",
+        "roughness": "assets/textures/volcano/lavarock_rough.jpg"
+      },
+      "props": {
+        "rock_basalt_small": [
+          "assets/models/nature/Pebble_Square_1.gltf",
+          "assets/models/nature/Pebble_Square_2.gltf",
+          "assets/models/nature/Pebble_Square_3.gltf",
+          "assets/models/nature/Pebble_Square_4.gltf",
+          "assets/models/nature/Pebble_Square_5.gltf",
+          "assets/models/nature/Pebble_Square_6.gltf"
+        ],
+        "rock_basalt_medium": [
+          "assets/models/nature/Rock_Medium_1.gltf",
+          "assets/models/nature/Rock_Medium_2.gltf",
+          "assets/models/nature/Rock_Medium_3.gltf"
+        ],
+        "lava_chunk": [
+          "assets/models/space/rock_crystals.glb",
+          "assets/models/space/rock_crystalsLargeA.glb",
+          "assets/models/space/rock_crystalsLargeB.glb"
+        ],
+        "tree_burnt": [
+          "assets/models/nature/DeadTree_1.gltf",
+          "assets/models/nature/DeadTree_2.gltf",
+          "assets/models/nature/DeadTree_3.gltf",
+          "assets/models/nature/DeadTree_4.gltf",
+          "assets/models/nature/DeadTree_5.gltf",
+          "assets/models/nature/TwistedTree_1.gltf",
+          "assets/models/nature/TwistedTree_2.gltf",
+          "assets/models/nature/TwistedTree_3.gltf",
+          "assets/models/nature/TwistedTree_4.gltf",
+          "assets/models/nature/TwistedTree_5.gltf"
+        ]
+      },
+      "skybox_layers": {
+        "mountains_far": "assets/textures/volcano/silhouette_far.png",
+        "mountains_near": "assets/textures/volcano/silhouette_near.png"
+      }
+    },
+    "arctic": {
+      "hdri": "assets/hdri/arctic_overcast_2k.hdr",
+      "hdri_mobile": "assets/hdri/arctic_overcast_1k.hdr",
+      "ground": {
+        "color": "assets/textures/arctic/snowice_color.jpg",
+        "normal": "assets/textures/arctic/snowice_normal.jpg",
+        "roughness": "assets/textures/arctic/snowice_rough.jpg"
+      },
+      "props": {
+        "iceberg_small": "assets/models/arctic/iceberg_small.glb",
+        "iceberg_medium": "",
+        "snow_rock": [
+          "assets/models/nature/Pebble_Round_1.gltf",
+          "assets/models/nature/Pebble_Round_2.gltf",
+          "assets/models/nature/Pebble_Round_3.gltf",
+          "assets/models/nature/Pebble_Round_4.gltf",
+          "assets/models/nature/Pebble_Round_5.gltf"
+        ],
+        "tree_frosted": [
+          "assets/models/nature/DeadTree_1.gltf",
+          "assets/models/nature/DeadTree_2.gltf",
+          "assets/models/nature/DeadTree_3.gltf",
+          "assets/models/nature/DeadTree_4.gltf",
+          "assets/models/nature/DeadTree_5.gltf"
+        ]
+      },
+      "skybox_layers": {
+        "mountains_far": "assets/textures/arctic/icepeaks_far.png",
+        "mountains_near": "assets/textures/arctic/icepeaks_near.png"
+      }
+    },
+    "deepsea": {
+      "hdri": "",
+      "ground": {
+        "color": "assets/textures/deepsea/sand_color.jpg",
+        "normal": "assets/textures/deepsea/sand_normal.jpg",
+        "roughness": "assets/textures/deepsea/sand_rough.jpg"
+      },
+      "props": {
+        "coral_small": [
+          "assets/models/nature/Plant_1.gltf",
+          "assets/models/nature/Plant_7.gltf"
+        ],
+        "coral_medium": [
+          "assets/models/nature/Plant_1_Big.gltf",
+          "assets/models/nature/Plant_7_Big.gltf"
+        ],
+        "wreck_box": [
+          "assets/models/city/box_A.gltf",
+          "assets/models/city/box_B.gltf"
+        ]
+      },
+      "skybox_layers": {
+        "mountains_far": "assets/textures/deepsea/rockwall_far.png",
+        "mountains_near": "assets/textures/deepsea/rockwall_near.png"
+      }
+    },
+    "space": {
+      "props": {
+        "asteroid_small": [
+          "assets/models/space/meteor.glb",
+          "assets/models/space/meteor_half.glb",
+          "assets/models/space/rocks_smallA.glb",
+          "assets/models/space/rocks_smallB.glb",
+          "assets/models/space/rock.glb"
+        ],
+        "asteroid_large": [
+          "assets/models/space/meteor_detailed.glb",
+          "assets/models/space/rock_largeA.glb",
+          "assets/models/space/rock_largeB.glb",
+          "assets/models/space/rock_crystalsLargeA.glb",
+          "assets/models/space/rock_crystalsLargeB.glb"
+        ],
+        "satellite": [
+          "assets/models/space/satelliteDish.glb",
+          "assets/models/space/satelliteDish_detailed.glb",
+          "assets/models/space/satelliteDish_large.glb"
+        ],
+        "crater": [
+          "assets/models/space/crater.glb",
+          "assets/models/space/craterLarge.glb"
+        ]
+      }
+    },
+    "candy": {
+      "props": {
+        "candy_lollipop": "",
+        "candy_cane": "",
+        "gumdrop": ""
+      },
+      "skybox_layers": {
+        "mountains_far": "assets/textures/candy/sweethills_far.png",
+        "mountains_near": "assets/textures/candy/sweethills_near.png"
+      }
+    },
+    "sandstorm": {
+      "props": {}
+    }
+  }
+}
