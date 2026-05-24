@@ -373,9 +373,13 @@ function _restoreUserPrefs(){
     // "Cannot read properties of undefined (reading 'fog')".
     const _applySavedWeather=()=>{
       if(typeof scene==='undefined'||!scene||!scene.fog) return;
+      // Fase 4b: setWeather is zelf-sufficient — past intern eerst
+      // applyWorldLighting (wereld-base) en dan applyWeatherLighting
+      // (multiplier-mod) toe. De oude `if(isDark){sun=.04, amb=.10,
+      // hemi=.07, trackLights=2.8}` reapply hier was een workaround voor
+      // de pre-fase-4 GP-clobber bug — die waardes waren bovendien
+      // hardcoded GP-night-baseline en fout voor sandstorm/pier47/space.
       setWeather(_savedW);
-      // Re-apply night lighting (setWeather overwrites light intensities).
-      if(isDark){sunLight.intensity=.04;ambientLight.intensity=.10;hemiLight.intensity=.07;trackLightList.forEach(l=>l.intensity=2.8);}
     };
     if(window.__bootScenePromise){
       window.__bootScenePromise.then(_applySavedWeather).catch(()=>{});

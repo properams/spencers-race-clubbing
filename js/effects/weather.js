@@ -126,41 +126,25 @@ function setWeather(mode){
     localStorage.setItem('src_weather',mode);
     return;
   }
-  // ── Default weather (fallback voor worlds zonder eigen weather-set) ─
-  if(mode==='clear'){
-    scene.fog.density=.0021;scene.fog.color.setHex(0x8ac0e0);
-    if(scene.background)scene.background=makeSkyTex('#1e5292','#b8d8ee');
-    sunLight.color.setHex(0xfff8f0);sunLight.intensity=1.65;ambientLight.intensity=.50;hemiLight.intensity=.36;
-    hemiLight.color.setHex(0x9bbfdd);hemiLight.groundColor.setHex(0x4a7a3d);
-    if(_sunBillboard)_sunBillboard.visible=true;
-    if(_snowParticles){scene.remove(_snowParticles);_snowParticles=null;}
-  } else if(mode==='fog'){
-    scene.fog.density=.012;scene.fog.color.setHex(0x889988);
-    scene.background=makeSkyTex('#778877','#99aa99');
-    sunLight.intensity=.3;ambientLight.intensity=.35;hemiLight.intensity=.2;
-    if(_sunBillboard)_sunBillboard.visible=false;
-    if(_snowParticles){scene.remove(_snowParticles);_snowParticles=null;}
-  } else if(mode==='sunset'){
-    scene.fog.density=.0021;scene.fog.color.setHex(0xdd8855);
-    scene.background=makeSkyTex('#ff4400','#ffaa44');
-    sunLight.color.setHex(0xff8840);sunLight.intensity=1.2;
-    hemiLight.color.setHex(0xff9944);hemiLight.groundColor.setHex(0x664422);hemiLight.intensity=.5;
-    if(_sunBillboard)_sunBillboard.visible=true;
-    if(_snowParticles){scene.remove(_snowParticles);_snowParticles=null;}
-  } else if(mode==='storm'){
+  // ── Default weather (fase 4b — sandstorm + pier47 + GP-fallback) ─
+  // Lighting via consumer-pad: applyWorldLighting zet de base uit
+  // WORLD_LIGHTING[activeWorld] (sun/amb/hemi-intensities, fog.density+color,
+  // headlights, aiHead), daarna multiplext applyWeatherLighting de sun/amb/
+  // hemi-intensities + voegt fog.addDensity toe + override fog.color +
+  // override sky-bg (alleen op niet-PMREM werelden). Single source of truth
+  // — geen GP-absoluten meer die per-wereld base klobberen.
+  if(typeof window.applyWorldLighting === 'function'){
+    window.applyWorldLighting(activeWorld, isDark);
+  }
+  if(typeof window.applyWeatherLighting === 'function'){
+    window.applyWeatherLighting(mode);
+  }
+  // ── Mode-specifieke extras (buiten lighting-schema) ─
+  if(mode==='storm'){
     if(!isRain){isRain=true;_rainTarget=1;}
-    scene.fog.density=.006;scene.fog.color.setHex(0x223322);
-    scene.background=makeSkyTex('#0a1205','#1a2a18');
-    sunLight.intensity=.25;ambientLight.intensity=.18;hemiLight.intensity=.12;
-    if(_sunBillboard)_sunBillboard.visible=false;
     _stormFlashTimer=8+Math.random()*7;
-    if(_snowParticles){scene.remove(_snowParticles);_snowParticles=null;}
-  } else if(mode==='snow'){
-    scene.fog.density=.0045;scene.fog.color.setHex(0xbbccdd);
-    scene.background=makeSkyTex('#8899aa','#ccddee');
-    sunLight.intensity=.6;ambientLight.intensity=.55;hemiLight.intensity=.45;
-    if(_sunBillboard)_sunBillboard.visible=false;
-    // Snow particles
+  }
+  if(mode==='snow'){
     if(!_snowParticles){
       _snowGeo=new THREE.BufferGeometry();
       const cnt=_mobCount(600),pos=new Float32Array(cnt*3);
@@ -169,7 +153,14 @@ function setWeather(mode){
       _snowParticles=new THREE.Points(_snowGeo,new THREE.PointsMaterial({color:0xeeeeff,size:.35,transparent:true,opacity:.7}));
       scene.add(_snowParticles);
     }
+  } else if(_snowParticles){
+    scene.remove(_snowParticles); _snowParticles=null;
   }
+  // _sunBillboard zichtbaarheid: clear + sunset → on, andere modes → off
+  // (matcht het oude per-mode hardcoded gedrag in deze GP-fallback-pad).
+  // night.js:425 override-check (~!isDark && !isRain) volgt later in de
+  // toggleNight-cyclus en in updateAmbientWindSpeed — niet hier dupliceren.
+  if(_sunBillboard) _sunBillboard.visible = (mode==='clear' || mode==='sunset');
   // Cache "no rain" fog density (used by updateWeather as the base for rain blend).
   // Storm mode inherently includes rain, so its density already represents rain-on
   // — we still cache it as base so toggling rain off reverts to the storm density.
@@ -195,11 +186,16 @@ function updateStormFlash(dt){
   if(_weatherMode!=='storm')return;
   _stormFlashTimer-=dt;
   if(_stormFlashTimer<=0){
-    // Lightning flash
+    // Fase 4b open punt 1 — cache pre-flash ambient (wereld-base × storm.amb.mul,
+    // gezet door setWeather) en restore na elk pulse-segment. Vóór 4b returnde
+    // de tussen-/eind-state hardcoded naar 0.18 (oude GP-storm-amb-absoluut),
+    // wat sandstorm-night-storm (0.090) en pier47-night-storm (0.036) en
+    // space-storm (0.08) te helder maakte na elke flash.
+    const _preFlashAmb = ambientLight.intensity;
     ambientLight.intensity=1.8;
-    setTimeout(()=>{ambientLight.intensity=.18;},80);
+    setTimeout(()=>{ambientLight.intensity=_preFlashAmb;},80);
     setTimeout(()=>{ambientLight.intensity=1.4;},140);
-    setTimeout(()=>{ambientLight.intensity=.18;},200);
+    setTimeout(()=>{ambientLight.intensity=_preFlashAmb;},200);
     Audio.playThunder();
     _stormFlashTimer=8+Math.random()*7;
   }
