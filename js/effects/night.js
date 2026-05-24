@@ -119,6 +119,9 @@ function toggleNight(){
     // Arctic night: aurora-ribbon skybox (green + violet + cyan) over
     // dense star field with crisp moon. PMREM env paints car lacquer
     // with cool aurora rim-light — the dramatic visual win for this world.
+    // Fase 3a: lighting-waarden via WORLD_LIGHTING-tabel (consumer
+    // applyWorldLighting). Arctic-extras (stars, _sunBillboard) blijven
+    // inline omdat ze niet onder het lighting-schema vallen.
     if(isDark){
       if(!_arcDayBg)_arcDayBg=scene.background;
       if(!_arcDayEnv)_arcDayEnv=scene.environment;
@@ -128,24 +131,14 @@ function toggleNight(){
       }
       if(_arcNightBg) scene.background=_arcNightBg;
       if(_arcNightEnv) scene.environment=_arcNightEnv;
-      scene.fog.density=.0030;
-      sunLight.intensity=.22;ambientLight.intensity=.40;hemiLight.intensity=.32;
-      trackLightList.forEach(function(l){l.intensity=1.4;});
     }else{
       if(_arcDayBg) scene.background=_arcDayBg;
       if(_arcDayEnv) scene.environment=_arcDayEnv;
-      scene.fog.density=.0035;
-      // Use arctics shared day-lighting helper for the day-restore so
-      // build-time + toggle-time setups can never drift.
-      if(typeof window._applyArcticDayLighting==='function'){
-        window._applyArcticDayLighting();
-      }
-      trackLightList.forEach(function(l){l.intensity=0;});
+    }
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('arctic', isDark);
     }
     if(stars)stars.visible=isDark;
-    if(plHeadL){plHeadL.intensity=isDark?1.7:0;plHeadR.intensity=isDark?1.7:0;}
-    if(plTail)plTail.intensity=isDark?1.4:0;
-    _aiHeadPool.forEach(function(l){l.intensity=isDark?1.0:0;});
     if(_sunBillboard)_sunBillboard.visible=!isDark;
   }else if(activeWorld==='volcano'){
     // Volcano night: dramatic dark-ember sky + intensified lava-glow
