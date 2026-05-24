@@ -151,6 +151,10 @@ function toggleNight(){
     // Volcano night: dramatic dark-ember sky + intensified lava-glow
     // horizon + dim cream moon. The PMREM-baked env paints car lacquer
     // with warm lava rim-light at night (the visual-fix-v5 win).
+    // Lighting-waarden (sun/amb/hemi/trackLights/headlights/aiHead) komen
+    // uit WORLD_LIGHTING.volcano via applyWorldLighting; volcano-record
+    // heeft geen sky/fog-velden, dus PMREM-skybox-swap + scene.fog blijven
+    // onveranderd t.o.v. build-time.
     if(isDark){
       if(!_vlcDayBg)_vlcDayBg=scene.background;
       if(!_vlcDayEnv)_vlcDayEnv=scene.environment;
@@ -163,25 +167,20 @@ function toggleNight(){
     }else{
       if(_vlcDayBg) scene.background=_vlcDayBg;
       if(_vlcDayEnv) scene.environment=_vlcDayEnv;
-      // Use volcanos shared day-lighting helper for the day-restore so
-      // build-time + toggle-time setups can never drift.
-      if(typeof window._applyVolcanoDayLighting==='function'){
-        window._applyVolcanoDayLighting();
-      }
     }
-    if(isDark){
-      sunLight.intensity=.22; ambientLight.intensity=.38; hemiLight.intensity=.26;
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('volcano', isDark);
     }
     if(stars)stars.visible=true;
-    trackLightList.forEach(function(l){l.intensity=isDark?1.8:0;});
-    if(plHeadL){plHeadL.intensity=isDark?1.9:0;plHeadR.intensity=isDark?1.9:0;}
-    if(plTail)plTail.intensity=isDark?1.6:0;
-    _aiHeadPool.forEach(function(l){l.intensity=isDark?1.2:0;});
     if(_sunBillboard)_sunBillboard.visible=false;
   }else if(activeWorld==='candy'){
     // Candy — Day=bright pastel paradise, Night=glow-in-the-dark wonderland.
     // PMREM env swap so car lacquer reflects the dreamy pink moon + sparkle
     // stars at night, and the bright pink paradise during day.
+    // Lighting-waarden (fog/sun/amb/hemi/trackLights/headlights/aiHead) via
+    // WORLD_LIGHTING.candy; PMREM-skybox swap + candy-specifieke props
+    // (trackPoles, _candyNightEmissives, _candyCandles, _sunBillboard)
+    // blijven inline.
     if(isDark){
       if(!_cdyDayBg)_cdyDayBg=scene.background;
       if(!_cdyDayEnv)_cdyDayEnv=scene.environment;
@@ -191,37 +190,25 @@ function toggleNight(){
       }
       if(_cdyNightBg) scene.background=_cdyNightBg;
       if(_cdyNightEnv) scene.environment=_cdyNightEnv;
-      scene.fog.density=.0010;
-      sunLight.intensity=.22;ambientLight.intensity=.44;hemiLight.intensity=.30;
-      trackLightList.forEach(l=>l.intensity=2.2);trackPoles.forEach(p=>p.visible=true);
-      _candyNightEmissives.forEach(m=>{ if(m.material){m.material.emissiveIntensity=0.8;} });
-      _candyCandles.forEach(l=>l.intensity=1.0);
-      if(plHeadL){plHeadL.intensity=1.6;plHeadR.intensity=1.6;}
-      if(plTail)plTail.intensity=1.4;
-      _aiHeadPool.forEach(l=>l.intensity=1.0);
     }else{
       if(_cdyDayBg) scene.background=_cdyDayBg;
       if(_cdyDayEnv) scene.environment=_cdyDayEnv;
-      scene.fog.density=.0013;
-      // Use candys shared day-lighting helper so build-time + toggle-time
-      // setups can never drift (mirrors the sandstorm helper pattern).
-      if(typeof window._applyCandyDayLighting==='function'){
-        window._applyCandyDayLighting();
-      }
-      trackLightList.forEach(l=>l.intensity=0);trackPoles.forEach(p=>p.visible=false);
-      _candyNightEmissives.forEach(m=>{ if(m.material){m.material.emissiveIntensity=.20;} });
-      _candyCandles.forEach(l=>l.intensity=.7);
-      if(plHeadL){plHeadL.intensity=0;plHeadR.intensity=0;}
-      if(plTail)plTail.intensity=0;
-      _aiHeadPool.forEach(l=>l.intensity=0);
     }
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('candy', isDark);
+    }
+    trackPoles.forEach(p=>p.visible=isDark);
+    _candyNightEmissives.forEach(m=>{ if(m.material){m.material.emissiveIntensity=isDark?0.8:0.20;} });
+    _candyCandles.forEach(l=>l.intensity=isDark?1.0:0.7);
     if(_sunBillboard)_sunBillboard.visible=!isDark;
   }else if(activeWorld==='sandstorm'){
     // Sandstorm full day↔night swap (visual-fix-v4 §4). Day = warm sunset
-    // (matches buildSandstormEnvironment values exactly so the sandstorm
-    // build-time lighting and the night.js light-restore agree). Night =
-    // moon-lit desert with deep purple sky baked into the skybox canvas.
-    // Fog far stays driven by the storm hazard, NOT by night.js.
+    // (matches buildSandstormEnvironment values exactly). Night = moon-lit
+    // desert with deep purple sky baked into the skybox canvas.
+    // Lighting-waarden (fog.color/sun/amb/hemi/trackLights/headlights/aiHead)
+    // via WORLD_LIGHTING.sandstorm. Sandstorm gebruikt linear THREE.Fog —
+    // consumer skipt fog.density (geen number op linear fog). Fog far blijft
+    // door storm-hazard gedreven, NIET door night.js.
     if(isDark){
       // ── Capture day refs (one-shot) so we can restore them later without
       // re-baking. The current scene.background / scene.environment were set
@@ -237,19 +224,6 @@ function toggleNight(){
       }
       if(_sstNightBg) scene.background=_sstNightBg;
       if(_sstNightEnv) scene.environment=_sstNightEnv;
-      // ── Moon-light: cool blue-white directional, low intensity, high angle.
-      sunLight.color.setHex(0xa8c0ff);
-      sunLight.intensity=0.6;
-      sunLight.position.set(80,120,-40);
-      ambientLight.color.setHex(0x2a2540); ambientLight.intensity=0.25;
-      hemiLight.color.setHex(0x3a3868);
-      hemiLight.groundColor.setHex(0x1a1828);
-      hemiLight.intensity=0.4;
-      // Fog tint shifts toward deep purple so distance-faded geometry
-      // blends into the night sky's foot-band (#1a1828).
-      if(scene&&scene.fog&&scene.fog.color){
-        scene.fog.color.setHex(0x1a1535);
-      }
       _fogColorDay.setHex(0xe8a468); _fogColorNight.setHex(0x1a1535);
     }else{
       // ── Day: restore via cached refs if we ever toggled to night this
@@ -258,16 +232,10 @@ function toggleNight(){
       // alone — they're already correct.
       if(_sstDayBg) scene.background=_sstDayBg;
       if(_sstDayEnv) scene.environment=_sstDayEnv;
-      // Use sandstorm.js's shared day-lighting helper instead of inline
-      // hex codes — single source of truth so the build-time and toggle-
-      // time setups can never drift (code-reuse review v4 dedup).
-      if(typeof window._applySandstormDayLighting==='function'){
-        window._applySandstormDayLighting();
-      }
-      if(scene&&scene.fog&&scene.fog.color){
-        scene.fog.color.setHex(0xe8a468);
-      }
       _fogColorDay.setHex(0xe8a468); _fogColorNight.setHex(0x6a4830);
+    }
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('sandstorm', isDark);
     }
     // The 60-instance warm sand-tinted `stars` mesh (sandstorm.js:1525)
     // is a daytime atmospheric detail — at night the canvas-baked sky-stars
@@ -277,20 +245,17 @@ function toggleNight(){
     // because their stars ARE the night-sky; sandstorm is the only world
     // where stars are day-decoration, hence the inverted check.
     if(stars)stars.visible=!isDark;
-    // Track-side glow is on for night so the player has light cues
-    // regardless of headlights.
-    trackLightList.forEach(l=>l.intensity=isDark?1.4:0);
     trackPoles.forEach(p=>p.visible=isDark);
-    if(plHeadL){plHeadL.intensity=isDark?1.7:0;plHeadR.intensity=isDark?1.7:0;}
-    if(plTail)plTail.intensity=isDark?1.4:0;
-    _aiHeadPool.forEach(l=>l.intensity=isDark?1.0:0);
     if(_sunBillboard)_sunBillboard.visible=!isDark;
   }else if(activeWorld==='pier47'){
     // Pier 47 cinematic night-toggle: PMREM-cached skybox swap + tighter
     // ambient values that align with the cinematic foundation's
     // "pools of light, not floods" pillar. Both day + night are dark by
     // design — toggle is a small visual delta on top of the bewolkte-
-    // nacht baseline. Sessie-NEXT may introduce a real "ochtend"-mode.
+    // nacht baseline. Lighting-waarden (fog/sun/amb/hemi/headlights/aiHead)
+    // via WORLD_LIGHTING.pier47 (incl. non-zero day-headlights 0.6/0.4/0.3
+    // zodat de cinematic baseline overdag laag-belicht is en lamp-poles
+    // + koplampen het narrative werk doen).
     if(isDark){
       if(!_p47DayBg)_p47DayBg=scene.background;
       if(!_p47DayEnv)_p47DayEnv=scene.environment;
@@ -300,37 +265,24 @@ function toggleNight(){
       }
       if(_p47NightBg) scene.background=_p47NightBg;
       if(_p47NightEnv) scene.environment=_p47NightEnv;
-      scene.fog.density=.014;
-      // Cinematic night — even darker than the cinematic-day baseline.
-      // The lamp poles + headlights do all the visual work.
-      sunLight.color.setHex(0x9aa6b8); sunLight.intensity=0.20;
-      ambientLight.color.setHex(0x0c0c14); ambientLight.intensity=0.10;
-      hemiLight.color.setHex(0x40485a);
-      hemiLight.groundColor.setHex(0x18141a);
-      hemiLight.intensity=0.14;
-      if(scene&&scene.fog&&scene.fog.color)scene.fog.color.setHex(0x18141f);
       _fogColorDay.setHex(0x252030); _fogColorNight.setHex(0x18141f);
     }else{
       if(_p47DayBg) scene.background=_p47DayBg;
       if(_p47DayEnv) scene.environment=_p47DayEnv;
-      scene.fog.density=.012;
-      // Restore via shared helper so build-time + toggle-time setups can never drift.
-      if(typeof window._applyPier47DayLighting==='function'){
-        window._applyPier47DayLighting();
-      }
-      if(scene&&scene.fog&&scene.fog.color)scene.fog.color.setHex(0x252030);
       _fogColorDay.setHex(0x252030); _fogColorNight.setHex(0x18141f);
+    }
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('pier47', isDark);
     }
     // Stars stay hidden — Pier 47 has city light pollution + cloud cover.
     if(stars)stars.visible=false;
-    if(plHeadL){plHeadL.intensity=isDark?1.7:0.6;plHeadR.intensity=isDark?1.7:0.6;}
-    if(plTail)plTail.intensity=isDark?1.4:0.4;
-    _aiHeadPool.forEach(l=>l.intensity=isDark?1.0:0.3);
     if(_sunBillboard)_sunBillboard.visible=false;
   }else if(activeWorld==='guangzhou'){
     // Guangzhou Cinematic night-toggle: PMREM-cached skybox swap + ambient
     // deepens. Both day + night are city-neon-dark by design — the toggle
-    // is a small visual delta. Mirrors Pier 47's pattern.
+    // is a small visual delta. Mirrors Pier 47's pattern. Lighting-waarden
+    // (fog/sun/amb/hemi/headlights/aiHead) via WORLD_LIGHTING.guangzhou
+    // (incl. non-zero day-headlights 0.6/0.4/0.3 zoals pier47).
     if(isDark){
       if(!_gzDayBg)_gzDayBg=scene.background;
       if(!_gzDayEnv)_gzDayEnv=scene.environment;
@@ -340,48 +292,29 @@ function toggleNight(){
       }
       if(_gzNightBg) scene.background=_gzNightBg;
       if(_gzNightEnv) scene.environment=_gzNightEnv;
-      scene.fog.density=.012;
-      // Cinematic night — even dimmer than day-baseline. Lamp poles + neon
-      // kerbs are the narrative light.
-      sunLight.color.setHex(0x3a4050); sunLight.intensity=0.14;
-      ambientLight.color.setHex(0x060610); ambientLight.intensity=0.08;
-      hemiLight.color.setHex(0x2a2840);
-      hemiLight.groundColor.setHex(0x0e0c18);
-      hemiLight.intensity=0.12;
-      if(scene&&scene.fog&&scene.fog.color)scene.fog.color.setHex(0x08060e);
       _fogColorDay.setHex(0x0e0c1a); _fogColorNight.setHex(0x08060e);
     }else{
       if(_gzDayBg) scene.background=_gzDayBg;
       if(_gzDayEnv) scene.environment=_gzDayEnv;
-      scene.fog.density=.0075;  // V3.5: lowered from 0.010 — must match scene.js init
-      // Restore via shared helper so build-time + toggle-time setups can never drift.
-      if(typeof window._applyGuangzhouDayLighting==='function'){
-        window._applyGuangzhouDayLighting();
-      }
-      if(scene&&scene.fog&&scene.fog.color)scene.fog.color.setHex(0x0e0c1a);
       _fogColorDay.setHex(0x0e0c1a); _fogColorNight.setHex(0x08060e);
+    }
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('guangzhou', isDark);
     }
     // Stars stay hidden — Guangzhou has dense city light pollution + cloud cover.
     if(stars)stars.visible=false;
-    if(plHeadL){plHeadL.intensity=isDark?1.8:0.6;plHeadR.intensity=isDark?1.8:0.6;}
-    if(plTail)plTail.intensity=isDark?1.5:0.4;
-    _aiHeadPool.forEach(l=>l.intensity=isDark?1.1:0.3);
     if(_sunBillboard)_sunBillboard.visible=false;
   }else if(activeWorld==='space'){
-    // Space is always dark — toggle only affects ambient brightness ("solar flare day" vs "deep night")
-    if(isDark){
-      scene.background=makeSkyTex('#020216','#0a0a30');scene.fog.density=.0006;
-      sunLight.intensity=.16;ambientLight.intensity=.34;hemiLight.intensity=.24;
-    }else{
-      scene.background=makeSkyTex('#06033a','#10085a');scene.fog.density=.0014;
-      sunLight.intensity=.18;ambientLight.intensity=.40;hemiLight.intensity=.28;
+    // Space is always dark — toggle only affects ambient brightness
+    // ("solar flare day" vs "deep night"). Sky/fog/sun/amb/hemi/trackLights/
+    // headlights/aiHead via WORLD_LIGHTING.space (day én night records
+    // hebben identieke headlights/aiHead waardes zodat het always-on
+    // gedrag van de oude tak bewaard blijft).
+    if(typeof window.applyWorldLighting === 'function'){
+      window.applyWorldLighting('space', isDark);
     }
     if(stars)stars.visible=true; // always on in space
-    trackLightList.forEach(l=>l.intensity=isDark?2.0:1.4);
     trackPoles.forEach(p=>p.visible=true);
-    if(plHeadL){plHeadL.intensity=1.8;plHeadR.intensity=1.8;}
-    if(plTail)plTail.intensity=1.5;
-    _aiHeadPool.forEach(l=>l.intensity=1.1);
   }else{
     // Grand Prix (default). Modest stars + moon + horizon glow at night,
     // standard daytime sky in day. PMREM env baked from each version so
