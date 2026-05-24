@@ -98,9 +98,9 @@ const _STABLE = {
   candy: _preset({
     ibl: 1.15, exposureDay: 1.25, exposureNight: 1.00,
     ambientMul: 1.45, hemiMul: 1.30,
-    fog: {type:'exp2', color:0x5a3850, density:0.00400},
-    emissiveMul: 1.0, carPaintEnvMul: 0.65,
-    bloomMul: 0.45, bloomThresholdDay: 0.90, bloomThresholdDark: 0.82,
+    fog: {type:'exp2', color:0x2a1838, density:0.00850},
+    emissiveMul: 1.4, carPaintEnvMul: 0.65,
+    bloomMul: 0.95, bloomThresholdDay: 0.78, bloomThresholdDark: 0.82,
     speedBlur: 0.10, fovBoost: 3
   }),
   magma: _preset({

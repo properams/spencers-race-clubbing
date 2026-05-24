@@ -245,7 +245,7 @@ function initPostFX(){
 // bright but stop mid-tones (asphalt, sand, candy, snow) bleeding.
 let _bloomWorldStrengthMul = 1.0;
 const _BLOOM_WORLD_MUL = {
-  candy:    0.45,   // 44 lollipops + 22 candles + 48 lampposts = bloom flood
+  candy:    0.95,   // pretpark-vibe: lampen + emissive-snoep moeten knallen tegen donker
   arctic:   0.70,   // bright snow ground reflects bloom
   volcano:  1.00,   // lava emissives are the show
   space:    1.00,   // deliberate cosmic bloom
@@ -349,8 +349,10 @@ function setWorldGrading(world){
     space:     [0.85, 0.92, 1.18, 0.18, 0.55,  0.00, 0.02, 0.06, 1.12, -0.04],
     // Cyaan lift, boosted saturation + lichte cyan rotatie voor bioluminescent pop
     deepsea:   [0.78, 1.05, 1.12, 0.20, 0.65,  0.00, 0.03, 0.07, 1.18, -0.06],
-    // Warme glaze, extra saturation voor candy-shine, lichte magenta drift
-    candy:     [1.18, 0.95, 1.06, 0.12, 0.45,  0.04, 0.02, 0.00, 1.20,  0.03],
+    // Verlaten pretpark V1: subtle violet-cast, vignette stevig omhoog
+    // voor pretpark-tunnel-feel, saturation iets onder 1 (schaduw-zones
+    // desaturated, alleen onder lampen knalt kleur). HueShift naar magenta.
+    candy:     [1.05, 0.95, 1.15, 0.14, 0.66,  0.02, 0.01, 0.03, 0.92,  0.04],
     // Warm ember-lift, strong saturation voor lava glow, hue naar oranje
     volcano:   [1.22, 0.90, 0.75, 0.18, 0.55,  0.05, 0.01, 0.00, 1.25,  0.04],
     // Cool blue lift voor arctic, lichte saturation; hue iets cooler

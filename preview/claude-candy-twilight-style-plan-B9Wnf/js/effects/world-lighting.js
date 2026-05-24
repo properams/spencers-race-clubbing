@@ -118,10 +118,10 @@ const WORLD_LIGHTING = {
   // tabel wordt door applyWorldLighting bij night-toggle gelezen, de
   // helper door cold-build (buildCandyEnvironment).
   //
-  // Day = vroege-avond schemering (was fel pastel paradise). Aubergine
-  // fog, warm-amber sun, koel-paarse hemi-sky / warm grond-bounce.
-  // Practische lampen aan (koplampen + zachte track-glow) zoals
-  // pier47.day, voor diepte en leesbaarheid in de donkerdere scene.
+  // Day = "verlaten pretpark om middernacht" (V1, statisch). Pier47-niveau
+  // ambient/sun voor donker basisniveau; lamp-poles + emissives + bloom
+  // doen de licht-eilanden tegen het donker. Geen warmte van de zon —
+  // koele maan-tint die alleen silhouet doet.
   candy: {
     night: {
       fog:         { density: 0.0010 },                // night.js:193
@@ -133,17 +133,17 @@ const WORLD_LIGHTING = {
       aiHead:      1.0,                                // night.js:200 (isDark-tak)
     },
     day: {
-      fog:         { density: 0.0040, color: 0x5a3850 },  // warme aubergine schemering
+      fog:         { density: 0.0085, color: 0x2a1838 },  // diep indigo-aubergine
       sun:         {
-        intensity: { desktop: 0.85, mobile: 0.65 },    // candy.js:59 — gedempt zonsondergang
-        color: 0xffa070,                               // candy.js:58 — warm amber
-        position: [80, 45, -30],                       // candy.js:60 — laag zonsondergang-hoek
+        intensity: { desktop: 0.35, mobile: 0.25 },    // pier47-niveau — lamp-poles dragen de scene
+        color: 0xffa070,                               // BEHOUDEN: warmte van de zon achter dunne mist
+        position: [60, 110, 80],                       // hoog en achter, gradient-bron ipv hoofdlicht
       },
-      amb:         { intensity: 0.25, color: 0x4a3850 },                    // gedempte aubergine vulling
-      hemi:        { intensity: 0.40, color: 0x6850a0, ground: 0x8a4855 },  // koel-paars sky / warm rose-brown grond
-      trackLights: { mode: 'set', value: 0.6 },        // zachte lampions-glow
-      headlights:  { front: 0.4, tail: 0.3 },          // practische koplampen aan
-      aiHead:      0.25,                               // AI matcht speler
+      amb:         { intensity: 0.10, color: 0x1a1428 },                    // zeer donker aubergine
+      hemi:        { intensity: 0.18, color: 0x3a2a55, ground: 0x2a1820 },  // donker paars sky / donker grond-bounce
+      trackLights: { mode: 'set', value: 1.4 },        // lampions feller — moeten knallen in het donker
+      headlights:  { front: 0.8, tail: 0.6 },          // echte koplampen aan
+      aiHead:      0.55,                               // AI matcht speler-helderheid
     },
   },
 

@@ -464,43 +464,34 @@ function makeCandySkyTex(){
   return _skyTexFromCanvas(c);
 }
 
-// Candy DUSK — vroege-avond schemering-variant van makeCandySkyTex.
-// Aubergine zenith → rose-amber mid → warm sunset cream → aubergine
-// foot (= fog.color voor seam-onzichtbaarheid). Wolken zwakker en
-// warmer. Zonsondergang-glow strip sterker dan day-versie. Live
-// gebruikt door buildCandySky vanaf de twilight-shift; oude
-// makeCandySkyTex blijft staan voor mogelijke historische rollback.
+// Candy DUSK — "verlaten pretpark om middernacht" (V1 statisch). Donker
+// indigo zenith → donker paars-mid → enige warmte als verre carnaval-
+// glow-strip aan de horizon (pretpark in de verte) → aubergine foot =
+// fog.color voor seam-onzichtbaarheid. Geen wolken (kale lucht; verlaten).
+// Live gebruikt door buildCandySky; oude makeCandySkyTex blijft staan
+// voor mogelijke historische rollback.
 function makeCandyDuskSkyTex(){
-  const {c,g}=_newSkyCanvas('#2a1838','#a85a6a');
-  // Mid-band: rose-amber → warm sunset cream transition.
+  const {c,g}=_newSkyCanvas('#1a1028','#3a2245');
+  // Mid-band — donker paars zonder warmte, gradient naar fog-tint.
   const midBand=g.createLinearGradient(0,260,0,420);
-  midBand.addColorStop(0,'rgba(168,90,106,0)');
-  midBand.addColorStop(.5,'rgba(212,149,128,0.65)');
-  midBand.addColorStop(1,'rgba(180,110,120,0.85)');
+  midBand.addColorStop(0,'rgba(58,34,69,0)');
+  midBand.addColorStop(.5,'rgba(50,28,58,0.55)');
+  midBand.addColorStop(1,'rgba(45,26,55,0.85)');
   g.fillStyle=midBand;g.fillRect(0,260,1024,160);
-  // Foot fades into aubergine fog-color (#5a3850) for invisible seam.
+  // Foot fades into aubergine fog-color (#2a1838) for invisible seam.
   const foot=g.createLinearGradient(0,410,0,512);
-  foot.addColorStop(0,'rgba(180,110,120,0.85)');
-  foot.addColorStop(1,'rgba(90,56,80,1)');
+  foot.addColorStop(0,'rgba(45,26,55,0.85)');
+  foot.addColorStop(1,'rgba(42,24,56,1)');
   g.fillStyle=foot;g.fillRect(0,410,1024,102);
-  // Cloud puffs — warm dusty rose i.p.v. felle pink, lager contrast.
-  for(let i=0;i<14;i++){
-    const x=Math.random()*1024;
-    const y=70+Math.random()*220;
-    const r=50+Math.random()*70;
-    const tone=Math.random()<0.5?'220,160,180':'180,140,170';
-    const gr=g.createRadialGradient(x,y,0,x,y,r);
-    gr.addColorStop(0,`rgba(${tone},0.55)`);
-    gr.addColorStop(1,`rgba(${tone},0)`);
-    g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);
-  }
-  // Zonsondergang-glow strip — warmer en sterker dan day-versie,
-  // pakt de amber sun-color (#ffa070) op de horizon.
-  const horizGlow=g.createLinearGradient(0,355,0,445);
-  horizGlow.addColorStop(0,'rgba(255,160,112,0)');
-  horizGlow.addColorStop(.5,'rgba(255,160,112,0.38)');
-  horizGlow.addColorStop(1,'rgba(255,160,112,0)');
-  g.fillStyle=horizGlow;g.fillRect(0,355,1024,90);
+  // Verre carnaval-glow-strip aan de horizon-foot — pretpark in de
+  // verte. Subtle warm-amber, lage alpha (0.22). Enige warmte in de
+  // verder kale lucht; gaat aan de randen naar 0 zodat het een band
+  // is, geen gradient.
+  const carnival=g.createLinearGradient(0,430,0,510);
+  carnival.addColorStop(0,'rgba(180,90,60,0)');
+  carnival.addColorStop(.5,'rgba(180,90,60,0.22)');
+  carnival.addColorStop(1,'rgba(180,90,60,0.04)');
+  g.fillStyle=carnival;g.fillRect(0,430,1024,80);
   return _skyTexFromCanvas(c);
 }
 
@@ -1103,13 +1094,13 @@ async function buildScene(){
     _fogColorDay.setHex(DS_FOG_COLOR_DAY);_fogColorNight.setHex(DS_FOG_COLOR_NIGHT);
   }else if(isCandy){
     scene.background=_getOrBuildSkyTex(makeCandyDuskSkyTex);
-    // Twilight-shift: aubergine fog matcht skybox-foot (#5a3850) zodat
-    // horizon-seam onzichtbaar blijft. Density 3x hoger dan de oude
-    // pastel-paradise voor sfeer/diepte; nog ver onder pier47-day (.012)
-    // zodat de baan leesbaar blijft. _fogColorNight ongewijzigd (nacht
-    // is niet aangepast in deze identiteit-shift).
-    scene.fog=new THREE.FogExp2(0x5a3850,.0040);
-    _fogColorDay.setHex(0x5a3850);_fogColorNight.setHex(0x3e0c52);
+    // "Verlaten pretpark om middernacht" V1: diep indigo-aubergine fog
+    // matcht skybox-foot (#2a1838) zodat horizon-seam onzichtbaar blijft.
+    // Density 0.0085 — flink dichter voor pretpark-mist-vibe, maar nog
+    // onder pier47-day (.012). _fogColorNight ongewijzigd (nacht is
+    // niet aangepast).
+    scene.fog=new THREE.FogExp2(0x2a1838,.0085);
+    _fogColorDay.setHex(0x2a1838);_fogColorNight.setHex(0x3e0c52);
   }else if(isVolcano){
     // Volcano keeps its procedural ember-haze sky in both modes — fog matches
     // the rusty horizon glow at the bottom of the canvas (~rgba(180,40,0)

@@ -191,7 +191,7 @@ function toggleNight(){
       window.applyWorldLighting('candy', isDark);
     }
     trackPoles.forEach(p=>p.visible=isDark);
-    _candyNightEmissives.forEach(m=>{ if(m.material){m.material.emissiveIntensity=isDark?0.8:0.45;} });
+    _candyNightEmissives.forEach(m=>{ if(m.material){m.material.emissiveIntensity=isDark?0.8:0.55;} });
     _candyCandles.forEach(l=>l.intensity=isDark?1.0:0.95);
     if(_sunBillboard)_sunBillboard.visible=!isDark;
   }else if(activeWorld==='sandstorm'){

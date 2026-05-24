@@ -40,32 +40,34 @@ function _pushCandyEmissiveTree(root){
 }
 
 // Single source of truth for candy day lighting. Called from
-// buildCandyEnvironment at world-build, AND vroeger door night.js bij
-// toggle-back; nu door applyWorldLighting (WORLD_LIGHTING.candy.day) bij
-// toggle. Beide moeten synchroon blijven met de WORLD_LIGHTING-tabel.
+// buildCandyEnvironment at world-build; WORLD_LIGHTING.candy.day wordt
+// door applyWorldLighting bij toggle gelezen. Beide moeten synchroon
+// blijven.
 //
-// Goal palette (vroege-avond schemering — was fel pastel sun-drenched):
-//   sun #ffa070 (warm amber) / 0.65 mobile, 0.85 desktop
-//   sun position (80, 45, -30) — laag zonsondergang-hoek voor mood
-//   ambient #4a3850 (gedempt aubergine) / 0.25
-//   hemi sky #6850a0 (koel-paars) / ground #8a4855 (warm rose-brown) / 0.40
-//   fog #5a3850 (warme aubergine) / density 0.0040
+// Goal palette ("verlaten pretpark om middernacht", V1 statisch):
+//   sun #ffa070 (warm amber, dempt door mist) / 0.25 mobile, 0.35 desktop
+//   sun position (60, 110, 80) — hoog/achter, gradient-bron ipv hoofdlicht
+//   ambient #1a1428 (zeer donker aubergine) / 0.10
+//   hemi sky #3a2a55 (donker paars) / ground #2a1820 (donker grond) / 0.18
+//   fog #2a1838 (diep indigo-aubergine) / density 0.0085
 //
-// Mobile sun cap 0.65 — shadows off op mobile dus felle sun clipt de
-// pink fondant ground (#cc7799). Lagere baseline geeft schemering-mood
-// zonder leesbaarheid te breken.
+// Lamp-poles + emissive snoep + bloom dragen de scene; sun is bewust
+// laag om silhouet buiten de lamp-pools mogelijk te maken. Mobile sun
+// cap 0.25 — zelfde reden als pier47 (shadows off, ground clipping
+// vermijden).
 function _applyCandyDayLighting(){
   if(!sunLight||!ambientLight||!hemiLight)return;
   sunLight.color.setHex(0xffa070);
-  sunLight.intensity = window._isMobile ? 0.65 : 0.85;
-  sunLight.position.set(80, 45, -30);
-  ambientLight.color.setHex(0x4a3850); ambientLight.intensity = 0.25;
-  hemiLight.color.setHex(0x6850a0);
-  hemiLight.groundColor.setHex(0x8a4855);
-  hemiLight.intensity = 0.40;
+  sunLight.intensity = window._isMobile ? 0.25 : 0.35;
+  sunLight.position.set(60, 110, 80);
+  ambientLight.color.setHex(0x1a1428); ambientLight.intensity = 0.10;
+  hemiLight.color.setHex(0x3a2a55);
+  hemiLight.groundColor.setHex(0x2a1820);
+  hemiLight.intensity = 0.18;
   // PBR-upgrade Brok 1b: per-wereld ambient/hemi-mul knop. Voor candy
-  // verhoogd naar 1.45/1.30 zodat niet-emissive snoep (Lambert/Standard
-  // props) leesbaar blijft in de donkerdere schemering-scene.
+  // 1.45/1.30 zodat niet-emissive snoep (Lambert/Standard props)
+  // leesbaar blijft in de donkere scene — werkt vooral bij het
+  // basisniveau, niet ter compensatie van de ambient-drop.
   const _v=(typeof window.getWorldVisuals==='function')?window.getWorldVisuals(activeWorld):null;
   if(_v){ ambientLight.intensity*=_v.ambientMul; hemiLight.intensity*=_v.hemiMul; }
 }
@@ -90,6 +92,8 @@ function buildCandyEnvironment(){
   buildGumDropMountains();
   buildCakeBuilding();
   buildCandyGate();
+  _buildCandyCarnivalLights();    // Verlaten-pretpark V1 — cinematic lamp-poles + cones
+  _buildCandyCarnivalMist();      // Verlaten-pretpark V1 — ground fog + blinking markers
   buildSprinkleParticles();
   buildFloatingCandyBits();
   buildCottonCandyClouds();
@@ -144,6 +148,86 @@ function _buildCandyLollipopGroupLights(){
     pl.castShadow = false;
     scene.add(pl);
     trackLightList.push(pl);
+  }
+}
+
+// Verlaten-pretpark V1 — practische cinematic lamp-poles met candy-
+// kleurige cones langs de baan. Het contrast tussen donker basisniveau
+// en deze lokale licht-eilanden maakt de vibe; gumdrops/canes/cake
+// pakken hun kleur op binnen de lamp-pool, daarbuiten silhouet.
+// Hergebruikt cinematic.js buildCinematicLightPole (P8 config-driven).
+// Stratified t-spawn (P2) langs trackCurve voor even verdeling.
+function _buildCandyCarnivalLights(){
+  if(typeof buildCinematicLightPole!=='function')return;
+  if(typeof trackCurve==='undefined'||!trackCurve)return;
+  const count = (typeof _mobCount==='function') ? _mobCount(10) : (window._isMobile?5:10);
+  // Candy-palette cyclus — magenta, mint, amber, lilac, peach.
+  const palette = [0xff66aa, 0x88ffcc, 0xffaa55, 0xcc88ff, 0xff8866];
+  const tmpV = new THREE.Vector3();
+  for(let i=0;i<count;i++){
+    const t = ((i + Math.random()) / count) % 1;
+    const p = trackCurve.getPoint(t);
+    const tg = trackCurve.getTangent(t).normalize();
+    // Perpendicular naar tangent (XZ-vlak), alternerend links/rechts.
+    const side = (i % 2 === 0) ? 1 : -1;
+    const offset = 18 + Math.random()*4;  // 18-22u van baan-centrum
+    tmpV.set(p.x - tg.z * offset * side, 0, p.z + tg.x * offset * side);
+    buildCinematicLightPole(scene, tmpV, {
+      color: palette[i % palette.length],
+      intensity: 2.2,
+      range: 28,
+      height: 8,
+      poolRadius: 6,
+      castVolumetricCone: true,
+      castGroundPool: true,
+      castHalo: true,
+    });
+  }
+}
+
+// Verlaten-pretpark V1 — ground fog + blinking warning-markers.
+// Ground fog geeft de pretpark-mist tussen attracties; markers
+// (slow-pulse rood + solid amber) zijn de "deze attractie nog half
+// in bedrijf"-signalen op verre punten. Mobile clampt fog-layers
+// naar 1 (helper doet dit ook auto, expliciet voor budget-garantie).
+function _buildCandyCarnivalMist(){
+  if(typeof trackCurve==='undefined'||!trackCurve)return;
+  if(typeof buildCinematicGroundFog==='function'){
+    buildCinematicGroundFog(scene, {
+      color: 0x2a1838,
+      density: 0.45,
+      height: 4.5,
+      layerCount: window._isMobile ? 1 : 3,
+      layerSpacing: 2.0,
+      size: 900,
+      scrollDir: [1, 0.3],
+      scrollSpeed: 0.08,
+      fadeWithDistance: true,
+    });
+  }
+  if(typeof buildCinematicBlinkingMarker!=='function')return;
+  const markerCount = (typeof _mobCount==='function') ? _mobCount(6) : (window._isMobile?3:6);
+  const tmpV = new THREE.Vector3();
+  for(let i=0;i<markerCount;i++){
+    const t = ((i + 0.5) / markerCount) % 1;
+    const p = trackCurve.getPoint(t);
+    const tg = trackCurve.getTangent(t).normalize();
+    // Markers verder van baan (60-80u offset) voor "achtergrond-warning"
+    // feel; verticaal verspreid 12-22u voor variatie.
+    const side = (i % 2 === 0) ? 1 : -1;
+    const off = 60 + Math.random()*20;
+    const yy = 12 + Math.random()*10;
+    tmpV.set(p.x - tg.z * off * side, yy, p.z + tg.x * off * side);
+    // Alterneer rood slow-pulse en amber solid.
+    const isRed = (i % 2 === 0);
+    buildCinematicBlinkingMarker(scene, tmpV, {
+      color: isRed ? 0xff4455 : 0xffaa44,
+      pattern: isRed ? 'slow-pulse' : 'solid',
+      intensity: 1.5,
+      range: 20,
+      haloSize: 1.6,
+      blinkInterval: 2.4,
+    });
   }
 }
 
