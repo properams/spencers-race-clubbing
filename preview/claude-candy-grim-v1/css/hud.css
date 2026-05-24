@@ -1,0 +1,279 @@
+/* hud.css — auto-split from index.html */
+[id^="hud"]:focus,[id^="hud"]:focus-visible{outline:none}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;display:none}
+/* Race-info panel: consolidated POSITION + LAP + LAPTIME (replaces #hudPos/#hudLap/#hudLapTime/#hudScore). */
+#hudRaceInfo{position:absolute;top:18px;left:18px;background:var(--hud-bg);border:1px solid var(--hud-border);border-radius:var(--hud-card-radius);padding:var(--hud-card-pad-top-with-eyebrow) var(--hud-card-pad-x) var(--hud-card-pad-y);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);font-family:var(--font-mono);min-width:130px;box-shadow:0 8px 28px rgba(0,0,0,.4),inset 0 1px 0 rgba(212,168,255,.08)}
+/* Light Edition eyebrows — shared style for #hudRaceInfo / #hudInstruments / #hudLeader.
+   Explicit line-box (height = font-size, line-height:1) so any sub-pixel rounding
+   can't smear into the first data row below. */
+#hudRaceInfo::before,#hudInstruments::before,#hudLeader::before{position:absolute;top:8px;left:14px;right:14px;font-family:var(--font-mono);font-size:var(--hud-eyebrow-size);line-height:1;height:var(--hud-eyebrow-size);letter-spacing:var(--hud-eyebrow-tracking);color:var(--hud-eyebrow-color);text-transform:uppercase;pointer-events:none}
+#hudRaceInfo::before{content:"\25C7  POSITION  \B7  LAP"}
+#hudRaceInfo .riPosRow{display:flex;align-items:baseline;gap:6px;line-height:1}
+#hudRaceInfo .riPos{font-family:var(--font-display);font-size:42px;font-weight:700;color:var(--hud-text);letter-spacing:1px}
+#hudRaceInfo .riPosOf{font-size:13px;color:var(--hud-text-mute);letter-spacing:2px}
+#hudRaceInfo .riLapRow{margin-top:4px;display:flex;gap:8px;align-items:baseline}
+#hudRaceInfo .riLabel{font-size:8px;color:var(--hud-text-dim);letter-spacing:3px}
+#hudRaceInfo .riLap{font-size:14px;font-weight:500;color:var(--hud-text);letter-spacing:2px}
+#hudRaceInfo .riTimeRow{margin-top:4px;font-family:var(--font-mono);font-size:10px;color:var(--hud-text-dim);letter-spacing:.5px;min-height:13px;display:flex;gap:6px;align-items:baseline}
+/* Stable widths: tabular numerals + reserved slots prevent the race-info block
+   from "breathing" as digits, decimals and +/- signs change every frame. */
+#hudRaceInfo{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+#hudRaceInfo .riPos{min-width:3ch;display:inline-block}
+#hudRaceInfo .riPosOf{min-width:3ch;display:inline-block}
+#hudRaceInfo .riLap{min-width:7ch;display:inline-block}
+#hudRaceInfo #hdLapTime{min-width:15ch;display:inline-block}
+#hudRaceInfo #hdLapDelta{min-width:6ch;display:inline-block;text-align:right;margin-left:0}
+/* .hLabel/.hBig/.hSm — verwijderd; alleen race-info-panel had ze, en die gebruikt
+   nu eigen .ri* classes. */
+/* Driving instruments: gear + speed in one shared-background unit. */
+#hudInstruments{position:absolute;bottom:28px;right:28px;background:var(--hud-bg);border:1px solid var(--hud-border);border-radius:var(--hud-card-radius);padding:var(--hud-card-pad-top-with-eyebrow) var(--hud-card-pad-x) var(--hud-card-pad-y);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);font-family:var(--font-mono);display:flex;align-items:center;gap:14px;box-shadow:0 8px 28px rgba(0,0,0,.4),inset 0 1px 0 rgba(212,168,255,.08)}
+#hudInstruments::before{content:"\25C7  GEAR  \B7  SPEED";text-align:right}
+#hudInstruments .hiGearBox{display:flex;flex-direction:column;align-items:center;line-height:1;border-right:1px solid var(--hud-border);padding-right:14px}
+#hudInstruments .hiGearLbl{font-size:8px;color:var(--hud-text-dim);letter-spacing:3px;margin-bottom:4px}
+#hudInstruments .hiGearVal{font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--hud-text)}
+#hudInstruments .hiSpdBox{display:flex;flex-direction:column;align-items:center;line-height:1}
+#hudInstruments .hiSpdVal{font-family:var(--font-display);font-size:48px;font-weight:700;color:var(--hud-accent);letter-spacing:1px}
+#hudInstruments .hiSpdLbl{font-size:8px;color:var(--hud-text-dim);letter-spacing:3px;margin-top:3px}
+#hudMap{position:absolute;bottom:28px;left:28px;width:260px;height:200px;background:linear-gradient(140deg,rgba(8,10,18,.78),rgba(0,0,0,.62));border:1px solid var(--hud-border);border-radius:18px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06);backdrop-filter:blur(8px) saturate(140%);-webkit-backdrop-filter:blur(8px) saturate(140%)}
+.tcBtn{position:fixed;z-index:50;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:1px;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent;transition:transform .09s ease,box-shadow .12s,background .12s,border-color .12s;background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.03) 100%);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border:1px solid rgba(255,255,255,.2);box-shadow:0 6px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(0,0,0,.25)}
+.tcBtn.active{transform:scale(.92)}
+#tcLeft,#tcRight{width:74px;height:74px;font-size:42px;font-weight:300;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;border-radius:22px;line-height:1;padding-bottom:4px}
+#tcLeft.active,#tcRight.active{background:linear-gradient(135deg,rgba(170,110,255,.45),rgba(100,40,200,.18));border-color:rgba(210,160,255,.7);box-shadow:0 4px 22px rgba(170,110,255,.5),inset 0 1px 0 rgba(255,255,255,.3)}
+#tcLeft{bottom:24px;left:18px}
+#tcRight{bottom:24px;left:104px}
+#tcGas{bottom:24px;right:18px;width:90px;height:90px;border-radius:50%;font-size:13px;letter-spacing:2px;background:linear-gradient(135deg,rgba(0,230,130,.28) 0%,rgba(0,180,80,.08) 100%);border-color:rgba(0,230,130,.45);box-shadow:0 6px 24px rgba(0,220,110,.28),inset 0 1px 0 rgba(255,255,255,.25)}
+#tcGas.active{background:linear-gradient(135deg,rgba(0,255,150,.6),rgba(0,200,110,.35));border-color:rgba(150,255,200,.95);box-shadow:0 8px 34px rgba(0,255,160,.7),inset 0 2px 0 rgba(255,255,255,.35)}
+#tcBrake{bottom:24px;right:122px;width:70px;height:70px;border-radius:50%;font-size:11px;letter-spacing:2px;background:linear-gradient(135deg,rgba(255,90,50,.28) 0%,rgba(200,30,0,.08) 100%);border-color:rgba(255,90,50,.45);box-shadow:0 4px 18px rgba(255,60,30,.25),inset 0 1px 0 rgba(255,255,255,.2)}
+#tcBrake.active{background:linear-gradient(135deg,rgba(255,130,90,.6),rgba(220,60,30,.35));border-color:rgba(255,170,140,.95);box-shadow:0 6px 26px rgba(255,90,50,.55),inset 0 2px 0 rgba(255,255,255,.3)}
+/* Nitro indicator: pointer-events disabled — it's now a passive charge gauge.
+   Activation happens via double-tap on #tcGas (see js/ui/touch.js). The fill
+   element grows with nitroLevel; .ready glow signals 100% charge. */
+#tcNitro{bottom:118px;right:18px;width:58px;height:30px;border-radius:14px;font-size:16px;background:linear-gradient(135deg,rgba(255,220,40,.18) 0%,rgba(255,160,0,.06) 100%);border-color:rgba(255,220,40,.35);box-shadow:0 2px 10px rgba(255,200,0,.15),inset 0 1px 0 rgba(255,255,255,.18);pointer-events:none;overflow:hidden;position:fixed;display:flex;align-items:center;justify-content:center;transition:box-shadow .25s,border-color .25s}
+#tcNitro.ready{border-color:rgba(255,250,150,.95);box-shadow:0 4px 18px rgba(255,220,40,.7),inset 0 1px 0 rgba(255,255,255,.35),0 0 14px rgba(255,220,40,.55)}
+#tcNitroIcon{position:relative;z-index:2;color:#fff;text-shadow:0 0 6px rgba(255,200,0,.85);pointer-events:none}
+#tcNitroFill{position:absolute;left:0;bottom:0;height:100%;width:0%;background:linear-gradient(90deg,#ffee00,#ff7700);opacity:.55;z-index:1;transition:width .12s linear;pointer-events:none}
+/* Brief flash on the GAS button when double-tap arms nitro. */
+#tcGas.nitroFlash{box-shadow:0 8px 38px rgba(255,220,40,.85),inset 0 2px 0 rgba(255,255,255,.45);border-color:rgba(255,250,150,.95)}
+#tcHbk{bottom:118px;right:86px;width:58px;height:58px;border-radius:18px;font-size:10px;letter-spacing:1px;background:linear-gradient(135deg,rgba(140,110,255,.28) 0%,rgba(80,50,200,.08) 100%);border-color:rgba(140,110,255,.45);box-shadow:0 4px 16px rgba(120,90,255,.25),inset 0 1px 0 rgba(255,255,255,.22)}
+#tcHbk.active{background:linear-gradient(135deg,rgba(170,130,255,.6),rgba(100,70,220,.35));border-color:rgba(210,180,255,.95);box-shadow:0 6px 24px rgba(140,110,255,.6),inset 0 2px 0 rgba(255,255,255,.35)}
+#tcSteer{display:none;position:fixed;z-index:50;background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.03) 100%);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border:1px solid rgba(255,255,255,.22);border-radius:36px;box-shadow:0 6px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25);touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;overflow:hidden}
+#tcSteer::before{content:'';position:absolute;top:50%;left:20px;right:20px;height:3px;background:linear-gradient(90deg,rgba(170,110,255,.5) 0%,rgba(255,255,255,.25) 50%,rgba(170,110,255,.5) 100%);border-radius:2px;transform:translateY(-50%)}
+#tcSteer::after{content:'‹     ›';position:absolute;top:50%;left:0;right:0;text-align:center;color:rgba(255,255,255,.28);font-family:var(--font-display);font-size:20px;font-weight:300;letter-spacing:32px;transform:translate(-50%,-50%);left:50%;pointer-events:none;text-indent:32px}
+#tcSteerThumb{position:absolute;top:50%;left:50%;width:52px;height:52px;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(135deg,rgba(170,110,255,.6) 0%,rgba(100,50,200,.3) 100%);border:2px solid rgba(210,160,255,.8);box-shadow:0 4px 18px rgba(170,110,255,.45),inset 0 2px 0 rgba(255,255,255,.38),inset 0 -2px 4px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-size:18px;font-weight:700;pointer-events:none;transition:transform .12s cubic-bezier(.34,1.3,.64,1),box-shadow .12s;left:calc(50% + var(--steer-x,0px))}
+#tcSteer.active #tcSteerThumb{transition:none;box-shadow:0 4px 24px rgba(210,160,255,.7),inset 0 2px 0 rgba(255,255,255,.5);background:linear-gradient(135deg,rgba(210,160,255,.75) 0%,rgba(140,80,240,.4) 100%)}
+#nitroBar{position:absolute;bottom:160px;right:28px;width:16px;height:120px;background:rgba(0,0,0,.7);border:2px solid #333;border-radius:8px;overflow:hidden}
+#nitroFill{position:absolute;bottom:0;width:100%;background:var(--iridescent);border-radius:6px;transition:height .1s}
+#nitroLbl{position:absolute;bottom:152px;right:10px;font-family:var(--font-mono);font-size:8px;color:var(--peach);letter-spacing:2px;width:50px;text-align:center}
+#slipIndicator{position:absolute;top:38%;right:20px;font-family:var(--font-mono);font-size:13px;color:var(--blue);letter-spacing:2px;display:none;text-shadow:0 0 10px rgba(168,212,255,.6)}
+/* Day/night UI toggles are fully removed from the DOM. SHOW_DAYNIGHT_TOGGLE
+   in config.js still hard-locks night-mode at boot, and toggleNight() blijft
+   intern beschikbaar voor developer use (KeyJ tijdens race), maar er is geen
+   user-facing UI meer (geen #hudNightBtn, geen #setSegMode, geen
+   #selMModeRow). */
+#wrongWayOverlay{position:fixed;top:26%;left:50%;transform:translateX(-50%);z-index:38;pointer-events:none;display:none;font-family:var(--font-display);font-size:38px;font-weight:700;color:var(--pink);text-shadow:-2px 0 rgba(255,58,138,.6),2px 0 rgba(0,224,255,.5),0 0 20px rgba(255,58,138,.5);letter-spacing:6px;animation:wrongPulse .55s ease-in-out infinite alternate}
+@keyframes wrongPulse{from{opacity:.7;transform:translateX(-50%) scale(.97)}to{opacity:1;transform:translateX(-50%) scale(1.04)}}
+/* Leaderboard: subtle panel, expand/collapse via L hotkey. Separator dots
+   between non-contiguous rows mimic F1 TV graphics. */
+/* Top:152 = pause(18..62) + gap(12) + mute(74..104, h:30) + gap(12) + titan(116..140, h:24) + gap(12).
+   max-height caps a fully-expanded grid (13 cars via L-hotkey) so it can't grow
+   past Zone C at top:340; overflow:hidden clips the tail rather than scrolling
+   to keep the panel non-interactive (pointer-events:none). */
+#hudLeader{position:absolute;top:152px;right:var(--hud-col-right);pointer-events:none;background:var(--hud-bg);border:1px solid var(--hud-border);border-radius:var(--hud-card-radius);padding:var(--hud-card-pad-top-with-eyebrow) var(--hud-card-pad-x) 10px;min-width:var(--hud-col-w);max-height:calc(100vh - 340px);overflow:hidden;backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);box-shadow:0 6px 22px rgba(0,0,0,.4),inset 0 1px 0 rgba(212,168,255,.08)}
+#hudLeader::before{content:"\25C7  FORMATION  \B7  LIGHT"}
+#hudLeader .lSep{font-family:var(--font-mono);font-size:11px;color:var(--hud-text-mute);text-align:center;letter-spacing:3px;line-height:1.4;padding:1px 0}
+/* Mute as ghost button — low-emphasis until hover.
+   Pause has its own glass-circle treatment below to match #tcGas + .tcBtn
+   visual language (the rest of the HUD is rounded/circular, no rectangles). */
+#hudMuteBtn{position:absolute;pointer-events:all;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:30px;line-height:1;font-family:var(--font-mono);font-size:13px;color:var(--hud-text-dim);background:transparent;border:1px solid transparent;border-radius:var(--hud-card-radius);padding:0 var(--hud-card-pad-x);cursor:pointer;letter-spacing:1px;transition:background .15s,color .15s,border-color .15s}
+#hudMuteBtn:hover{color:var(--hud-text);background:var(--hud-bg);border-color:var(--hud-border)}
+/* Pause = circle glass button matching #tcGas + .tcBtn family.
+   Linear-gradient + backdrop-blur + soft border so the HUD reads as one
+   design system. Inline SVG glyph (pause/play) inherits color via
+   currentColor; sized at 55% of container at all breakpoints so the
+   icon scales 1:1 with the circle. aria-label preserves SR text.
+   3-breakpoint sizing in @media: 44 desktop / 52 tablet / 48 mobile.
+   active:scale = tactile click; reduced-motion opt-out. */
+#hudPauseBtn{position:absolute;top:18px;right:var(--hud-col-right);pointer-events:all;width:44px;height:44px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  color:rgba(255,255,255,.92);
+  background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.03) 100%);
+  backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
+  border:1px solid rgba(255,255,255,.22);
+  box-shadow:0 6px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(0,0,0,.25);
+  transition:background .15s,border-color .15s,box-shadow .15s,transform .12s ease;
+  -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#hudPauseBtn>svg{width:55%;height:55%;display:block;pointer-events:none}
+#hudPauseBtn:hover{background:linear-gradient(135deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,.06) 100%);border-color:rgba(255,255,255,.4);box-shadow:0 8px 26px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.3)}
+#hudPauseBtn:active{transform:scale(.92);box-shadow:0 3px 10px rgba(0,0,0,.4),inset 0 2px 6px rgba(0,0,0,.35)}
+#hudPauseBtn:focus-visible{outline:2px solid rgba(255,255,255,.7);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){
+  #hudPauseBtn{transition:background .15s,border-color .15s,box-shadow .15s}
+  #hudPauseBtn:active{transform:none}
+}
+#hudMuteBtn{top:74px;right:var(--hud-col-right)}
+/* Nemesis badge — sits between mute and FORMATION in the right-column cadence.
+   Styled to match the card family (radius, padding-x) while signalling threat
+   via pink border/text. z-index:11 keeps it above Zone A toasts which inherit
+   --z-toast and sit on the same screen-edge. */
+#nemesisBadge{position:absolute;top:116px;right:var(--hud-col-right);min-width:var(--hud-col-w);box-sizing:border-box;padding:5px var(--hud-card-pad-x);border-radius:var(--hud-card-radius);background:rgba(255,58,138,.10);border:1px solid var(--pink);color:var(--pink);font-family:var(--font-mono);font-size:10px;letter-spacing:3px;text-align:center;text-transform:uppercase;text-shadow:0 0 12px rgba(255,58,138,.45);pointer-events:none;z-index:11;display:none}
+.hintBox{font-family:var(--font-mono);font-size:13px;color:var(--hud-text-mute);background:var(--hud-bg);border:1px solid var(--hud-border);border-radius:10px;padding:9px 22px;letter-spacing:2px;white-space:nowrap}
+#speedOverlay{position:fixed;inset:0;pointer-events:none;z-index:9;
+  background:radial-gradient(ellipse 72% 58% at 50% 52%,transparent 0%,transparent 38%,rgba(0,0,0,.18) 62%,rgba(0,0,0,.58) 82%,rgba(0,0,0,.80) 100%);
+  opacity:0;transition:opacity .07s}
+/* Car status panel: 4 tyre dots in a 2x2 grid, dual-encoded.
+   - Inner color = temperature (cold blue → optimal green → hot red)
+   - Outer ring (box-shadow) = damage (green → amber → red)
+   Hidden by default; fades in when wear>=30% or any tyre out of optimal range. */
+#hudCarStatus{position:absolute;left:18px;bottom:240px;background:var(--hud-bg);border:1px solid var(--hud-border);border-radius:var(--hud-card-radius);padding:8px var(--hud-card-pad-x) 9px;backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);font-family:var(--font-display);opacity:0;transition:opacity .35s ease;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.4)}
+#hudCarStatus.csOn{opacity:1}
+#hudCarStatus .csLabel{font-family:var(--font-mono);font-size:8px;color:var(--hud-text-dim);letter-spacing:3px;text-align:center;margin-bottom:6px}
+#hudCarStatus .csGrid{display:grid;grid-template-columns:repeat(2,18px);grid-gap:8px;justify-content:center;padding:2px}
+#hudCarStatus .csTire{width:18px;height:18px;border-radius:50%;background:var(--hud-success);box-shadow:0 0 0 2px var(--hud-success);transition:background .4s,box-shadow .4s}
+#hudRpm{position:absolute;bottom:160px;right:50px;width:6px;height:120px;background:rgba(0,0,0,.7);border:2px solid #333;border-radius:8px;overflow:hidden}
+#rpmFill{position:absolute;bottom:0;width:100%;border-radius:6px;transition:height .06s}
+#driftBar{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);width:180px;height:8px;background:rgba(0,0,0,.55);border:1px solid rgba(255,136,0,.4);border-radius:4px;display:none;overflow:hidden;z-index:12}
+#driftBarFill{height:100%;width:0%;background:var(--iridescent);border-radius:4px;transition:width .06s}
+#fastestLapFlash{position:fixed;inset:0;pointer-events:none;z-index:var(--z-flash);opacity:0;background:radial-gradient(ellipse 80% 60% at 50% 35%,rgba(160,0,255,.38) 0%,rgba(100,0,200,.15) 55%,transparent 100%);transition:opacity .18s}
+/* CLOSE BATTLE staat op top:12% zodat showPopup() events (zoals
+   NEAR MISS, P-positie wisselingen) op top:5%-9% er niet bovenop
+   stapelen. Permanent ambient indicator hoort lager dan event-flash. */
+#closeBattleEl{position:absolute;top:8%;left:50%;transform:translateX(-50%);font-family:var(--font-display);font-weight:600;font-size:clamp(10px,1.2vw,13px);color:var(--text);letter-spacing:4px;pointer-events:none;display:none;padding:8px 22px;border-radius:999px;background:linear-gradient(90deg,rgba(255,58,138,.85),rgba(212,168,255,.65),rgba(255,212,168,.8));box-shadow:0 0 22px rgba(255,58,138,.5),0 6px 18px rgba(0,0,0,.4);text-shadow:0 1px 2px rgba(0,0,0,.4)}
+#closeBattleEl::before{content:"\25C7  ";font-family:var(--font-mono);opacity:.9;margin-right:2px}
+@keyframes screenFadeIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
+.screen:not(.hidden){animation:screenFadeIn .32s ease forwards}
+@media(max-width:600px),(pointer:coarse) and (max-width:900px){
+/* On compact viewports the Light Edition eyebrow lines on HUD widgets are
+   sacrificed for vertical space — the big P-number / KM/H value carries
+   enough context on its own. */
+#hudRaceInfo::before,#hudInstruments::before,#hudLeader::before{display:none!important}
+#hudRaceInfo{
+    top:calc(12px + env(safe-area-inset-top,0px))!important;
+    left:calc(12px + env(safe-area-inset-left,0px))!important;
+    padding:7px 12px 6px!important;
+    border-radius:12px!important;
+    min-width:96px!important;
+    border:1px solid var(--line-strong)!important;
+    backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  }
+#hudRaceInfo .riPos{font-size:24px!important}
+#hudRaceInfo .riPosOf{font-size:10px!important}
+#hudRaceInfo .riLapRow{margin-top:2px!important}
+#hudRaceInfo .riLap{font-size:11px!important;letter-spacing:1px!important}
+#hudRaceInfo .riTimeRow{font-size:9px!important;margin-top:2px!important}
+#hudPauseBtn{
+    top:calc(16px + env(safe-area-inset-top,0px))!important;
+    right:calc(16px + env(safe-area-inset-right,0px))!important;
+    width:48px!important;height:48px!important;
+    font-size:22px!important;
+    border-radius:50%!important;
+    padding:0!important;letter-spacing:0!important;
+  }
+/* Keep mute below pause on notched phones — pause ends at (16+safe + 48)=64+safe,
+   so mute starts at (76+safe) for a 12px gap. */
+#hudMuteBtn{
+    top:calc(76px + env(safe-area-inset-top,0px))!important;
+    right:calc(16px + env(safe-area-inset-right,0px))!important;
+  }
+#hudMap{
+    width:124px!important;height:92px!important;
+    bottom:calc(140px + env(safe-area-inset-bottom,0px))!important;
+    left:calc(20px + env(safe-area-inset-left,0px))!important;
+    border-width:1px!important;border-radius:12px!important;
+  }
+#hudInstruments{
+    bottom:calc(140px + env(safe-area-inset-bottom,0px))!important;
+    right:calc(16px + env(safe-area-inset-right,0px))!important;
+    padding:5px 10px 4px!important;
+    border-radius:12px!important;
+    gap:8px!important;
+    z-index:15!important;
+    border:1px solid var(--line-strong)!important;
+    backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  }
+#hudInstruments .hiGearBox{padding-right:8px!important}
+#hudInstruments .hiGearLbl{display:none!important}
+#hudInstruments .hiGearVal{font-size:18px!important}
+#hudInstruments .hiSpdVal{font-size:24px!important;line-height:1!important}
+#hudInstruments .hiSpdLbl{font-size:7px!important}
+#nitroBar{display:none!important} /* replaced by #tcNitro indicator on mobile */
+#nitroLbl{display:none!important}
+#hudLeader:not(.lShow),#hudCarStatus,#sectorPanel,#closeBattleEl,#speedTrapEl,#mirrorFrame,#mirrorLabel,#speedLines,#hudRpm,#nemesisBadge{display:none!important}
+/* When expanded via L-hotkey, the leaderboard returns even on small viewports.
+   Sits below mute (76+safe..106+safe) with a 14px gap. */
+#hudLeader.lShow{display:block!important;top:calc(120px + env(safe-area-inset-top,0px))!important;right:calc(12px + env(safe-area-inset-right,0px))!important;font-size:10px!important;max-height:60vh!important;overflow:hidden!important}
+/* Combo: dock under RACE INFO (compact mobile card ~50px tall), not at desktop's top:160. */
+#comboEl{top:calc(72px + env(safe-area-inset-top,0px))!important;left:calc(14px + env(safe-area-inset-left,0px))!important;font-size:9px!important}
+#tcSteer{display:none!important}
+#tcLeft,#tcRight{display:flex!important;width:84px!important;height:72px!important;font-size:40px!important;border-radius:36px!important}
+#tcLeft{bottom:calc(30px + env(safe-area-inset-bottom,0px))!important;left:calc(20px + env(safe-area-inset-left,0px))!important}
+#tcRight{bottom:calc(30px + env(safe-area-inset-bottom,0px))!important;left:calc(118px + env(safe-area-inset-left,0px))!important}
+#tcBrake,#tcHbk{display:none!important}
+#tcGas{width:96px!important;height:96px!important;bottom:calc(30px + env(safe-area-inset-bottom,0px))!important;right:calc(20px + env(safe-area-inset-right,0px))!important;font-size:13px!important}
+#tcNitro{width:80px!important;height:24px!important;bottom:calc(195px + env(safe-area-inset-bottom,0px))!important;right:calc(16px + env(safe-area-inset-right,0px))!important;font-size:14px!important;border-radius:12px!important;z-index:16!important}
+#wrongWayOverlay{top:22%!important;font-size:26px!important;letter-spacing:4px!important}
+#slipIndicator{top:38%!important;right:calc(10px + env(safe-area-inset-right,0px))!important;font-size:11px!important}
+#tcLeft:active,#tcRight:active,#tcGas:active{
+    transform:scale(.94)!important;
+    filter:brightness(1.2)!important;
+  }
+}
+@media(min-width:769px) and (max-width:1200px){
+#tcSteer{display:none!important}
+#tcLeft,#tcRight{display:flex!important;width:110px!important;height:82px!important;font-size:48px!important;border-radius:42px!important;bottom:calc(100px + env(safe-area-inset-bottom,0px))!important}
+#tcLeft{left:calc(22px + env(safe-area-inset-left,0px))!important}
+#tcRight{left:calc(142px + env(safe-area-inset-left,0px))!important}
+#tcGas{width:100px!important;height:100px!important;bottom:calc(26px + env(safe-area-inset-bottom,0px))!important;right:calc(22px + env(safe-area-inset-right,0px))!important;font-size:14px!important}
+#tcNitro{width:90px!important;height:26px!important;bottom:calc(95px + env(safe-area-inset-bottom,0px))!important;right:calc(155px + env(safe-area-inset-right,0px))!important;font-size:16px!important;border-radius:13px!important;z-index:16!important}
+#tcBrake,#tcHbk{display:none!important}
+#hudMap{width:196px!important;height:150px!important;bottom:calc(200px + env(safe-area-inset-bottom,0px))!important;left:calc(22px + env(safe-area-inset-left,0px))!important;border-radius:14px!important;border:1px solid rgba(180,180,200,.55)!important;background:linear-gradient(140deg,rgba(8,10,18,.82),rgba(0,0,0,.7))!important;box-shadow:0 0 12px rgba(0,0,0,.5)!important}
+#hudRaceInfo{top:calc(18px + env(safe-area-inset-top,0px))!important;left:calc(18px + env(safe-area-inset-left,0px))!important}
+#hudRaceInfo .riPos{font-size:34px!important}
+#hudRaceInfo .riLap{font-size:13px!important}
+.tcBtn{background:rgba(0,0,0,.45)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important}
+#tcGas{background:linear-gradient(135deg,rgba(0,150,80,.55),rgba(0,90,40,.4))!important;border-color:rgba(0,200,110,.5)!important}
+#tcNitro{background:linear-gradient(135deg,rgba(200,150,0,.32),rgba(160,100,0,.18))!important;border-color:rgba(255,200,40,.4)!important}
+#hudInstruments{bottom:calc(30px + env(safe-area-inset-bottom,0px))!important;right:calc(155px + env(safe-area-inset-right,0px))!important}
+#hudInstruments .hiGearVal{font-size:24px!important}
+#hudInstruments .hiSpdVal{font-size:36px!important}
+#hudPauseBtn{top:calc(16px + env(safe-area-inset-top,0px))!important;right:calc(16px + env(safe-area-inset-right,0px))!important;width:52px!important;height:52px!important;font-size:24px!important;border-radius:50%!important;padding:0!important;letter-spacing:0!important}
+/* Tablet: pause is 52×52 starting at 16+safe, so mute moves to 80+safe for a 12px gap. */
+#hudMuteBtn{top:calc(80px + env(safe-area-inset-top,0px))!important;right:calc(16px + env(safe-area-inset-right,0px))!important}
+/* Nemesis: ride the safe-area too — desktop top:116 assumes safe-area=0, but on
+   notched tablets mute's bottom (calc(110+safe)) would shift past 116. */
+#nemesisBadge{top:calc(122px + env(safe-area-inset-top,0px))!important;right:calc(18px + env(safe-area-inset-right,0px))!important}
+#hudLeader{top:calc(158px + env(safe-area-inset-top,0px))!important;right:calc(18px + env(safe-area-inset-right,0px))!important;max-height:calc(100vh - 280px)!important;overflow:hidden!important}
+}
+@media(max-height:500px) and (orientation:landscape){
+/* Landscape phones (e.g. 844×390) match this query but NOT the mobile-portrait
+   one above, so the Light Edition eyebrows must be hidden again here —
+   otherwise the squeezed widget padding (5px / 3px) leaves the absolutely-
+   positioned ::before sitting on top of the gear/speed/position numbers. */
+#hudRaceInfo::before,#hudInstruments::before,#hudLeader::before{display:none!important}
+#hudRaceInfo{top:calc(6px + env(safe-area-inset-top,0px))!important;left:calc(8px + env(safe-area-inset-left,0px))!important;padding:5px 10px!important;min-width:90px!important}
+#hudRaceInfo .riPos{font-size:22px!important}
+#hudRaceInfo .riLap{font-size:11px!important}
+#hudRaceInfo .riTimeRow{font-size:9px!important}
+#hudInstruments{bottom:auto!important;top:calc(6px + env(safe-area-inset-top,0px))!important;right:calc(8px + env(safe-area-inset-right,0px))!important;padding:3px 10px!important}
+#hudInstruments .hiGearBox{display:none!important}
+#hudInstruments .hiSpdVal{font-size:22px!important}
+#hudInstruments .hiSpdLbl{display:none!important}
+#hudMap{width:96px!important;height:96px!important;top:calc(52px + env(safe-area-inset-top,0px))!important;left:calc(8px + env(safe-area-inset-left,0px))!important;bottom:auto!important}
+#hudPauseBtn{top:auto!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;right:auto!important;left:50%!important;transform:translateX(-50%)!important;width:44px!important;height:44px!important;font-size:20px!important;border-radius:50%!important;padding:0!important;letter-spacing:0!important}
+  /* Landscape :active should preserve the centering translate */
+  @media(prefers-reduced-motion:no-preference){
+    #hudPauseBtn:active{transform:translateX(-50%) scale(.92)!important}
+  }
+#tcSteer{display:none!important}
+#tcLeft,#tcRight{display:flex!important;width:76px!important;height:60px!important;font-size:36px!important;border-radius:30px!important;bottom:calc(50px + env(safe-area-inset-bottom,0px))!important}
+#tcLeft{left:calc(10px + env(safe-area-inset-left,0px))!important}
+#tcRight{left:calc(94px + env(safe-area-inset-left,0px))!important}
+#tcBrake,#tcHbk{display:none!important}
+#tcGas{width:68px!important;height:68px!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;right:calc(10px + env(safe-area-inset-right,0px))!important;font-size:11px!important}
+#tcBrake{width:56px!important;height:56px!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;right:calc(86px + env(safe-area-inset-right,0px))!important;font-size:9px!important}
+#tcNitro{width:64px!important;height:18px!important;top:calc(40px + env(safe-area-inset-top,0px))!important;bottom:auto!important;right:calc(8px + env(safe-area-inset-right,0px))!important;font-size:11px!important;border-radius:9px!important;z-index:16!important}
+#tcHbk{width:46px!important;height:46px!important;bottom:calc(72px + env(safe-area-inset-bottom,0px))!important;right:calc(62px + env(safe-area-inset-right,0px))!important;font-size:8px!important}
+/* Combo: RACE INFO is at top:6 in landscape with reduced padding (~44px tall),
+   so dock COMBO directly underneath. */
+#comboEl{top:calc(58px + env(safe-area-inset-top,0px))!important;left:calc(8px + env(safe-area-inset-left,0px))!important;font-size:9px!important}
+}
+#comboEl{position:absolute;top:160px;left:18px;font-family:var(--font-mono);font-size:11px;color:var(--peach);letter-spacing:2px;opacity:0;transition:all .3s;text-shadow:0 0 12px rgba(255,212,168,.5);text-align:left;pointer-events:none}
