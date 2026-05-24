@@ -26,6 +26,57 @@ let _candyLollipops=[];
 let _candyNightEmissives=[]; // meshes that glow at night
 let _candyCandles=[];        // candle flame lights on cake
 
+// ────────────────────────────────────────────────────────────────────────
+// Sessie "depth/landmarks/horizon" — tunebare constants.
+// Aanpassen hier wijzigt 1 plek; helper-bodies pakken deze waardes op.
+// ────────────────────────────────────────────────────────────────────────
+
+// Taak 1 — Large-scale candy landmarks (silhouet, candy-taal). Individuele
+// meshes (geen instancing). Mix van baken langs trackCurve + verspreide
+// veld-landmarks op grotere afstand. Donker, geen emissive — pure silhouet.
+const CANDY_LANDMARK_COUNT_DESKTOP        = 8;
+const CANDY_LANDMARK_COUNT_MOBILE         = 4;
+// Spline-baken: dichterbij baan, gespreid op gelijke t-intervallen.
+const CANDY_LANDMARK_SPLINE_OFFSET_MIN    = 80;
+const CANDY_LANDMARK_SPLINE_OFFSET_MAX    = 180;
+// Veld-landmarks: random t, grotere offset, voelen als "ver weg".
+const CANDY_LANDMARK_FIELD_OFFSET_MIN     = 220;
+const CANDY_LANDMARK_FIELD_OFFSET_MAX     = 380;
+// Hoogte-range — mid-prop canes pieken op ~10u (scale 5.0 × yFn 2.0).
+// 5–15× = 50–150u; we pakken 30–75u zodat ze niet boven skybox-horizon
+// uitsteken en de silhouet binnen normaal cam-frustum blijft.
+const CANDY_LANDMARK_HEIGHT_MIN           = 30;
+const CANDY_LANDMARK_HEIGHT_MAX           = 75;
+// Donker indigo palette — verder = donkerder voor diepte-illusie.
+const CANDY_LANDMARK_COL_NEAR             = 0x1a0e28;
+const CANDY_LANDMARK_COL_MID              = 0x140a22;
+const CANDY_LANDMARK_COL_FAR              = 0x0c071c;
+// Afstand-thresholds voor mat-keuze (offset op trackCurve).
+const CANDY_LANDMARK_MAT_NEAR_BELOW       = 200;
+const CANDY_LANDMARK_MAT_MID_BELOW        = 320;
+
+// Taak 2 — Mid-scale gelaagdheid. Universele multipliers op scaleMin/Max
+// van bestaande mid-prop helpers, zodat er natuurlijke tussenmaten
+// ontstaan tussen kleine grond-props en grote landmarks. Effectief
+// ratio max/min in elke helper wordt ~2× breder dan voorheen.
+const CANDY_MID_SCALE_MIN_MUL             = 0.72;
+const CANDY_MID_SCALE_MAX_MUL             = 1.45;
+
+// Taak 3 — Horizon-band silhouetten. Grote vage candy-vormen op verste
+// afstand. Donker zenith (#0e0820 uit V3 optie D) liet de bestaande
+// specks wegvallen — bigs zijn fors hoger zodat ze gradient-tegen-
+// gradient leesbaar zijn tegen die donkere lucht. Toegevoegd naast
+// (niet i.p.v.) `_buildCandyHorizonSpecks`.
+const CANDY_HORIZON_BIGS_COUNT_DESKTOP    = 8;
+const CANDY_HORIZON_BIGS_COUNT_MOBILE     = 4;
+const CANDY_HORIZON_BIGS_OFFSET_MIN       = 380;
+const CANDY_HORIZON_BIGS_OFFSET_MAX       = 700;
+const CANDY_HORIZON_BIGS_HEIGHT_MIN       = 35;
+const CANDY_HORIZON_BIGS_HEIGHT_MAX       = 80;
+// Iets lichter dan zenith (rgb 14,8,32) zodat silhouet leesbaar blijft
+// als gradient-tegen-gradient; rgb 34,24,48 = +20 in elke channel.
+const CANDY_HORIZON_BIGS_COL              = 0x221830;
+
 // Push all emissive single-material meshes from a Group into the night-
 // dimming list. night.js:188/203 assigns `m.material.emissiveIntensity = X`
 // — array-materials would silently set a property on the array itself,
@@ -111,6 +162,7 @@ function buildCandyEnvironment(){
   _buildCandyWrappers();          // Phase 15 Step 4 — wrapped candies (4 IMs)
   _buildPeppermintScatter();      // Mockup pass — peppermint disks on grass
   _buildCandyHorizonSpecks();     // V3 prop-herontwerp Laag 3 — diepte-scatter richting horizon
+  _buildCandyHorizonBigs();       // Taak 3 — grote horizon-silhouetten tegen donkere zenith
   // Chocolate-fountain bridge signature moment — drips lap 2, melts lap 3.
   if(typeof buildCandyChocoBridge==='function')buildCandyChocoBridge();
   // GLTF candy props — opt-in extra detail next to procedural ice-cream
@@ -248,79 +300,133 @@ function _buildCandyCarnivalMist(){
   }
 }
 
-// V3 prop-herontwerp Laag 1 — Vervallen pretpark landmarks. Donkere
-// silhouet-objecten tegen de paarse lucht (reuzenrad, circustenten,
-// achtbaan-boog, verre attractie-blok). Geen / nauwelijks emissive —
-// puur silhouet draagt het "verlaten" gevoel. 6 desktop / 3 mobile.
-// Handgekozen t + offset voor controleerbare compositie (geen stratified).
+// Taak 1 — Large-scale candy landmarks. Individuele meshes (geen
+// instancing) in candy-taal: reuzen-lolly, zuurstok-pilaar, snoepbol,
+// stack-toren, gumdrop. Silhouet, geen emissive — diepte/schaal-anker
+// tegen de paarse lucht. Mix van baken langs spline + verspreid in veld.
+// Constants in de constants-block bovenaan; finetune daar, niet hier.
 function _buildCandyCarnivalLandmarks(){
   if(typeof trackCurve==='undefined'||!trackCurve) return;
   const isMobile = window._isMobile;
-  const group = new THREE.Group();
-  group.userData = {_noLodCull: true}; // mogen niet weg-culled op afstand
-  // Drie donker-tinten — verder = donkerder voor diepte-illusie.
-  const matNear = new THREE.MeshLambertMaterial({color: 0x1a0e28});
-  const matDark = new THREE.MeshLambertMaterial({color: 0x0e0820});
-  const matFar  = new THREE.MeshLambertMaterial({color: 0x080612});
-  // Project t∈[0,1] + lateral offset (side ±1) naar XZ-positie.
-  function landmarkPos(t, offset, side){
-    const p = trackCurve.getPoint(t);
+  const count = isMobile ? CANDY_LANDMARK_COUNT_MOBILE : CANDY_LANDMARK_COUNT_DESKTOP;
+  const splineCount = Math.ceil(count / 2);
+  const fieldCount  = count - splineCount;
+  const matNear = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR});
+  const matMid  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID});
+  const matFar  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR});
+
+  function pickMat(offset){
+    if(offset < CANDY_LANDMARK_MAT_NEAR_BELOW) return matNear;
+    if(offset < CANDY_LANDMARK_MAT_MID_BELOW)  return matMid;
+    return matFar;
+  }
+
+  // Project t + lateral offset (side ±1) → XZ.
+  function curvePos(t, offset, side){
+    const p  = trackCurve.getPoint(t);
     const tg = trackCurve.getTangent(t).normalize();
-    const nr = new THREE.Vector3(-tg.z, 0, tg.x);
-    return new THREE.Vector3(p.x + nr.x * offset * side, 0, p.z + nr.z * offset * side);
+    return new THREE.Vector3(p.x + (-tg.z) * offset * side, 0, p.z + tg.x * offset * side);
   }
-  // 1. Reuzenrad-silhouet — torus-ring + 4 spaak-balken (8 visuele armen) + mast.
-  // t=0.35, links 180u, ⌀ 48u.
-  const wheelGroup = new THREE.Group();
-  const wheelRadius = 24;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius, 0.7, 4, 24), matDark);
-  ring.rotation.y = Math.PI/2; // ring in YZ-plane → silhouet richting baan
-  wheelGroup.add(ring);
-  const spokeGeo = new THREE.BoxGeometry(0.5, wheelRadius*2, 0.5);
-  for(let s=0; s<4; s++){
-    const spoke = new THREE.Mesh(spokeGeo, matDark);
-    spoke.rotation.z = (s/4) * Math.PI;
-    wheelGroup.add(spoke);
+
+  // Factory — random shape uit candy-taal repertoire, minimaal detail
+  // (silhouet is wat telt). Hoogte komt extern; alle ratios relatief.
+  function makeLandmark(height, mat){
+    const grp = new THREE.Group();
+    const type = Math.floor(Math.random() * 5);
+    if(type === 0){
+      // Reuzen-lolly — dunne stok + flat disc op top.
+      const stickH = height * 0.78;
+      const stick  = new THREE.Mesh(
+        new THREE.CylinderGeometry(height*0.035, height*0.04, stickH, 6), mat
+      );
+      stick.position.y = stickH / 2;
+      grp.add(stick);
+      const discR = height * 0.30;
+      const disc  = new THREE.Mesh(
+        new THREE.CylinderGeometry(discR, discR, height*0.06, 14), mat
+      );
+      disc.position.y = stickH;
+      disc.rotation.x = Math.PI / 2;
+      grp.add(disc);
+    } else if(type === 1){
+      // Zuurstok-pilaar — dikke cylinder + ronde dop.
+      const pillar = new THREE.Mesh(
+        new THREE.CylinderGeometry(height*0.10, height*0.12, height, 10), mat
+      );
+      pillar.position.y = height / 2;
+      grp.add(pillar);
+      const cap = new THREE.Mesh(
+        new THREE.SphereGeometry(height*0.11, 10, 6, 0, Math.PI*2, 0, Math.PI/2), mat
+      );
+      cap.position.y = height;
+      grp.add(cap);
+    } else if(type === 2){
+      // Reuzen-snoepbol (jawbreaker) — grote sphere op grond.
+      const r = height * 0.45;
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat);
+      ball.position.y = r;
+      grp.add(ball);
+    } else if(type === 3){
+      // Stack-toren — meerdere discs op centrale pole.
+      const layers = 4 + Math.floor(Math.random() * 3);
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(height*0.04, height*0.04, height, 6), mat
+      );
+      pole.position.y = height / 2;
+      grp.add(pole);
+      const layerH = height / layers * 0.55;
+      for(let l = 0; l < layers; l++){
+        const layerR = height * 0.22 * (1 - l * 0.08);
+        const disc = new THREE.Mesh(
+          new THREE.CylinderGeometry(layerR, layerR, layerH, 12), mat
+        );
+        disc.position.y = (l + 0.5) * height / layers;
+        grp.add(disc);
+      }
+    } else {
+      // Reuzen-gumdrop — half-sphere zittend op grond.
+      const r = height * 0.90;
+      const gum = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 14, 10, 0, Math.PI*2, 0, Math.PI/2), mat
+      );
+      gum.position.y = 0;
+      grp.add(gum);
+    }
+    return grp;
   }
-  // Mast onder het rad — gaat naar de grond.
-  const mast = new THREE.Mesh(new THREE.BoxGeometry(1.4, 28, 1.4), matDark);
-  mast.position.y = -wheelRadius - 2;
-  wheelGroup.add(mast);
-  const wpos = landmarkPos(0.35, 180, -1);
-  wheelGroup.position.set(wpos.x, wheelRadius + 4, wpos.z);
-  group.add(wheelGroup);
-  // 2. Grote circustent A — cone. t=0.55, rechts 120u.
-  const tentA = new THREE.Mesh(new THREE.ConeGeometry(14, 28, 10), matNear);
-  const aPos = landmarkPos(0.55, 120, 1);
-  tentA.position.set(aPos.x, 14, aPos.z);
-  group.add(tentA);
-  // 3. Kleinere circustent B. t=0.75, rechts 90u.
-  const tentB = new THREE.Mesh(new THREE.ConeGeometry(9, 20, 8), matNear);
-  const bPos = landmarkPos(0.75, 90, 1);
-  tentB.position.set(bPos.x, 10, bPos.z);
-  group.add(tentB);
-  if(!isMobile){
-    // 4. Achtbaan-boog — half-torus. t=0.15, links 150u.
-    const arc = new THREE.Mesh(
-      new THREE.TorusGeometry(18, 0.8, 4, 16, Math.PI),
-      matDark
-    );
-    const arcPos = landmarkPos(0.15, 150, -1);
-    arc.position.set(arcPos.x, 0, arcPos.z);
-    arc.rotation.y = Math.PI * 0.25; // niet exact richting baan
-    group.add(arc);
-    // 5. Kleine tent C. t=0.90, links 60u (dichterbij — diepte-anchor).
-    const tentC = new THREE.Mesh(new THREE.ConeGeometry(7, 14, 8), matNear);
-    const cPos = landmarkPos(0.90, 60, -1);
-    tentC.position.set(cPos.x, 7, cPos.z);
-    group.add(tentC);
-    // 6. Verre attractie-blok — silhouet op de horizon. t=0.05, links 280u.
-    const farBlock = new THREE.Mesh(new THREE.BoxGeometry(20, 30, 20), matFar);
-    const fPos = landmarkPos(0.05, 280, -1);
-    farBlock.position.set(fPos.x, 15, fPos.z);
-    group.add(farBlock);
+
+  function placeLandmark(t, offset, side){
+    const height = CANDY_LANDMARK_HEIGHT_MIN
+                 + Math.random() * (CANDY_LANDMARK_HEIGHT_MAX - CANDY_LANDMARK_HEIGHT_MIN);
+    const mat    = pickMat(offset);
+    const lm     = makeLandmark(height, mat);
+    const pos    = curvePos(t, offset, side);
+    lm.position.set(pos.x, 0, pos.z);
+    lm.rotation.y = Math.random() * Math.PI * 2;
+    lm.userData = {_noLodCull: true};
+    scene.add(lm);
   }
-  scene.add(group);
+
+  // Spline-baken — gespreid op gelijke t-intervallen (deterministisch
+  // genoeg dat de gameplay-pacing herkenbare ankers heeft, met random
+  // jitter binnen het interval om grid-look te breken).
+  for(let i = 0; i < splineCount; i++){
+    const slot   = (i + Math.random() * 0.6 + 0.2) / splineCount; // jitter
+    const t      = slot % 1;
+    const offset = CANDY_LANDMARK_SPLINE_OFFSET_MIN
+                 + Math.random() * (CANDY_LANDMARK_SPLINE_OFFSET_MAX - CANDY_LANDMARK_SPLINE_OFFSET_MIN);
+    const side   = (i % 2 === 0) ? 1 : -1; // alternerend zodat ze niet op één zij staan
+    placeLandmark(t, offset, side);
+  }
+  // Veld-landmarks — random t + grotere offset, mogen klein-cluster
+  // vormen (random side) zodat het veld leeft.
+  for(let i = 0; i < fieldCount; i++){
+    const t      = Math.random();
+    const offset = CANDY_LANDMARK_FIELD_OFFSET_MIN
+                 + Math.random() * (CANDY_LANDMARK_FIELD_OFFSET_MAX - CANDY_LANDMARK_FIELD_OFFSET_MIN);
+    const side   = Math.random() < 0.5 ? 1 : -1;
+    placeLandmark(t, offset, side);
+  }
 }
 
 // Phase 12D — signature: floating donut-hoops over track. 5 desktop /
@@ -388,7 +494,10 @@ function _buildCandyMidVariety(){
   const caneIm = new THREE.InstancedMesh(caneGeo, caneMat, caneCount*2);
   _populateMidRing(caneIm, {
     perSide: caneCount, offsetMin:22, offsetMax:52,
-    scaleMin:2.0, scaleMax:5.0, tiltAmt:0.15, stagger:0.6,
+    // Taak 2 — scale-ranges via constants verbreed voor natuurlijke groottehiërarchie.
+    scaleMin: 2.0 * CANDY_MID_SCALE_MIN_MUL,
+    scaleMax: 5.0 * CANDY_MID_SCALE_MAX_MUL,
+    tiltAmt:0.15, stagger:0.6,
     yFn: sc => 1.0 * sc,
     clusterAnchors: window._candyLampAnchors,
     clusterRadius: 0.05,
@@ -439,7 +548,10 @@ function _buildCandyStacks(){
   const stackIm = new THREE.InstancedMesh(stackGeo, mat, count*2);
   _populateMidRing(stackIm, {
     perSide: count, offsetMin:20, offsetMax:50,
-    scaleMin:1.0, scaleMax:2.0, stagger:0.3,
+    // Taak 2 — verbrede scale-band via multipliers.
+    scaleMin: 1.0 * CANDY_MID_SCALE_MIN_MUL,
+    scaleMax: 2.0 * CANDY_MID_SCALE_MAX_MUL,
+    stagger:0.3,
     yFn: () => 0,
     clusterAnchors: window._candyLampAnchors,
     clusterRadius: 0.05,
@@ -500,7 +612,10 @@ function _buildCandyWrappers(){
     const im = new THREE.InstancedMesh(geo, mat, count*2);
     _populateMidRing(im, {
       perSide: count, offsetMin:14, offsetMax:42,
-      scaleMin:1.0, scaleMax:2.2, stagger:ci*0.25,
+      // Taak 2 — verbrede scale-band via multipliers.
+      scaleMin: 1.0 * CANDY_MID_SCALE_MIN_MUL,
+      scaleMax: 2.2 * CANDY_MID_SCALE_MAX_MUL,
+      stagger:ci*0.25,
       yFn: () => 0.4,
       clusterAnchors: window._candyLampAnchors,
       clusterRadius: 0.05,
@@ -575,6 +690,71 @@ function _buildCandyHorizonSpecks(){
   scene.add(im);
 }
 
+// Taak 3 — Horizon-band silhouetten ("bigs"). Grote vage candy-vormen
+// op de verste afstand zodat tegen de donkere zenith (#0e0820 uit V3
+// optie D) wél een leesbare silhouet-laag staat — gradient-tegen-
+// gradient. Compensatie voor de horizon-specks die daar te dun
+// tegen wegvielen. Maskeert tegelijk de sky-naad-overgang. Individuele
+// meshes (geen instancing): met 4-8 stuks is silhouet-variatie per shape
+// meer waard dan instancing-winst.
+function _buildCandyHorizonBigs(){
+  if(typeof trackCurve==='undefined'||!trackCurve) return;
+  const isMobile = window._isMobile;
+  const count = isMobile ? CANDY_HORIZON_BIGS_COUNT_MOBILE : CANDY_HORIZON_BIGS_COUNT_DESKTOP;
+  const mat = new THREE.MeshLambertMaterial({color: CANDY_HORIZON_BIGS_COL});
+  const group = new THREE.Group();
+  group.userData = {_noLodCull: true};
+  const nr = new THREE.Vector3();
+  for(let i = 0; i < count; i++){
+    const t      = Math.random();
+    const p      = trackCurve.getPoint(t);
+    const tg     = trackCurve.getTangent(t).normalize();
+    nr.set(-tg.z, 0, tg.x);
+    const side   = Math.random() < 0.5 ? 1 : -1;
+    const offset = CANDY_HORIZON_BIGS_OFFSET_MIN
+                 + Math.random() * (CANDY_HORIZON_BIGS_OFFSET_MAX - CANDY_HORIZON_BIGS_OFFSET_MIN);
+    const height = CANDY_HORIZON_BIGS_HEIGHT_MIN
+                 + Math.random() * (CANDY_HORIZON_BIGS_HEIGHT_MAX - CANDY_HORIZON_BIGS_HEIGHT_MIN);
+    const x = p.x + nr.x * offset * side;
+    const z = p.z + nr.z * offset * side;
+    // Drie candy-vormen — random keuze per big. Allemaal minimaal detail
+    // omdat ze op ~400-700u afstand staan en alleen silhouet-bijdrage leveren.
+    const shape = Math.floor(Math.random() * 3);
+    let mesh;
+    if(shape === 0){
+      // Grote snoepbol — sphere op grond.
+      const r = height * 0.50;
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), mat);
+      mesh.position.set(x, r, z);
+    } else if(shape === 1){
+      // Zuurstok-pilaar — dikke cylinder met ronde dop.
+      const pillar = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(height*0.13, height*0.16, height, 10), mat
+      );
+      body.position.y = height / 2;
+      pillar.add(body);
+      const cap = new THREE.Mesh(
+        new THREE.SphereGeometry(height*0.14, 10, 6, 0, Math.PI*2, 0, Math.PI/2), mat
+      );
+      cap.position.y = height;
+      pillar.add(cap);
+      pillar.position.set(x, 0, z);
+      mesh = pillar;
+    } else {
+      // Reuzen-gumdrop — half-sphere op grond, breed.
+      const r = height * 0.85;
+      mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 12, 8, 0, Math.PI*2, 0, Math.PI/2), mat
+      );
+      mesh.position.set(x, 0, z);
+    }
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+    group.add(mesh);
+  }
+  scene.add(group);
+}
+
 // Phase 12A — close-band foreground. Mini gumdrops (4 kleuren) op 6-13u
 // plus witte candy-cane sticks op 8-14u. Geeft "whoosh"-detail elke meter.
 function _buildCandyCloseBand(){
@@ -590,7 +770,10 @@ function _buildCandyCloseBand(){
     const im = new THREE.InstancedMesh(miniGeo, mat, perColor*2);
     _populateMidRing(im, {
       perSide: perColor, offsetMin:6, offsetMax:13,
-      scaleMin:0.9, scaleMax:2.0, stagger:0.1+ci*0.2,
+      // Taak 2 — verbrede scale-band via multipliers.
+      scaleMin: 0.9 * CANDY_MID_SCALE_MIN_MUL,
+      scaleMax: 2.0 * CANDY_MID_SCALE_MAX_MUL,
+      stagger:0.1+ci*0.2,
       yFn: () => 0.4,
       clusterAnchors: window._candyLampAnchors,
       clusterRadius: 0.05,
@@ -604,7 +787,10 @@ function _buildCandyCloseBand(){
   const caneIm = new THREE.InstancedMesh(caneGeo, caneMat, caneCount*2);
   _populateMidRing(caneIm, {
     perSide: caneCount, offsetMin:8, offsetMax:14,
-    scaleMin:1.0, scaleMax:2.2, tiltAmt:0.18, stagger:0.25,
+    // Taak 2 — verbrede scale-band via multipliers.
+    scaleMin: 1.0 * CANDY_MID_SCALE_MIN_MUL,
+    scaleMax: 2.2 * CANDY_MID_SCALE_MAX_MUL,
+    tiltAmt:0.18, stagger:0.25,
     yFn: () => 1.0,
     clusterAnchors: window._candyLampAnchors,
     clusterRadius: 0.05,
@@ -627,7 +813,10 @@ function _buildCandyMidRing(){
     const im  = new THREE.InstancedMesh(geo, mat, perSide*2);
     _populateMidRing(im, {
       perSide: perSide, offsetMin:22, offsetMax:52,
-      scaleMin:0.9, scaleMax:2.4, stagger: ci/4,
+      // Taak 2 — verbrede scale-band via multipliers.
+      scaleMin: 0.9 * CANDY_MID_SCALE_MIN_MUL,
+      scaleMax: 2.4 * CANDY_MID_SCALE_MAX_MUL,
+      stagger: ci/4,
       clusterAnchors: window._candyLampAnchors,
       clusterRadius: 0.05,
     });
