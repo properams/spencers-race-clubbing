@@ -112,9 +112,16 @@ const WORLD_LIGHTING = {
 
   // Candy — night-sky is procedureel (PMREM-bake via
   // makeCandyNightSkyTex), day-sky komt uit build-time
-  // (makeCandySkyTex). Geen sky-velden.
+  // (makeCandyDuskSkyTex sinds twilight-shift). Geen sky-velden.
   // Day-waarden via _applyCandyDayLighting() (candy.js:56-68) — heeft
-  // mobile-split op sun.intensity (1.5 mobile, 2.4 desktop).
+  // mobile-split op sun.intensity. BEIDE moeten synchroon blijven; de
+  // tabel wordt door applyWorldLighting bij night-toggle gelezen, de
+  // helper door cold-build (buildCandyEnvironment).
+  //
+  // Day = "verlaten pretpark om middernacht" (V1, statisch). Pier47-niveau
+  // ambient/sun voor donker basisniveau; lamp-poles + emissives + bloom
+  // doen de licht-eilanden tegen het donker. Geen warmte van de zon —
+  // koele maan-tint die alleen silhouet doet.
   candy: {
     night: {
       fog:         { density: 0.0010 },                // night.js:193
@@ -126,17 +133,17 @@ const WORLD_LIGHTING = {
       aiHead:      1.0,                                // night.js:200 (isDark-tak)
     },
     day: {
-      fog:         { density: 0.0013 },                // night.js:204
+      fog:         { density: 0.0085, color: 0x2a1838 },  // diep indigo-aubergine
       sun:         {
-        intensity: { desktop: 2.4, mobile: 1.5 },      // candy.js:59
-        color: 0xffb3e6,                               // candy.js:58
-        position: [60, 80, -40],                       // candy.js:60
+        intensity: { desktop: 0.35, mobile: 0.25 },    // pier47-niveau — lamp-poles dragen de scene
+        color: 0x7a8aa8,                               // V2 grim: koud maan-grijs (was warm amber — gaf onbedoelde warmte)
+        position: [60, 110, 80],                       // hoog en achter, gradient-bron ipv hoofdlicht
       },
-      amb:         { intensity: 0.5, color: 0xf0d9ff },                    // candy.js:61
-      hemi:        { intensity: 0.8, color: 0xffd9f0, ground: 0xb3e6ff },  // candy.js:62-64
-      trackLights: { mode: 'set', value: 0 },          // night.js:210
-      headlights:  { front: 0, tail: 0 },              // night.js:213-214 (else-tak)
-      aiHead:      0,                                  // night.js:215 (else-tak)
+      amb:         { intensity: 0.10, color: 0x1a1428 },                    // zeer donker aubergine
+      hemi:        { intensity: 0.18, color: 0x3a2a55, ground: 0x2a1820 },  // donker paars sky / donker grond-bounce
+      trackLights: { mode: 'set', value: 0.3 },        // V2 grim: lampions zachter zodat carnival lamp-poles dominant zijn
+      headlights:  { front: 0.8, tail: 0.6 },          // echte koplampen aan
+      aiHead:      0.55,                               // AI matcht speler-helderheid
     },
   },
 

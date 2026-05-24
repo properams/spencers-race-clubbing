@@ -352,6 +352,60 @@ function _initVolcanoRumble(){
   return {nodes:[src,lp,noiseGain,master], master, _gen:gen};
 }
 
+// "Verlaten pretpark om middernacht" drone — 3 lopende low-Q sinussen
+// op een dissonant interval (C-Eb-G♭ tritone-kant), drift uit fase via
+// 3 LFO's met verschillende sub-Hz tempo. Sub-bass 50 Hz bed-toon.
+// Geen herkenbare melodie — voelt als verlaten reuzenrad-restant of
+// far-off calliope die door wind vervormt. Model: _initArcticHowl
+// (3-osc bus + master + setTargetAtTime fade-in).
+function _initCandyCarnivalCreak(){
+  const gen=++_worldAmbientGen;
+  const master=audioCtx.createGain();
+  master.gain.value=0;
+  master.connect(_dst());
+  // 3 sinussen op een minor-tritone setup (C4 262, Eb4 311, G♭4 370 Hz)
+  // — niet kwaad-dissonant maar genoeg "off" om verlaten te voelen.
+  const freqs=[262, 311, 370];
+  const oscs=[], oscGains=[], lfos=[], lfoGains=[];
+  for(let i=0;i<3;i++){
+    const osc=audioCtx.createOscillator();
+    osc.type='sine';
+    osc.frequency.value=freqs[i];
+    // Lichte detuning per oscillator voor drift-effect.
+    osc.detune.value=(i-1)*8;
+    const og=audioCtx.createGain();
+    og.gain.value=0.0;
+    // LFO modulates each oscillator's gain — slow asymmetric pulses zodat
+    // de drie tonen nooit precies samen aan/uit zijn (uit-fase carnaval-
+    // wind-effect). Frequenties tussen 0.08 en 0.22 Hz.
+    const lfo=audioCtx.createOscillator();
+    lfo.type='sine';
+    lfo.frequency.value=0.08+i*0.07;
+    const lg=audioCtx.createGain();
+    lg.gain.value=0.05;  // amplitude van LFO swing
+    lfo.connect(lg);lg.connect(og.gain);
+    osc.connect(og);og.connect(master);
+    oscs.push(osc);oscGains.push(og);lfos.push(lfo);lfoGains.push(lg);
+  }
+  // Sub-bass bed-toon — 50 Hz hum, constante low gain.
+  const sub=audioCtx.createOscillator();
+  sub.type='sine';
+  sub.frequency.value=50;
+  const subGain=audioCtx.createGain();
+  subGain.gain.value=0.06;
+  sub.connect(subGain);subGain.connect(master);
+  // Start alles en fade master in.
+  const t=audioCtx.currentTime;
+  for(let i=0;i<3;i++){
+    oscs[i].start(t);
+    lfos[i].start(t);
+    oscGains[i].gain.setTargetAtTime(0.07,t,2.0);  // bias-level zodat LFO eromheen swingt
+  }
+  sub.start(t);
+  master.gain.setTargetAtTime(0.18,t,2.4);
+  return {nodes:[...oscs,...oscGains,...lfos,...lfoGains,sub,subGain,master], master, _gen:gen};
+}
+
 function _initArcticHowl(){
   const gen=++_worldAmbientGen;
   // Bandpass wind with slow vibrato on frequency.
@@ -426,8 +480,9 @@ function setWorldAmbient(worldId){
     case 'deepsea':              _worldAmbient=_initDeepSeaAmbient(); break;
     case 'volcano':              _worldAmbient=_initVolcanoRumble(); break;
     case 'arctic':               _worldAmbient=_initArcticHowl(); break;
-    // candy, sandstorm, pier47, guangzhou — covered by
-    // existing ambient layers (crowd, sandstorm wind, music).
+    case 'candy':                _worldAmbient=_initCandyCarnivalCreak(); break;
+    // sandstorm, pier47, guangzhou — covered by existing ambient
+    // layers (crowd, sandstorm wind, music).
     default: break;
   }
 }

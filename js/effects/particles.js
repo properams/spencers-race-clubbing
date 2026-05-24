@@ -316,13 +316,15 @@ function emitAmbientWorldFX(dt){
       break;
     }
     case 'candy': {
-      // Cotton-wisp puffs — soft cloud, pastel pink.
+      // Verlaten pretpark V1: koud-grijze mist-banden i.p.v. pastel cotton-
+      // wisps. Tint pakt fog-color (#2a1838) op met paarse muting. Langere
+      // life voor traag-drijvend mist-effect.
       if(!smokeSystem||!smokeSystem.emit) return;
       const ox = px + _r()*65, oz = pz + _r()*65;
       smokeSystem.emit(
         ox, 1.8+Math.random()*2.4, oz,
-        _r()*0.03, 0.004+Math.random()*0.008, _r()*0.03,
-        1, 1.0, 0.78, 0.92, 2.0
+        _r()*0.03, 0.002+Math.random()*0.006, _r()*0.03,
+        1, 0.55, 0.50, 0.62, 3.5
       );
       break;
     }
