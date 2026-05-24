@@ -522,8 +522,17 @@ function setMotionBlurFromSpeed(speedRatio){
   const _v = (typeof window.getWorldVisuals === 'function' && typeof activeWorld !== 'undefined')
     ? window.getWorldVisuals(activeWorld) : null;
   const worldMul = (_v && typeof _v.speedBlur === 'number') ? _v.speedBlur : 1.0;
-  const t = Math.max(0, (speedRatio - 0.65) / 0.35);  // 0..1 vanaf 65%
-  const target = t * t * worldMul;                      // ease-in × per-wereld scale
+  // Speed-feel sessie — threshold + global gain-mul + nitro-bonus tunebaar
+  // via constants in js/effects/speed-feel.js. Fallback op oude hardcoded
+  // waarden als speed-feel niet laadt (threshold 0.65, mul 1.0, bonus 0).
+  const _sfThr  = (typeof SPEED_FEEL_BLUR_THRESHOLD     !== 'undefined') ? SPEED_FEEL_BLUR_THRESHOLD     : 0.65;
+  const _sfMul  = (typeof SPEED_FEEL_BLUR_GAIN_MUL      !== 'undefined') ? SPEED_FEEL_BLUR_GAIN_MUL      : 1.0;
+  const _sfNitB = (typeof SPEED_FEEL_BLUR_NITRO_BONUS   !== 'undefined') ? SPEED_FEEL_BLUR_NITRO_BONUS   : 0;
+  const t = Math.max(0, (speedRatio - _sfThr) / Math.max(0.001, 1 - _sfThr));
+  let target = t * t * worldMul * _sfMul;                // ease-in × per-wereld × global
+  if(typeof nitroActive !== 'undefined' && nitroActive){
+    target += _sfNitB * worldMul;                        // nitro adds extra blur on top
+  }
   const u = _atmo.matCompositeExt.uniforms;
   // Smooth via simple lerp toward target — voorkomt snelle flicker bij
   // boost-bursts en handbrake-decel.

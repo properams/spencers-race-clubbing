@@ -223,6 +223,12 @@ function updateCamera(dt){
     const _spdR=Math.min(1,Math.abs(car.speed)/(car.def.topSpd||1.8));
     applyCinematicCameraShake(camera, _spdR, window._cinemaState.cameraShake);
   }
+  // Speed-feel sessie — wereldbrede speed/nitro shake (chase-cam only).
+  // Komt NA cinematic shake zodat beide effecten stapelen. Tunebaar via
+  // SPEED_FEEL_SHAKE_* constants in js/effects/speed-feel.js.
+  if(typeof applySpeedFeelShake === 'function'){
+    applySpeedFeelShake(camera, car);
+  }
   // Dynamic FOV — wider at high speed for sense of velocity, more extreme on nitro.
   // Landscape: derive vertical FOV from a constant horizontal FOV zodat de framing
   // hetzelfde voelt op desktop 16:9, phone 19:9, iPad 1.71 en iPad 4:3.
@@ -255,7 +261,13 @@ function updateCamera(dt){
     window._finishFovKick = Math.max(0, window._finishFovKick - dt / 0.70);
   }
   const _speedRatio=Math.abs(car.speed)/car.def.topSpd;
-  const tFovBase=baseFov+(_speedRatio*22+(nitroActive?20:0)+(car.boostTimer>0?10:0))*_kickScale+_punchKick;
+  // Speed-feel sessie — FOV-punch-gains tunebaar via constants in
+  // js/effects/speed-feel.js. Fallback op oude hardcoded waarden zodat
+  // updateCamera blijft werken als speed-feel.js niet laadt.
+  const _sfFovSpd  = (typeof SPEED_FEEL_FOV_SPEED_GAIN  !== 'undefined') ? SPEED_FEEL_FOV_SPEED_GAIN  : 22;
+  const _sfFovNit  = (typeof SPEED_FEEL_FOV_NITRO_GAIN  !== 'undefined') ? SPEED_FEEL_FOV_NITRO_GAIN  : 20;
+  const _sfFovBst  = (typeof SPEED_FEEL_FOV_BOOST_GAIN  !== 'undefined') ? SPEED_FEEL_FOV_BOOST_GAIN  : 10;
+  const tFovBase=baseFov+(_speedRatio*_sfFovSpd+(nitroActive?_sfFovNit:0)+(car.boostTimer>0?_sfFovBst:0))*_kickScale+_punchKick;
   // PBR-upgrade Brok 4: per-wereld FOV-creep bovenop de bestaande speed-FOV.
   // Default fovBoost 3–5° in stable-presets — subtiele extra creep op
   // max snelheid die de wereldsfeer ondersteunt (donkere werelden 5°,
