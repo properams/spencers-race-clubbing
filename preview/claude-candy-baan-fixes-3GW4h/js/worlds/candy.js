@@ -154,6 +154,7 @@ function buildCandyEnvironment(){
   buildIceCreamCones();
   buildCookieSpectators();
   _buildCandyCloseBand();         // Phase 12A — foreground "whoosh" laag
+  _buildCandyValleyFill();        // Ronde 3 — donkere silhouet-fill in dalen tussen lampen
   _buildCandyMidRing();           // Phase 11A — mid-ground prop ring
   _buildCandyMidVariety();        // Phase 12B — geometry variation in mid-band
   _buildCandyDonutHoops();        // Phase 12D — floating donut-hoops over track
@@ -835,6 +836,52 @@ function _buildCandyCloseBand(){
     clusterRadius: 0.05,
   });
   scene.add(caneIm);
+}
+
+// Ronde 3 — valley-fill. Close-band props (mini-gumdrops + canes) clusteren
+// rond lamp-anchors waardoor stretches tussen lampen tot ~12.5% van baan-
+// lengte zonder close-band silhouet konden zijn. Sparse uniforme silhouet-
+// laag vult die dalen met donkere kegels zonder de "lichte eilanden vs
+// donkere dalen"-stijl te breken: geen emissive, geen glow, alleen volume.
+function _buildCandyValleyFill(){
+  if(typeof trackCurve==='undefined'||!trackCurve) return;
+  const count = (typeof _mobCount==='function') ? _mobCount(14) : 14;
+  // Cane-geometry-stijl: thin cylinder met lichte tilt, matched bestaande
+  // close-band canes maar geen emissive. Donker warm-paars als silhouet.
+  const geo = new THREE.CylinderGeometry(0.18, 0.22, 2.2, 6);
+  const mat = new THREE.MeshLambertMaterial({color: 0x3a2030});
+  const im = new THREE.InstancedMesh(geo, mat, count * 2);
+  const m4 = new THREE.Matrix4();
+  const q  = new THREE.Quaternion();
+  const v  = new THREE.Vector3();
+  const e  = new THREE.Euler();
+  const nr = new THREE.Vector3();
+  let idx = 0;
+  for(let i = 0; i < count; i++){
+    // P2 stratified t-spawn — gelijkmatige spreiding over baan zonder grid.
+    const t = ((i + Math.random()) / count) % 1;
+    const p  = trackCurve.getPoint(t);
+    const tg = trackCurve.getTangent(t).normalize();
+    nr.set(-tg.z, 0, tg.x);
+    for(let s2 = 0; s2 < 2; s2++){
+      const side = s2 === 0 ? 1 : -1;
+      // Close-band offset-range matched _buildCandyCloseBand (8-14u).
+      const off = 8 + Math.random() * 6;
+      const sc  = 1.0 + Math.random() * 0.6;
+      v.set(p.x + nr.x * off * side, 1.0 * sc, p.z + nr.z * off * side);
+      e.set(
+        (Math.random() - 0.5) * 0.18,
+        Math.random() * Math.PI * 2,
+        (Math.random() - 0.5) * 0.18
+      );
+      q.setFromEuler(e);
+      m4.compose(v, q, new THREE.Vector3(sc, sc, sc));
+      im.setMatrixAt(idx++, m4);
+    }
+  }
+  im.instanceMatrix.needsUpdate = true;
+  im.userData = {_noLodCull: true};
+  scene.add(im);
 }
 
 // Phase 11A — gumdrop mid-ground prop ring. 4 colors as separate IM (one
