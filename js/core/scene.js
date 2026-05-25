@@ -152,6 +152,10 @@ function disposeScene(){
   // them will re-render the canvas (~1ms per generator). Cheap insurance
   // against the LRU growing past its 60-entry-per-generator cap.
   if(window.ProcTextures&&typeof ProcTextures.disposeAll==='function')ProcTextures.disposeAll();
+  // SEAM-DBG 2026-05-25 — reset jump-apex sampler flag op elke
+  // world-switch/restart zodat de volgende candy-build opnieuw een
+  // JUMP-APEX log emit. Diagnostic only. Volledig terugdraaibaar.
+  window._seamSamplerDone=false;
 }
 
 // Module-scope cache voor skybox-textures, geïndexeerd op
@@ -1430,6 +1434,67 @@ async function buildScene(){
     try{renderer.render(scene,camera);}
     catch(e){if(window.dbg)dbg.warn('scene','build warm-render failed: '+(e&&e.message||e));}
     if(window.perfMark){perfMark('build:warmRender:end');perfMeasure('build.warmRender','build:warmRender:start','build:warmRender:end');}
+  }
+  // SEAM-DBG 2026-05-25 — forensische diagnose Candy "verlaten pretpark"
+  // horizon-naad. Diagnostic only, no behavior change. Volledig
+  // terugdraaibaar: grep "SEAM-DBG 2026-05-25" en verwijder gemarkeerde
+  // blokken. Plan-ref: docs/plans/candy-sky-seam (zie PR-body).
+  if(activeWorld==='candy' && typeof dbg!=='undefined'){
+    try{
+      const bg=scene.background, cvs=bg&&bg.image;
+      const mapMap={300:'UVMapping',301:'CubeReflectionMapping',302:'CubeRefractionMapping',303:'EquirectangularReflectionMapping',304:'EquirectangularRefractionMapping',306:'CubeUVReflectionMapping',307:'CubeUVRefractionMapping'};
+      const samples=[];
+      if(cvs && typeof cvs.getContext==='function'){
+        try{
+          const g2=cvs.getContext('2d');
+          const W=cvs.width, H=cvs.height, sy=H/512;
+          [0,128,256,380,420,450,470,490,510,511].forEach(y=>{
+            try{
+              const d=g2.getImageData(Math.round(W/2),Math.min(H-1,Math.round(y*sy)),1,1).data;
+              samples.push({y,r:d[0],g:d[1],b:d[2],a:d[3]});
+            }catch(e){samples.push({y,err:String(e&&e.message||e)});}
+          });
+        }catch(e){samples.push({err:'ctx2d:'+(e&&e.message||e)});}
+      }
+      let groundCol=null, infCol=null;
+      scene.traverse(o=>{
+        if(!o.isMesh||!o.geometry||!o.geometry.parameters)return;
+        if(o.geometry.type!=='PlaneGeometry')return;
+        const p=o.geometry.parameters;
+        if(Math.abs(p.width-2400)<1 && groundCol===null && o.material && o.material.color){
+          groundCol={hex:o.material.color.getHexString(),y:o.position.y,hasMap:!!o.material.map};
+        } else if(Math.abs(p.width-440)<1 && infCol===null && o.material && o.material.color){
+          infCol={hex:o.material.color.getHexString(),y:o.position.y,hasMap:!!o.material.map};
+        }
+      });
+      const payload={
+        world:'candy',
+        build:Date.now(),
+        sky:{
+          mapping:bg&&bg.mapping,
+          mappingName:bg&&(mapMap[bg.mapping]||'unknown('+bg.mapping+')'),
+          uuid:bg&&bg.uuid,
+          shared:bg&&bg.userData&&!!bg.userData._sharedAsset,
+          cvsW:cvs&&cvs.width, cvsH:cvs&&cvs.height,
+          samples
+        },
+        fog:scene.fog?{
+          hex:scene.fog.color&&scene.fog.color.getHexString(),
+          density:scene.fog.density,
+          isExp2:!!scene.fog.isFogExp2,
+          near:scene.fog.near, far:scene.fog.far
+        }:null,
+        ground:groundCol,
+        infield:infCol,
+        camera:{fov:camera.fov,near:camera.near,far:camera.far,
+                pos:[+camera.position.x.toFixed(2),+camera.position.y.toFixed(2),+camera.position.z.toFixed(2)],
+                rotX:+camera.rotation.x.toFixed(3)},
+        isMobile:!!window._isMobile
+      };
+      dbg.error('seam-dbg','BUILD candy — DIAGNOSTIC ONLY, no behavior change. '+JSON.stringify(payload));
+      if(window.console&&console.log)console.log('[seam-dbg] BUILD candy payload',payload);
+    }catch(e){if(window.dbg)dbg.error('seam-dbg','BUILD candy logging failed: '+(e&&e.stack||e));}
+    window._seamSamplerDone=false;
   }
   if(window.perfMark){perfMark('build:total:end');perfMeasure('build.total','build:total:start','build:total:end');}
   // Shader-program count delta over the buildScene window.
