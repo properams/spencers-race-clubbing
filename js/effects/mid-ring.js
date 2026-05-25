@@ -89,6 +89,12 @@ function _populateMidRing(im, opts){
   im.instanceMatrix.needsUpdate = true;
   if(!im.userData)im.userData = {};
   im.userData._noLodCull = true;
+  // Diagnostic only — registers this IM as a frustum-cull pop-in suspect.
+  // No-op when ?popinDiag=1 is not set. The IM is NOT yet set to
+  // frustumCulled=false; the diag will tell us how often it gets culled.
+  if(typeof window._registerPopinSuspect==='function'){
+    window._registerPopinSuspect(im, 'midRing/' + (opts._diagLabel || 'unknown'));
+  }
   return idx;
 }
 

@@ -915,6 +915,7 @@ async function buildScene(){
   {const src=(_TRACKS&&_TRACKS[activeWorld])||_DEFAULT_WP;
    TRACK_WP.length=0;src.forEach(wp=>TRACK_WP.push(wp));}
   // ── Reset global arrays populated during scene build ──────────
+  if(typeof window._clearPopinSuspects==='function') window._clearPopinSuspects();
   trackLightList.length=0;trackPoles.length=0;_trackFlags.length=0;_aiHeadPool.length=0;
   jumpRamps.length=0;spinPads.length=0;boostPads.length=0;collectibles.length=0;skidMarks.length=0;
   // Shared skid geometry was disposed by the traversal above — drop our reference so the next race builds a fresh one.

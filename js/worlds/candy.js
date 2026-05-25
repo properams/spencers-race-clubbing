@@ -463,6 +463,7 @@ function _buildCandyDonutHoops(){
   hoopIM.instanceMatrix.needsUpdate = true;
   hoopIM.userData = {_noLodCull:true};
   hoopIM.castShadow = false;
+  if(typeof window._registerPopinSuspect==='function') window._registerPopinSuspect(hoopIM, 'candy/donut-hoops');
   scene.add(hoopIM);
   _candyNightEmissives.push({material: hoopMat});
 }
@@ -507,6 +508,7 @@ function _buildCandyMidVariety(){
     yFn: sc => 1.0 * sc,
     clusterAnchors: window._candyLampAnchors,
     clusterRadius: 0.05,
+    _diagLabel: 'candy/mid-variety-canes',
   });
   scene.add(caneIm);
 }
@@ -561,6 +563,7 @@ function _buildCandyStacks(){
     yFn: () => 0,
     clusterAnchors: window._candyLampAnchors,
     clusterRadius: 0.05,
+    _diagLabel: 'candy/stacks',
   });
   scene.add(stackIm);
   _candyNightEmissives.push({material: mat});
@@ -601,6 +604,9 @@ function _buildCandyWrappers(){
       });
     }
     const cluster = SugarRushProps.buildWrappedCandyCluster(positions);
+    if(typeof window._registerPopinSuspect==='function'){
+      cluster.children.forEach((im,i) => window._registerPopinSuspect(im, 'candy/wrappers-cluster['+i+']'));
+    }
     scene.add(cluster);
     _pushCandyEmissiveTree(cluster);
     return;
@@ -625,6 +631,7 @@ function _buildCandyWrappers(){
       yFn: () => 0.4,
       clusterAnchors: window._candyLampAnchors,
       clusterRadius: 0.05,
+      _diagLabel: 'candy/wrappers-fallback['+ci+']',
     });
     scene.add(im);
     _candyNightEmissives.push({material: mat});
@@ -657,7 +664,11 @@ function _buildPeppermintScatter(){
       scale: 0.9 + Math.random() * 0.9,
     });
   }
-  scene.add(SugarRushProps.buildPeppermintScatter(positions));
+  const peppermintGroup = SugarRushProps.buildPeppermintScatter(positions);
+  if(typeof window._registerPopinSuspect==='function'){
+    peppermintGroup.children.forEach((im,i) => window._registerPopinSuspect(im, 'candy/peppermint-scatter['+i+']'));
+  }
+  scene.add(peppermintGroup);
 }
 
 // V3 prop-herontwerp Laag 3 — Diepte-scatter. Donker-paarse silhouet-
@@ -694,6 +705,7 @@ function _buildCandyHorizonSpecks(){
   }
   im.instanceMatrix.needsUpdate = true;
   im.userData = {_noLodCull: true};
+  if(typeof window._registerPopinSuspect==='function') window._registerPopinSuspect(im, 'candy/horizon-specks');
   scene.add(im);
 }
 
@@ -787,6 +799,7 @@ function _buildCandyCloseBand(){
       yFn: () => 0.4,
       clusterAnchors: window._candyLampAnchors,
       clusterRadius: 0.05,
+      _diagLabel: 'candy/close-band-mini['+ci+']',
     });
     scene.add(im);
   });
@@ -804,6 +817,7 @@ function _buildCandyCloseBand(){
     yFn: () => 1.0,
     clusterAnchors: window._candyLampAnchors,
     clusterRadius: 0.05,
+    _diagLabel: 'candy/close-band-canes',
   });
   scene.add(caneIm);
 }
@@ -829,6 +843,7 @@ function _buildCandyMidRing(){
       stagger: ci/4,
       clusterAnchors: window._candyLampAnchors,
       clusterRadius: 0.05,
+      _diagLabel: 'candy/mid-ring-gumdrops['+ci+']',
     });
     scene.add(im);
   });
@@ -1386,6 +1401,7 @@ function buildRainbowTrackStripes(){
   }
   stripeIM.instanceMatrix.needsUpdate = true;
   if(stripeIM.instanceColor) stripeIM.instanceColor.needsUpdate = true;
+  if(typeof window._registerPopinSuspect==='function') window._registerPopinSuspect(stripeIM, 'candy/rainbow-stripes');
   scene.add(stripeIM);
 }
 

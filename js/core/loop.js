@@ -231,6 +231,7 @@ function loop(){
     // Phase 8.7 + 8.8 + 8.10 — distance-cull LOD, reflectie probe re-bake,
     // skyline parallax scroll. Alle cost-vrij of mobile-safe (probe skip).
     if(typeof _updateLodCull==='function')        _dw('_updateLodCull', ()=>_updateLodCull());
+    if(typeof window._updatePopinDiag==='function') _dw('_updatePopinDiag', ()=>window._updatePopinDiag());
     if(typeof _updateReflectionProbe==='function')_dw('_updateReflectionProbe', ()=>_updateReflectionProbe(dt));
     if(typeof _updateSkylineParallax==='function')_dw('_updateSkylineParallax', ()=>_updateSkylineParallax());
     // Phase 9.2 — motion blur driven by player speed-ratio.
