@@ -471,32 +471,30 @@ function makeCandySkyTex(){
 // Live gebruikt door buildCandySky; oude makeCandySkyTex blijft staan
 // voor mogelijke historische rollback.
 function makeCandyDuskSkyTex(){
-  // Optie D — bg-gradient bot kleur = foot-color (#2a1838 = fog.color)
-  // zodat gradient zelf naar foot convergeert; geen lichter-paars
-  // mid-segment dat als horizontale naad leest bij hoge-jump cam-rotation.
-  // Zenith iets donkerder (#0e0820) zodat een subtiel verloop behouden
-  // blijft (zenith donkerder dan foot, niet plat-eenvormig).
-  const {c,g}=_newSkyCanvas('#0e0820','#2a1838');
-  // Mid-band — donker paars zonder warmte, gradient naar fog-tint.
-  const midBand=g.createLinearGradient(0,260,0,420);
-  midBand.addColorStop(0,'rgba(58,34,69,0)');
-  midBand.addColorStop(.5,'rgba(50,28,58,0.55)');
-  midBand.addColorStop(1,'rgba(45,26,55,0.85)');
-  g.fillStyle=midBand;g.fillRect(0,260,1024,160);
-  // Foot fades into aubergine fog-color (#2a1838) for invisible seam.
-  const foot=g.createLinearGradient(0,410,0,512);
-  foot.addColorStop(0,'rgba(45,26,55,0.85)');
+  // Ronde 2 — Optie B-plus. Optie D ((#0e0820 → #2a1838) bracht de
+  // foot lichter dan zenith met factor ~2× luminantie. Bij hoge jumps
+  // tilt de camera omhoog en kwam dat lichtere foot-portie van het
+  // skydome IN beeld op normaal-zenith-hoogte → leesbaar als
+  // dag/nacht-shelf aan de horizon. Nu: bg-gradient bijna-uniform
+  // (zenith iets donkerder dan foot, maar < 1.3× luminantie), mid-band
+  // overlay volledig weg, foot+farGlow alleen in onderste 10% canvas
+  // (y≥460) waar ze enkel zichtbaar zijn bij de echte horizon-blik,
+  // niet bij jumps.
+  const {c,g}=_newSkyCanvas('#0e0820','#160c24');
+  // Foot fade — alleen onderste 50px, te smal om bij jump-pitch in
+  // beeld te komen. Eindkleur matcht fog-color (#2a1838) voor naadloze
+  // overgang waar baan-horizon werkelijk is.
+  const foot=g.createLinearGradient(0,460,0,512);
+  foot.addColorStop(0,'rgba(35,20,48,0)');
   foot.addColorStop(1,'rgba(42,24,56,1)');
-  g.fillStyle=foot;g.fillRect(0,410,1024,102);
-  // V2 grim: verre stadsglow-strip naar koud teal-blauw (was warm
-  // amber). Voelt nu als verre stad / industriële mist ipv knus
-  // carnaval; coherent met de koele maan-sun en koel-violet grading.
-  // Alpha iets lager voor subtieler effect.
-  const farGlow=g.createLinearGradient(0,430,0,510);
+  g.fillStyle=foot;g.fillRect(0,460,1024,52);
+  // V2 grim: teal-blauwe stadsglow-strip behouden (verre industriële
+  // mist), eveneens versmald + verschoven naar onderste band.
+  const farGlow=g.createLinearGradient(0,470,0,510);
   farGlow.addColorStop(0,'rgba(60,90,120,0)');
   farGlow.addColorStop(.5,'rgba(60,90,120,0.18)');
   farGlow.addColorStop(1,'rgba(60,90,120,0.04)');
-  g.fillStyle=farGlow;g.fillRect(0,430,1024,80);
+  g.fillStyle=farGlow;g.fillRect(0,470,1024,40);
   return _skyTexFromCanvas(c);
 }
 

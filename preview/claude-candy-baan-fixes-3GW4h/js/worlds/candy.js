@@ -311,12 +311,15 @@ function _buildCandyCarnivalLandmarks(){
   const count = isMobile ? CANDY_LANDMARK_COUNT_MOBILE : CANDY_LANDMARK_COUNT_DESKTOP;
   const splineCount = Math.ceil(count / 2);
   const fieldCount  = count - splineCount;
-  // Subtiele warm-paarse emissive zodat de silhouetten als volume lezen
-  // i.p.v. als zwarte gaten in de midnight-sky. Gradient near→far: dichterbij
-  // krijgt iets meer interne luminantie. Houdt het grimmig-donker karakter.
-  const matNear = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR, emissive: 0x3a2050, emissiveIntensity: 0.08});
-  const matMid  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID,  emissive: 0x2a1840, emissiveIntensity: 0.06});
-  const matFar  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR,  emissive: 0x201230, emissiveIntensity: 0.04});
+  // Warm-paarse emissive zodat silhouetten als volume lezen i.p.v. zwarte
+  // gaten. Initial intensity 0.10-0.18 als ondergrens; pushen naar
+  // _candyNightEmissives zodat night.js (regel 194) ze bumpt naar 0.8 in
+  // dark — dan zichtbaar als donker-purper volume tegen de zwarte sky,
+  // grimmig-donker karakter behouden.
+  const matNear = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR, emissive: 0x3a2050, emissiveIntensity: 0.18});
+  const matMid  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID,  emissive: 0x2a1840, emissiveIntensity: 0.14});
+  const matFar  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR,  emissive: 0x201230, emissiveIntensity: 0.10});
+  _candyNightEmissives.push({material: matNear}, {material: matMid}, {material: matFar});
 
   function pickMat(offset){
     if(offset < CANDY_LANDMARK_MAT_NEAR_BELOW) return matNear;
@@ -333,9 +336,12 @@ function _buildCandyCarnivalLandmarks(){
 
   // Factory — random shape uit candy-taal repertoire, minimaal detail
   // (silhouet is wat telt). Hoogte komt extern; alle ratios relatief.
-  function makeLandmark(height, mat){
+  // `type` optioneel: caller mag een type kiezen vooraf zodat extent-
+  // berekening voor track-overlap rejection klopt. Niet meegegeven →
+  // random pick zoals voorheen.
+  function makeLandmark(height, mat, type){
     const grp = new THREE.Group();
-    const type = Math.floor(Math.random() * 5);
+    if(type == null) type = Math.floor(Math.random() * 5);
     if(type === 0){
       // Reuzen-lolly — dunne stok + flat disc op top.
       const stickH = height * 0.78;
@@ -401,12 +407,28 @@ function _buildCandyCarnivalLandmarks(){
   function placeLandmark(t, offset, side){
     const height = CANDY_LANDMARK_HEIGHT_MIN
                  + Math.random() * (CANDY_LANDMARK_HEIGHT_MAX - CANDY_LANDMARK_HEIGHT_MIN);
-    const mat    = pickMat(offset);
-    const lm     = makeLandmark(height, mat);
-    const pos    = curvePos(t, offset, side);
+    // Track-overlap rejection — kies type vooraf zodat we de werkelijke
+    // lateral extent kunnen vooraf-bereken en offset desnoods opbumpen.
+    // Worst-case: type 4 (gumdrop, r=height*0.90) op offset 80u = reikt
+    // tot 12.5u van centerline → overlapt baan. Volcano-pattern (zie
+    // volcano.js:214-228), hier vereenvoudigd: directe clamp i.p.v.
+    // iteratieve push omdat candy een rechte trackCurve heeft per t.
+    const type   = Math.floor(Math.random() * 5);
+    const extent = type === 0 ? height * 0.30   // lolly disc
+                 : type === 1 ? height * 0.12   // zuurstok pillar
+                 : type === 2 ? height * 0.45   // jawbreaker sphere
+                 : type === 3 ? height * 0.22   // stack-toren discs
+                              : height * 0.90;  // type 4 gumdrop half-sphere
+    const safeOffset = Math.max(offset, BARRIER_OFF + extent + 8);
+    const mat = pickMat(safeOffset);
+    const lm  = makeLandmark(height, mat, type);
+    const pos = curvePos(t, safeOffset, side);
     lm.position.set(pos.x, 0, pos.z);
     lm.rotation.y = Math.random() * Math.PI * 2;
     lm.userData = {_noLodCull: true};
+    // Punt 5: disable frustum culling — landmarks moeten als achtergrond-
+    // silhouet altijd zichtbaar zijn, anders pop-in bij camera-rotatie.
+    lm.traverse(m => { m.frustumCulled = false; });
     scene.add(lm);
   }
 
@@ -694,6 +716,9 @@ function _buildCandyHorizonSpecks(){
   }
   im.instanceMatrix.needsUpdate = true;
   im.userData = {_noLodCull: true};
+  // Punt 5: zelfde rationale als landmarks — altijd zichtbaar als
+  // achtergrond-silhouet, geen pop-in bij camera-rotatie.
+  im.frustumCulled = false;
   scene.add(im);
 }
 
@@ -708,9 +733,10 @@ function _buildCandyHorizonBigs(){
   if(typeof trackCurve==='undefined'||!trackCurve) return;
   const isMobile = window._isMobile;
   const count = isMobile ? CANDY_HORIZON_BIGS_COUNT_MOBILE : CANDY_HORIZON_BIGS_COUNT_DESKTOP;
-  // Zelfde emissive-aanpak als landmarks: leesbaar als silhouet i.p.v. gat,
-  // intensiteit het laagst omdat horizon-bigs het verst staan.
-  const mat = new THREE.MeshLambertMaterial({color: CANDY_HORIZON_BIGS_COL, emissive: 0x32204a, emissiveIntensity: 0.05});
+  // Zelfde emissive-aanpak als landmarks: leesbaar als silhouet i.p.v. gat.
+  // Push naar _candyNightEmissives zodat night.js bumpt naar 0.8 in dark.
+  const mat = new THREE.MeshLambertMaterial({color: CANDY_HORIZON_BIGS_COL, emissive: 0x32204a, emissiveIntensity: 0.12});
+  _candyNightEmissives.push({material: mat});
   const group = new THREE.Group();
   group.userData = {_noLodCull: true};
   const nr = new THREE.Vector3();
@@ -762,6 +788,9 @@ function _buildCandyHorizonBigs(){
     mesh.rotation.y = Math.random() * Math.PI * 2;
     group.add(mesh);
   }
+  // Punt 5: horizon-bigs zijn de verste silhouet-laag — frustum-cull
+  // disablen zodat ze niet pop-in bij camera-rotatie tijdens jumps/bochten.
+  group.traverse(m => { m.frustumCulled = false; });
   scene.add(group);
 }
 
@@ -1071,34 +1100,12 @@ function buildGumDropMountains(){
       colorIdx:i%8
     });
   });
-  // Mockup pass: split positions — first 4-5 become tall cyan crystal
-  // mountains (matches the in-game reference), the rest stay as gumdrops
-  // for variety. Mobile gates: 2 mountains + 4 gumdrops i.p.v. 5 + 8.
-  if(window.SugarRushProps && SugarRushProps.buildCrystalMountain){
-    const mobile=window._isLowDensity();
-    const MOUNT_N = mobile ? 2 : Math.min(5, _gumdropPos.length);
-    for(let i=0;i<MOUNT_N;i++){
-      const m=_gumdropPos[i];
-      const mountain=SugarRushProps.buildCrystalMountain({
-        height: m.height * 1.35,             // taller than the gumdrop equivalent
-        radius: m.radius * 1.05,
-        sides: mobile ? 5 : (i % 2 === 0 ? 6 : 7),
-        shardCount: mobile ? 1 : (2 + (i % 2)),
-      });
-      mountain.position.set(m.x, 0, m.z);
-      mountain.rotation.y = Math.random() * Math.PI;
-      scene.add(mountain);
-      _pushCandyEmissiveTree(mountain);
-    }
-    // Rest blijft gumdrops via bestaande batch
-    const restGumdrops = _gumdropPos.slice(MOUNT_N);
-    if(restGumdrops.length){
-      ProcDecor.buildGumdropBatch(scene, restGumdrops);
-    }
-  } else {
-    // Fallback: oude pure-gumdrop pad
-    ProcDecor.buildGumdropBatch(scene,_gumdropPos);
-  }
+  // V3 prop-herontwerp ronde 2: crystal mountain (cyan vertex-color cone
+  // + witte snow-cap + blauwe shards) is een arctic-stijl ijsberg die
+  // niet past bij "verlaten pretpark om middernacht" — leest als
+  // kerstboom-silhouet. Alle posities terug naar gumdrop-batch — snoep-
+  // DNA blijft behouden, geen kerstboom-lezing.
+  ProcDecor.buildGumdropBatch(scene, _gumdropPos);
 }
 
 
