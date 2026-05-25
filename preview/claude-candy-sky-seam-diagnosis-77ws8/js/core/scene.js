@@ -152,6 +152,10 @@ function disposeScene(){
   // them will re-render the canvas (~1ms per generator). Cheap insurance
   // against the LRU growing past its 60-entry-per-generator cap.
   if(window.ProcTextures&&typeof ProcTextures.disposeAll==='function')ProcTextures.disposeAll();
+  // SEAM-DBG 2026-05-25 — reset jump-apex sampler flag op elke
+  // world-switch/restart zodat de volgende candy-build opnieuw een
+  // JUMP-APEX log emit. Diagnostic only. Volledig terugdraaibaar.
+  window._seamSamplerDone=false;
 }
 
 // Module-scope cache voor skybox-textures, geïndexeerd op

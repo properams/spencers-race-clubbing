@@ -376,6 +376,49 @@ function loop(){
     }
     } // end idle-render gate
   }
+  // SEAM-DBG 2026-05-25 — jump-apex framebuffer sampler (candy-only,
+  // een-shot per buildScene). Diagnostic only. Reads default framebuffer
+  // direct na renderpass + voor mirror, dus we sampelen het beeld dat
+  // de speler op dit moment ziet. Trigger: player car.y > 4 (jump-apex)
+  // of window._seamForceSample=true (handmatige escape hatch in
+  // console). Reset via window._seamSamplerDone=false (gebeurt op
+  // buildScene; zie scene.js disposeScene reset).
+  if(window.activeWorld==='candy' && !window._seamSamplerDone
+     && typeof carObjs!=='undefined' && carObjs && carObjs[playerIdx]
+     && carObjs[playerIdx].mesh
+     && (carObjs[playerIdx].mesh.position.y>4 || window._seamForceSample)){
+    window._seamSamplerDone=true;
+    window._seamForceSample=false;
+    try{
+      const gl=renderer.getContext();
+      const cv=renderer.domElement;
+      const w=cv.width, h=cv.height;
+      const buf=new Uint8Array(4);
+      const samples=[];
+      [0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75].forEach(f=>{
+        try{
+          gl.readPixels(Math.round(w/2),Math.round(h*(1-f)),1,1,gl.RGBA,gl.UNSIGNED_BYTE,buf);
+          samples.push({yFrac:f,r:buf[0],g:buf[1],b:buf[2],a:buf[3]});
+        }catch(e){samples.push({yFrac:f,err:String(e&&e.message||e)});}
+      });
+      for(let i=1;i<samples.length;i++){
+        const a=samples[i-1], b=samples[i];
+        if(a.r!==undefined && b.r!==undefined){
+          b.dR=b.r-a.r; b.dG=b.g-a.g; b.dB=b.b-a.b;
+        }
+      }
+      if(window.dbg){
+        dbg.error('seam-dbg','JUMP-APEX '+JSON.stringify({
+          carY:+carObjs[playerIdx].mesh.position.y.toFixed(2),
+          camRotX:+camera.rotation.x.toFixed(3),
+          camPosY:+camera.position.y.toFixed(2),
+          viewport:[w,h],
+          samples
+        }));
+        if(window.console&&console.log)console.log('[seam-dbg] JUMP-APEX',samples);
+      }
+    }catch(e){if(window.dbg)dbg.error('seam-dbg','readPixels failed: '+(e&&e.stack||e));}
+  }
   // Mirror pass — second render with backward-facing camera (chase cam + race only, not during victory orbit or intro)
   if(gameState==='RACE'&&_mirrorEnabled&&_camView===0&&!_victoryOrbit){
     // Skip mirror on low quality / low tier to save a full render pass.
