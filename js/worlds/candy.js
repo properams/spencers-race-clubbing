@@ -311,9 +311,12 @@ function _buildCandyCarnivalLandmarks(){
   const count = isMobile ? CANDY_LANDMARK_COUNT_MOBILE : CANDY_LANDMARK_COUNT_DESKTOP;
   const splineCount = Math.ceil(count / 2);
   const fieldCount  = count - splineCount;
-  const matNear = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR});
-  const matMid  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID});
-  const matFar  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR});
+  // Subtiele warm-paarse emissive zodat de silhouetten als volume lezen
+  // i.p.v. als zwarte gaten in de midnight-sky. Gradient near→far: dichterbij
+  // krijgt iets meer interne luminantie. Houdt het grimmig-donker karakter.
+  const matNear = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR, emissive: 0x3a2050, emissiveIntensity: 0.08});
+  const matMid  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID,  emissive: 0x2a1840, emissiveIntensity: 0.06});
+  const matFar  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR,  emissive: 0x201230, emissiveIntensity: 0.04});
 
   function pickMat(offset){
     if(offset < CANDY_LANDMARK_MAT_NEAR_BELOW) return matNear;
@@ -419,12 +422,15 @@ function _buildCandyCarnivalLandmarks(){
     placeLandmark(t, offset, side);
   }
   // Veld-landmarks — random t + grotere offset, mogen klein-cluster
-  // vormen (random side) zodat het veld leeft.
+  // vormen. Alternerende side i.p.v. RNG: met fieldCount ≈ 4 desktop / 2
+  // mobile gaf Math.random()<.5 makkelijk een 3:1 L/R bias, en gestapeld
+  // op horizon-specks + horizon-bigs (zelfde RNG-side fout) leesbaar als
+  // duidelijk te veel landmarks links.
   for(let i = 0; i < fieldCount; i++){
     const t      = Math.random();
     const offset = CANDY_LANDMARK_FIELD_OFFSET_MIN
                  + Math.random() * (CANDY_LANDMARK_FIELD_OFFSET_MAX - CANDY_LANDMARK_FIELD_OFFSET_MIN);
-    const side   = Math.random() < 0.5 ? 1 : -1;
+    const side   = (i % 2 === 0) ? 1 : -1;
     placeLandmark(t, offset, side);
   }
 }
@@ -675,7 +681,8 @@ function _buildCandyHorizonSpecks(){
     const p = trackCurve.getPoint(t);
     const tg = trackCurve.getTangent(t).normalize();
     nr.set(-tg.z, 0, tg.x);
-    const side = Math.random() < 0.5 ? 1 : -1;
+    // Alternerende side i.p.v. RNG (zie carnival-landmarks veld-portie).
+    const side = (i % 2 === 0) ? 1 : -1;
     const offset = 200 + Math.random() * 180;  // 200-380u from track
     const sc = 1.0 + Math.random() * 1.6;
     v.set(p.x + nr.x * offset * side, 0, p.z + nr.z * offset * side);
@@ -701,7 +708,9 @@ function _buildCandyHorizonBigs(){
   if(typeof trackCurve==='undefined'||!trackCurve) return;
   const isMobile = window._isMobile;
   const count = isMobile ? CANDY_HORIZON_BIGS_COUNT_MOBILE : CANDY_HORIZON_BIGS_COUNT_DESKTOP;
-  const mat = new THREE.MeshLambertMaterial({color: CANDY_HORIZON_BIGS_COL});
+  // Zelfde emissive-aanpak als landmarks: leesbaar als silhouet i.p.v. gat,
+  // intensiteit het laagst omdat horizon-bigs het verst staan.
+  const mat = new THREE.MeshLambertMaterial({color: CANDY_HORIZON_BIGS_COL, emissive: 0x32204a, emissiveIntensity: 0.05});
   const group = new THREE.Group();
   group.userData = {_noLodCull: true};
   const nr = new THREE.Vector3();
@@ -710,7 +719,8 @@ function _buildCandyHorizonBigs(){
     const p      = trackCurve.getPoint(t);
     const tg     = trackCurve.getTangent(t).normalize();
     nr.set(-tg.z, 0, tg.x);
-    const side   = Math.random() < 0.5 ? 1 : -1;
+    // Alternerende side i.p.v. RNG (zie carnival-landmarks veld-portie).
+    const side   = (i % 2 === 0) ? 1 : -1;
     const offset = CANDY_HORIZON_BIGS_OFFSET_MIN
                  + Math.random() * (CANDY_HORIZON_BIGS_OFFSET_MAX - CANDY_HORIZON_BIGS_OFFSET_MIN);
     const height = CANDY_HORIZON_BIGS_HEIGHT_MIN
@@ -1534,10 +1544,9 @@ function buildIceCreamCones(){
     });
   }
   const handle=ProcDecor.buildIceCreamConeBatch(scene,_iceCreamPos);
-  // Scoops night-glow — push scoop IMs (van index 1+).
-  if(handle.ims && handle.ims.length > 1){
-    for(let k=1;k<handle.ims.length;k++) _candyNightEmissives.push(handle.ims[k]);
-  }
+  // Scoops hebben geen emissive meer (verlaten-pretpark fix tegen
+  // kerstboom-glow), dus _candyNightEmissives-push voor scoops verwijderd —
+  // night-dispatcher zou alleen 0.8 op een zwarte emissive zetten = no-op.
 }
 
 

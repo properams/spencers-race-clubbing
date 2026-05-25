@@ -722,7 +722,11 @@
 
     const mobile = _MOBILE();
     const maxScoops = mobile ? 2 : 3;
-    const palette = opts.palette || [0xffcccc,0xff8888,0xffddaa,0xaaddff,0xddaaff,0xaaffcc];
+    // Verlaten-pretpark palette: pastel-tinten (lichtblauw 0xaaddff +
+    // wit-roze 0xffcccc) lazen als kerstboom-decoratie tegen de donkere
+    // midnight-sky. Vervangen door warm-paars / aubergine / oud-roze —
+    // ijscoboldjes blijven leesbaar, geen festive glow.
+    const palette = opts.palette || [0x6b3a52,0x4a2a4a,0x7a4866,0x5a3a5e,0x8a5a6e,0x4e2a40];
 
     const coneGeo = _cacheGeo('icecream-cone-'+(mobile?'m':'d'), () => {
       const g = new THREE.ConeGeometry(1.4, 3.5, 8);
@@ -738,8 +742,11 @@
       g.computeBoundingSphere();
       return g;
     });
+    // Geen emissive: de stacked witte glow was de andere helft van de
+    // kerstboom-lezing. Lambert zonder emissive laat instanceColor zonder
+    // bloom op de scoops landen.
     const scoopMat = _cacheMat('icecream-scoop', () => new THREE.MeshLambertMaterial({
-      color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.15
+      color: 0xffffff
     }));
 
     const coneIM = _makeIM(coneGeo, coneMat, N);
