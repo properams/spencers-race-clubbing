@@ -1565,6 +1565,75 @@ function _precompileScene(){
 // op werelden waar PBR ground/HDRI later async resolveert.
 window._precompileScene=_precompileScene;
 
+// Chunked variant van _precompileScene voor cold-start fix-sessie. Doel:
+// de 38s race-start shader-compile breken in batches met rAF-yields, zodat
+// Chrome's "Page Unresponsive"-heuristic niet triggert. Spinner is al
+// zichtbaar via navigation.js' raceStartOverlay / boot.js' loadingScreen;
+// deze fix levert main-thread vrij periodiek aan event loop.
+//
+// Feature-detect compileAsync (r152+) — als ooit beschikbaar in de vendor-
+// build (huidige assets/vendor/three-r160.min.js heeft 'm niet), gebruik
+// die native async-route. Fallback: per-mesh compile via scene.traverse,
+// yield elke BATCH_SIZE_DEFAULT meshes.
+//
+// labelFn(i, N) wordt per voltooide batch aangeroepen voor UI-feedback
+// (setStatus in goToRace, SrcLoader.setLabel in buildScene-pad). Optional.
+const BATCH_SIZE_DEFAULT = 8;
+async function _precompileSceneChunked(opts){
+  opts = opts || {};
+  const batchSize = (opts.batchSize|0) || BATCH_SIZE_DEFAULT;
+  const labelFn = opts.labelFn;
+  if(!renderer||!scene||!camera)return;
+
+  // Native fast-path. compileAsync sinds r152, niet in deze vendor build —
+  // maar feature-detect houdt het pad open voor toekomstige upgrade.
+  if(typeof renderer.compileAsync==='function'){
+    if(window.perfMark)perfMark('precompile:compileAsync:start');
+    try{ await renderer.compileAsync(scene,camera); }
+    catch(e){ if(window.dbg)dbg.error('scene',e,'compileAsync failed'); }
+    if(window.perfMark){perfMark('precompile:compileAsync:end');perfMeasure('build.precompile.compileAsync','precompile:compileAsync:start','precompile:compileAsync:end');}
+    return;
+  }
+
+  // Chunked synchroon. Verzamel alle meshes via traverse, compileer per
+  // batch, yield via rAF tussen batches. Three.js' shader-program cache
+  // zorgt dat herhaalde compile-calls op al-gelinkte materials no-op zijn,
+  // dus chunking herhaalt geen werk.
+  const meshes = [];
+  scene.traverse(o => { if(o && o.isMesh) meshes.push(o); });
+  const N = Math.max(1, Math.ceil(meshes.length/batchSize));
+  if(window.perfMark)perfMark('precompile:chunked:start');
+  const _t0 = performance.now();
+  const _progBefore=(renderer.info.programs&&renderer.info.programs.length)||0;
+  for(let i=0;i<meshes.length;i++){
+    try{ renderer.compile(meshes[i],camera); }
+    catch(e){ if(window.dbg)dbg.warn('scene','chunked compile mesh failed: '+(e&&e.message||e)); }
+    if((i+1)%batchSize===0 || i===meshes.length-1){
+      const batchIdx = Math.floor(i/batchSize)+1;
+      if(labelFn){ try{ labelFn(batchIdx, N); }catch(_){} }
+      // rAF-yield: geeft Chrome de gelegenheid input-events af te handelen
+      // en compositor-frame te paint'en (spinner blijft zichtbaar lopen).
+      if(typeof requestAnimationFrame==='function'){
+        await new Promise(r => requestAnimationFrame(()=>r()));
+      }
+    }
+  }
+  if(window.perfMark){perfMark('precompile:chunked:end');perfMeasure('build.precompile.chunked','precompile:chunked:start','precompile:chunked:end');}
+  if(window.dbg){
+    const _dur=performance.now()-_t0;
+    const _progAfter=(renderer.info.programs&&renderer.info.programs.length)||0;
+    dbg.markRaceEvent('PRECOMPILE-CHUNKED-DONE',{
+      durMs:+_dur.toFixed(2),
+      meshes:meshes.length,
+      batches:N,
+      batchSize,
+      progDelta:_progAfter-_progBefore,
+      world:activeWorld
+    });
+  }
+}
+window._precompileSceneChunked=_precompileSceneChunked;
+
 // Pre-upload alle CanvasTextures + andere niet-shared texture maps naar GPU
 // vóór de eerste echte race-frame render. renderer.compile() linkt shaders
 // maar laat texture-upload over aan het lazy WebGL-pad: het eerste
