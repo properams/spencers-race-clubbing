@@ -478,6 +478,11 @@
   });
 
   window.dbg = dbg;
+  // Pick up scene.js' compile-breakdown helper als die er al is. Scene.js
+  // attacht 'm tijdens script-init wanneer window.dbg nog niet bestaat
+  // (dbg laadt lazy onder ?dev=1), dus de alias-set in scene.js mist
+  // — debug.js handelt het hier op.
+  if (typeof window._dumpCompileBreakdown === 'function') dbg.dumpCompileBreakdown = window._dumpCompileBreakdown;
   if (ENABLED) {
     console.log('[dbg] enabled (url=' + URL_FLAG + ' ls=' + LS_FLAG + ')' +
       (CHANNEL_FILTER ? ' channels=[' + [...CHANNEL_FILTER].join(',') + ']' : ' all channels') +

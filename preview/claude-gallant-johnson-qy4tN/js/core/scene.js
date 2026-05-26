@@ -1603,26 +1603,55 @@ async function _precompileSceneChunked(opts){
   }
 
   // Chunked synchroon. Verzamel alle meshes via traverse, compileer per
-  // batch, yield via rAF tussen batches. Three.js' shader-program cache
-  // zorgt dat herhaalde compile-calls op al-gelinkte materials no-op zijn,
-  // dus chunking herhaalt geen werk.
+  // mesh, yield via rAF NA ELKE MESH. Eerdere variant yieldde per
+  // batchSize-blok (8 meshes), waardoor één extreem zware mesh-compile
+  // de hele batch tot een 20s longtask kon maken. Per-mesh-yield breekt
+  // dat op: elke mesh is z'n eigen yield-punt. batchSize controleert nu
+  // alleen labelFn-throttle (DOM-update-frequentie).
+  // Three.js' shader-program cache zorgt dat herhaalde compile-calls
+  // op al-gelinkte materials no-op zijn, dus per-mesh herhaalt geen werk.
   const meshes = [];
   scene.traverse(o => { if(o && o.isMesh) meshes.push(o); });
   const N = Math.max(1, Math.ceil(meshes.length/batchSize));
   if(window.perfMark)perfMark('precompile:chunked:start');
   const _t0 = performance.now();
   const _progBefore=(renderer.info.programs&&renderer.info.programs.length)||0;
+  const _HEAVY_MS = 50;
+  const _heavyMeshes = window.dbg ? [] : null;
   for(let i=0;i<meshes.length;i++){
-    try{ renderer.compile(meshes[i],camera); }
+    const _m = meshes[i];
+    const _mt = window.dbg ? performance.now() : 0;
+    const _mpBefore = window.dbg ? ((renderer.info.programs&&renderer.info.programs.length)|0) : 0;
+    try{ renderer.compile(_m,camera); }
     catch(e){ if(window.dbg)dbg.warn('scene','chunked compile mesh failed: '+(e&&e.message||e)); }
-    if((i+1)%batchSize===0 || i===meshes.length-1){
-      const batchIdx = Math.floor(i/batchSize)+1;
-      if(labelFn){ try{ labelFn(batchIdx, N); }catch(_){} }
-      // rAF-yield: geeft Chrome de gelegenheid input-events af te handelen
-      // en compositor-frame te paint'en (spinner blijft zichtbaar lopen).
-      if(typeof requestAnimationFrame==='function'){
-        await new Promise(r => requestAnimationFrame(()=>r()));
+    if(window.dbg){
+      const _mdur = performance.now() - _mt;
+      const _mpAfter = (renderer.info.programs&&renderer.info.programs.length)|0;
+      const _mdelta = _mpAfter - _mpBefore;
+      if(_mdur >= _HEAVY_MS || _mdelta > 0){
+        const _entry = {
+          idx: i,
+          name: ((_m.name||(_m.material&&_m.material.name)||'<anon>')+'').slice(0,40),
+          matType: (_m.material&&(_m.material.type||(_m.material.constructor&&_m.material.constructor.name)))||'<no-mat>',
+          dur: +_mdur.toFixed(1),
+          progDelta: _mdelta
+        };
+        _heavyMeshes.push(_entry);
+        // Race-event alleen voor de echt zware mesh-compiles (>=200ms),
+        // anders 200+ entries voor een normale cold-run.
+        if(_mdur >= 200) dbg.markRaceEvent('PRECOMPILE-MESH-HEAVY', _entry);
       }
+    }
+    // labelFn-throttle: één UI-update per `batchSize` meshes, niet per
+    // mesh — 200+ innerHTML-writes is te veel DOM-overhead.
+    if(labelFn && ((i+1)%batchSize===0 || i===meshes.length-1)){
+      const batchIdx = Math.min(N, Math.ceil((i+1)/batchSize));
+      try{ labelFn(batchIdx, N); }catch(_){}
+    }
+    // rAF-yield NA ELKE MESH (de eigenlijke fix). Geeft Chrome elke mesh
+    // de gelegenheid input + compositor af te handelen.
+    if(typeof requestAnimationFrame==='function'){
+      await new Promise(r => requestAnimationFrame(()=>r()));
     }
   }
   if(window.perfMark){perfMark('precompile:chunked:end');perfMeasure('build.precompile.chunked','precompile:chunked:start','precompile:chunked:end');}
@@ -1635,11 +1664,52 @@ async function _precompileSceneChunked(opts){
       batches:N,
       batchSize,
       progDelta:_progAfter-_progBefore,
-      world:activeWorld
+      world:activeWorld,
+      heavyCount: _heavyMeshes ? _heavyMeshes.length : 0,
+      top5Heavy: _heavyMeshes ? _heavyMeshes.slice().sort((a,b)=>b.dur-a.dur).slice(0,5) : []
     });
   }
 }
 window._precompileSceneChunked=_precompileSceneChunked;
+
+// Diagnose-helper voor compile-breakdown analyse. Categoriseert
+// renderer.info.programs op materialType (via cacheKey-substring) en
+// detecteert near-duplicate cacheKeys (prefix-hash). Geeft eigenaar één
+// commando om te dumpen tijdens cold-start triage:
+//   window.dbg.dumpCompileBreakdown()  -> {total, byType, topDuplicates}
+// of fallback:
+//   window._dumpCompileBreakdown()
+function _dumpCompileBreakdown(){
+  if(!renderer||!renderer.info||!renderer.info.programs)return null;
+  const progs = renderer.info.programs;
+  const cats = {Standard:0,Physical:0,Basic:0,Lambert:0,Toon:0,Sprite:0,Shader:0,Other:0};
+  const keys = [];
+  for(const p of progs){
+    const key = (p&&p.cacheKey)||'';
+    keys.push(key);
+    if(key.indexOf('MeshPhysical')>=0) cats.Physical++;
+    else if(key.indexOf('MeshStandard')>=0) cats.Standard++;
+    else if(key.indexOf('MeshBasic')>=0) cats.Basic++;
+    else if(key.indexOf('MeshLambert')>=0) cats.Lambert++;
+    else if(key.indexOf('MeshToon')>=0) cats.Toon++;
+    else if(key.indexOf('Sprite')>=0) cats.Sprite++;
+    else if(key.indexOf('Shader')>=0 || key.indexOf('Raw')>=0) cats.Shader++;
+    else cats.Other++;
+  }
+  const dups = {};
+  for(const k of keys){
+    const pref = k.slice(0,80);
+    dups[pref] = (dups[pref]||0)+1;
+  }
+  const topDuplicates = Object.keys(dups).filter(k=>dups[k]>1)
+    .map(k=>({count:dups[k], prefix:k.slice(0,60)}))
+    .sort((a,b)=>b.count-a.count).slice(0,10);
+  const out = {total: progs.length, byType: cats, topDuplicates};
+  if(window.console&&console.log) console.log('[compile-breakdown]', out);
+  return out;
+}
+window._dumpCompileBreakdown=_dumpCompileBreakdown;
+if(window.dbg) window.dbg.dumpCompileBreakdown=_dumpCompileBreakdown;
 
 // Pre-upload alle CanvasTextures + andere niet-shared texture maps naar GPU
 // vóór de eerste echte race-frame render. renderer.compile() linkt shaders
