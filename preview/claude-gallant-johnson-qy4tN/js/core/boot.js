@@ -497,6 +497,13 @@ function _loadScriptLazy(src){
 
 async function boot(){
   window.dbg&&dbg.log('boot','start');
+  // Cold-start instrumentatie: first-paint = eerste rAF na boot-start.
+  // Isoleert "code begint te draaien" vs "browser heeft iets op het scherm
+  // gezet" — verschil onthult main-thread blocking tussen boot()-call en
+  // first paint.
+  if(window.perfMark){
+    requestAnimationFrame(()=>{ try{ perfMark('first-paint'); perfMeasure('boot.toFirstPaint','boot:start','first-paint'); }catch(_){} });
+  }
   const _loadEl=document.getElementById('loadingScreen');
   // Hook the smooth-loader engine to the circular SVG inside #loadingScreen.
   // setTarget is monotonic and decoupled from the actual loading work — the
@@ -525,6 +532,7 @@ async function boot(){
   }
   // SW disabled for file:// compat.
   // Load game data (cars/tracks/prices) before scene init.
+  if(window.perfMark)perfMark('boot:gameData:start');
   try{await loadGameData();}
   catch(e){
     // dbg.error logt al naar console én pusht naar de errors-ringbuffer.
@@ -533,6 +541,7 @@ async function boot(){
     if(_loadEl){_loadEl.innerHTML='<div style="padding:40px;color:var(--peach);font-family:var(--font-display);letter-spacing:3px;text-shadow:-1px 0 rgba(255,58,138,.5),1px 0 rgba(0,224,255,.5)">⚠ DATA LOAD FAILED<br><span style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim);letter-spacing:0;text-shadow:none">'+e.message+'</span></div>';}
     return;
   }
+  if(window.perfMark){perfMark('boot:gameData:end');perfMeasure('boot.gameData','boot:gameData:start','boot:gameData:end');}
   // Validate waypoint loops once the data is loaded. Pure diagnostic — any
   // flagged world stays playable but the warning helps spot regressions early.
   try{_validateTrackSchema();}
@@ -542,6 +551,7 @@ async function boot(){
   spawnFlames();
   // Defer heavy init zodat de browser eerst de loading-screen kan painten.
   setTimeout(async ()=>{
+    if(window.perfMark)perfMark('boot:initRenderer:start');
     try{initRenderer();}
     catch(e){
       if(window.dbg)dbg.error('boot',e,'initRenderer failed');
@@ -552,6 +562,7 @@ async function boot(){
       }
       return;
     }
+    if(window.perfMark){perfMark('boot:initRenderer:end');perfMeasure('boot.initRenderer','boot:initRenderer:start','boot:initRenderer:end');}
     _setProgress(70,'WAKING UP CIRCUITS');
     // Restore saved world VÓÓR de eerste buildScene zodat we niet 2x bouwen.
     // Vroeger: _restoreUserPrefs deed activeWorld='space' + buildScene() ná
@@ -617,15 +628,22 @@ async function boot(){
       const _url = _raceMp3[window.activeWorld];
       if(_url) fetch(_url, { cache:'force-cache' }).catch(()=>{});
     }catch(_){}
+    if(window.perfMark)perfMark('boot:loadPersistent:start');
     loadPersistent();
     if(typeof window.loadIdentity==='function') loadIdentity();
     updateTitleHighScore();
     initDailyChallenge();
     _restoreUserPrefs();
     _checkMemoryBudget();
+    if(window.perfMark){perfMark('boot:loadPersistent:end');perfMeasure('boot.loadPersistent','boot:loadPersistent:start','boot:loadPersistent:end');}
     loop();
+    // Menu is nu interactief: rAF loop draait, knoppen zijn gewired, audio
+    // wacht op eerste gesture. Achtergrond-buildScene draait verder onder
+    // __bootScenePromise. menu:interactive markeert hier.
+    if(window.perfMark){perfMark('menu:interactive');perfMeasure('boot.total','boot:start','menu:interactive');}
     // Background: world-script + buildScene. Errors surface in dbg + worden
     // door goToSelect/_wireMenuButtons opgevangen via de promise.
+    if(window.perfMark)perfMark('boot:initialBuild:start');
     window.__bootScenePromise=(async()=>{
       // Visual asset preload (fire-and-forget; buildScene gebruikt
       // procedural fallback als de cache niet op tijd klaar is).
@@ -650,6 +668,7 @@ async function boot(){
         if(window.dbg)dbg.error('boot',e,'buildScene crashed');
         else console.error('buildScene crashed:',e);
       }
+      if(window.perfMark){perfMark('boot:initialBuild:end');perfMeasure('boot.initialBuild','boot:initialBuild:start','boot:initialBuild:end');}
     })();
     window.dbg&&dbg.log('boot','done');
     // Perf Phase A: signaalvlag voor headless test-runner. Pas zetten na
