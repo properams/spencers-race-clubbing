@@ -1682,27 +1682,40 @@ window._precompileSceneChunked=_precompileSceneChunked;
 function _dumpCompileBreakdown(){
   if(!renderer||!renderer.info||!renderer.info.programs)return null;
   const progs = renderer.info.programs;
-  const cats = {Standard:0,Physical:0,Basic:0,Lambert:0,Toon:0,Sprite:0,Shader:0,Other:0};
+  // Three.js r160 programType-mapping is lowercase + kort: MeshLambertMaterial
+  // → 'lambert', MeshStandardMaterial + MeshPhysicalMaterial → 'physical'
+  // (samen in één bucket, niet te onderscheiden via cacheKey alleen).
+  const cats = {PhysicalOrStandard:0, Basic:0, Lambert:0, Toon:0, Sprite:0, Depth:0, Distance:0, Shader:0, Other:0};
   const keys = [];
   for(const p of progs){
     const key = (p&&p.cacheKey)||'';
     keys.push(key);
-    if(key.indexOf('MeshPhysical')>=0) cats.Physical++;
-    else if(key.indexOf('MeshStandard')>=0) cats.Standard++;
-    else if(key.indexOf('MeshBasic')>=0) cats.Basic++;
-    else if(key.indexOf('MeshLambert')>=0) cats.Lambert++;
-    else if(key.indexOf('MeshToon')>=0) cats.Toon++;
-    else if(key.indexOf('Sprite')>=0) cats.Sprite++;
-    else if(key.indexOf('Shader')>=0 || key.indexOf('Raw')>=0) cats.Shader++;
+    if(key.indexOf('physical')>=0) cats.PhysicalOrStandard++;
+    else if(key.indexOf('lambert')>=0) cats.Lambert++;
+    else if(key.indexOf('basic')>=0) cats.Basic++;
+    else if(key.indexOf('toon')>=0) cats.Toon++;
+    else if(key.indexOf('sprite')>=0) cats.Sprite++;
+    else if(key.indexOf('depth')>=0) cats.Depth++;
+    else if(key.indexOf('distance')>=0) cats.Distance++;
+    else if(key.indexOf('shader')>=0 || key.indexOf('raw')>=0) cats.Shader++;
     else cats.Other++;
   }
-  const dups = {};
+  // Duplicates op prefix-80 + full-key inventarisatie zodat eigenaar kan
+  // zien WAAR in de string de divergentie zit (positie 80+ ergens).
+  const dupAgg = {}; // prefix → {count, fullKeys:Set<string>}
   for(const k of keys){
     const pref = k.slice(0,80);
-    dups[pref] = (dups[pref]||0)+1;
+    if(!dupAgg[pref]) dupAgg[pref] = {count:0, fullKeys:new Set()};
+    dupAgg[pref].count++;
+    dupAgg[pref].fullKeys.add(k.slice(0,300));
   }
-  const topDuplicates = Object.keys(dups).filter(k=>dups[k]>1)
-    .map(k=>({count:dups[k], prefix:k.slice(0,60)}))
+  const topDuplicates = Object.keys(dupAgg).filter(p=>dupAgg[p].count>1)
+    .map(p=>({
+      count: dupAgg[p].count,
+      prefix: p.slice(0,60),
+      uniqueFullKeys: dupAgg[p].fullKeys.size,
+      fullKeySamples: Array.from(dupAgg[p].fullKeys).slice(0,3).map(s=>s.slice(0,150))
+    }))
     .sort((a,b)=>b.count-a.count).slice(0,10);
   const out = {total: progs.length, byType: cats, topDuplicates};
   if(window.console&&console.log) console.log('[compile-breakdown]', out);
@@ -1710,6 +1723,84 @@ function _dumpCompileBreakdown(){
 }
 window._dumpCompileBreakdown=_dumpCompileBreakdown;
 if(window.dbg) window.dbg.dumpCompileBreakdown=_dumpCompileBreakdown;
+
+// Material-duplicates detector. Scan scene.traverse(isMesh), groepeer
+// materials op een flag-hash (alle properties die Three.js in
+// programCacheKey kan stoppen: texture-presence-flags, side, transparent,
+// flatShading, vertexColors, fog, alphaTest>0, clearcoat>0, transmission>0,
+// sheen>0). Per groep ≥2 entries: rapporteer welke texture-property
+// tussen entries divergeert (uuid-counts). Geeft eigenaar actionable
+// data: "groep X: 16 lambert, divergerende `map` (16 unieke uuids)" →
+// die N props delen één gedeelde texture-instance.
+function _dumpMaterialDups(){
+  if(!scene)return null;
+  const groups = new Map();
+  scene.traverse(o => {
+    if(!o||!o.isMesh||!o.material)return;
+    const matArr = Array.isArray(o.material) ? o.material : [o.material];
+    for(const m of matArr){
+      if(!m)continue;
+      const k = (m.type||(m.constructor&&m.constructor.name)||'?')+
+        '|side='+((m.side|0))+
+        '|trans='+(m.transparent?'T':'F')+
+        '|flat='+(m.flatShading?'T':'F')+
+        '|vert='+(m.vertexColors?'T':'F')+
+        '|fog='+(m.fog?'T':'F')+
+        '|alpha='+((m.alphaTest>0)?'T':'F')+
+        '|hasMap='+(m.map?'T':'F')+
+        '|hasLM='+(m.lightMap?'T':'F')+
+        '|hasAO='+(m.aoMap?'T':'F')+
+        '|hasNM='+(m.normalMap?'T':'F')+
+        '|hasEM='+(m.emissiveMap?'T':'F')+
+        '|hasAM='+(m.alphaMap?'T':'F')+
+        '|hasBM='+(m.bumpMap?'T':'F')+
+        '|hasMM='+(m.metalnessMap?'T':'F')+
+        '|hasRM='+(m.roughnessMap?'T':'F')+
+        '|hasENV='+(m.envMap?'T':'F')+
+        '|hasGM='+(m.gradientMap?'T':'F')+
+        '|cc='+((m.clearcoat>0)?'T':'F')+
+        '|tm='+((m.transmission>0)?'T':'F')+
+        '|sh='+((m.sheen>0)?'T':'F');
+      if(!groups.has(k))groups.set(k,[]);
+      groups.get(k).push({material:m,mesh:o});
+    }
+  });
+  const TEXTURE_PROPS = ['map','lightMap','aoMap','normalMap','emissiveMap','alphaMap','bumpMap','metalnessMap','roughnessMap','envMap','gradientMap'];
+  const dups = [];
+  for(const [k, entries] of groups){
+    if(entries.length<2)continue;
+    const sampleMat = entries[0].material;
+    const divergingProps = {};
+    for(const p of TEXTURE_PROPS){
+      const uuids = [];
+      for(const e of entries){
+        const t = e.material[p];
+        if(t && t.uuid) uuids.push(t.uuid);
+      }
+      if(uuids.length===0)continue;
+      const uniqs = new Set(uuids);
+      if(uniqs.size>1) divergingProps[p] = {uniqueCount:uniqs.size, totalWithMap:uuids.length};
+    }
+    const matInstanceUuids = new Set(entries.map(e=>e.material.uuid));
+    dups.push({
+      flagHash: k.slice(0,140),
+      matType: sampleMat.type||(sampleMat.constructor&&sampleMat.constructor.name)||'?',
+      count: entries.length,
+      matInstances: matInstanceUuids.size,
+      divergingTextureProps: divergingProps,
+      sampleMeshNames: entries.slice(0,5).map(e=>({
+        mesh: ((e.mesh.name||'<anon>')+'').slice(0,30),
+        matName: ((e.material.name||'<anon>')+'').slice(0,30)
+      }))
+    });
+  }
+  dups.sort((a,b)=>b.count-a.count);
+  const out = dups.slice(0,15);
+  if(window.console&&console.log) console.log('[material-dups]', out);
+  return out;
+}
+window._dumpMaterialDups=_dumpMaterialDups;
+if(window.dbg) window.dbg.dumpMaterialDups=_dumpMaterialDups;
 
 // Pre-upload alle CanvasTextures + andere niet-shared texture maps naar GPU
 // vóór de eerste echte race-frame render. renderer.compile() linkt shaders

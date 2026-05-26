@@ -483,6 +483,7 @@
   // (dbg laadt lazy onder ?dev=1), dus de alias-set in scene.js mist
   // — debug.js handelt het hier op.
   if (typeof window._dumpCompileBreakdown === 'function') dbg.dumpCompileBreakdown = window._dumpCompileBreakdown;
+  if (typeof window._dumpMaterialDups === 'function') dbg.dumpMaterialDups = window._dumpMaterialDups;
   if (ENABLED) {
     console.log('[dbg] enabled (url=' + URL_FLAG + ' ls=' + LS_FLAG + ')' +
       (CHANNEL_FILTER ? ' channels=[' + [...CHANNEL_FILTER].join(',') + ']' : ' all channels') +
