@@ -1403,7 +1403,14 @@ async function buildScene(){
   // (PHASE-C fix), die langs het echte race-render-pad gaat zodat de
   // juiste shader-permutaties en postfx-pipeline gewarmd worden.
   if(window.perfMark)perfMark('build:precompile:start');
-  _precompileScene();
+  // Cold-start fix: chunked variant met rAF-yields. boot LOADING-screen
+  // (SrcLoader) blijft staan tot buildScene resolved, dus deze await
+  // verlengt zichtbaar de spinner i.p.v. de main thread blokkeert.
+  // Per-batch SrcLoader.setLabel voor 'LOADING SHADERS i/N' feedback.
+  await _precompileSceneChunked({
+    batchSize: 8,
+    labelFn: (i, N) => { if(window.SrcLoader && typeof SrcLoader.setLabel==='function') SrcLoader.setLabel('LOADING SHADERS '+i+'/'+N); }
+  });
   if(window.perfMark){perfMark('build:precompile:end');perfMeasure('build.precompile','build:precompile:start','build:precompile:end');}
   // Title warm-render: _precompileScene() roept alleen renderer.compile() aan,
   // wat shader-source uploadt + async compileert. Driver-link + texture-upload
