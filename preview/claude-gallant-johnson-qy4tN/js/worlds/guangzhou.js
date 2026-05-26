@@ -3199,6 +3199,18 @@ async function buildGuangzhouEnvironment(){
   _gzFrameTick = 0;
   _gzWindowFlickerOffset = 0;
   const _y = () => (typeof window!=='undefined' && window._yieldBuild) ? window._yieldBuild() : Promise.resolve();
+  // Cold-start instrumentatie: phase-marks per batch (batches scheiden bij
+  // await _y()). Naming: build:world:guangzhou:<phase>:start/end. perfMark
+  // is no-op zonder dbg; geen logica-impact.
+  const _ps = (name) => { if(window.perfMark) perfMark('build:world:guangzhou:'+name+':start'); };
+  const _pe = (name) => {
+    if(!window.perfMark) return;
+    perfMark('build:world:guangzhou:'+name+':end');
+    perfMeasure('build.world.guangzhou.'+name,
+                'build:world:guangzhou:'+name+':start',
+                'build:world:guangzhou:'+name+':end');
+  };
+  _ps('groundLightingBasics');
   // Ground — wet dark asphalt. 2400² to fill the world.
   // PBR-upgrade Brok 1b: desktop krijgt MeshStandardMaterial met
   // envMapIntensity zodat de IBL-reflectie de wet-look daadwerkelijk
@@ -3244,17 +3256,21 @@ async function buildGuangzhouEnvironment(){
 
   // Neon billboard frames along the boulevard.
   _gzBuildBillboards();
+  _pe('groundLightingBasics');
 
   await _y();
 
+  _ps('heroBillboardsAndArches');
   // V4 Phase C: 3 hero animated billboards at curve apexes.
   _gzBuildHeroBillboards(scene);
 
   // V4 Phase E: overhead neon arches crossing the track (4d/2m).
   _gzBuildOverheadArches(scene);
+  _pe('heroBillboardsAndArches');
 
   await _y();
 
+  _ps('flocks');
   // V4 Phase D: flying cars above the track (6d/3m, high-altitude background).
   _gzBuildFlyingCars(scene);
 
@@ -3267,9 +3283,11 @@ async function buildGuangzhouEnvironment(){
   // V4.3: chaotic sprite drone flock — different silhouette from cars,
   // figure-8 orbits at multiple altitudes (12d/6m).
   _gzBuildDroneFlock(scene);
+  _pe('flocks');
 
   await _y();
 
+  _ps('cityBuildings');
   // V4 Phase B: close-range urban canyon at r=110 (wall of city feel).
   _gzBuildUrbanCanyon(scene);
 
@@ -3285,9 +3303,11 @@ async function buildGuangzhouEnvironment(){
   // buildings. Owner feedback "ze zien er allemaal hetzelfde uit" —
   // shape variation breaks the uniform-box skyline.
   _gzBuildVariantTowers(scene);
+  _pe('cityBuildings');
 
   await _y();
 
+  _ps('midground');
   // V5.1 Phase A: magenta jellyfish hologram at track apex t=0.5, y=18u.
   _gzBuildJellyfish(scene);
 
@@ -3316,9 +3336,11 @@ async function buildGuangzhouEnvironment(){
 
   // V5.1 Phase C: vending machines + signage poles + signs along track sidewalk.
   _gzBuildStreetProps(scene);
+  _pe('midground');
 
   await _y();
 
+  _ps('skylineDistant');
   // Skyline window emissives — lit office windows in CBD silhouette.
   _gzBuildSkylineWindows();
 
@@ -3335,9 +3357,11 @@ async function buildGuangzhouEnvironment(){
   _gzBuildVerticalSpires();
   _gzBuildOverheadStrings();
   _gzBuildFacadeBanners();
+  _pe('skylineDistant');
 
   await _y();
 
+  _ps('weatherAndHeadlamp');
   // Ground fog — removed 2026-05-11 per owner feedback "ik wil gewoon
   // een mooie donkere track zien dus die mist mag weg". The previous
   // dimmed-down 1-layer version still showed faint purple smears against
@@ -3350,9 +3374,11 @@ async function buildGuangzhouEnvironment(){
 
   // V5.2: soft headlamp pool follows player car (replaces hard halo).
   _gzBuildHeadlampPool(scene);
+  _pe('weatherAndHeadlamp');
 
   await _y();
 
+  _ps('heroLandmarks');
   if(typeof isRain !== 'undefined'){
     isRain = true;
     if(typeof _rainTarget !== 'undefined')    _rainTarget    = 0.45;
@@ -3392,6 +3418,9 @@ async function buildGuangzhouEnvironment(){
       maxOffset:      0.04
     });
   }
+  _pe('heroLandmarks');
+
+  _ps('phaseHelpers');
   _buildGuangzhouCloseBand();   // Phase 12A
   _buildGuangzhouMidRing();     // Phase 11A
   _buildGuangzhouMidVariety();  // Phase 12B
@@ -3407,6 +3436,7 @@ async function buildGuangzhouEnvironment(){
       size: 600
     });
   }
+  _pe('phaseHelpers');
 }
 
 // Phase 12D — signature: covered skywalks over track at t=0.3 + 0.7

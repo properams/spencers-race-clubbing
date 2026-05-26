@@ -1497,6 +1497,24 @@ async function buildScene(){
     window._seamSamplerDone=false;
   }
   if(window.perfMark){perfMark('build:total:end');perfMeasure('build.total','build:total:start','build:total:end');}
+  // Cold-start diagnose: meet de tijd tussen buildScene-eind en de eerste
+  // rAF-callback ná build. Deze gap isoleert kosten die NIET in de build
+  // zelf zitten maar bij het eerste echte render-frame opduiken: shader-link
+  // van net-gecompileerde programs, GPU-upload van pas-aangemaakte textures,
+  // postfx-pipeline link. Verwante measure: build.warmRender (boven) dekt
+  // de bare/postfx warmup binnen buildScene; deze meet wat erna nog komt.
+  if(window.perfMark){
+    perfMark('build:firstRenderAfterBuild:scheduled');
+    const _worldAtBuild = activeWorld;
+    requestAnimationFrame(()=>{ try{
+      perfMark('build:firstRenderAfterBuild:done');
+      perfMeasure('build.firstRenderAfterBuild','build:firstRenderAfterBuild:scheduled','build:firstRenderAfterBuild:done');
+      if(window.perfLog){
+        const _last = window.perfLog[window.perfLog.length-1];
+        if(_last && _last.name==='build.firstRenderAfterBuild') _last.world = _worldAtBuild;
+      }
+    }catch(_){} });
+  }
   // Shader-program count delta over the buildScene window.
   if(window.perfLog){
     const _perfProgAfter=(renderer&&renderer.info&&renderer.info.programs&&renderer.info.programs.length)||0;

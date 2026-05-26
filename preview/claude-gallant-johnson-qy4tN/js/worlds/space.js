@@ -182,22 +182,34 @@ function buildSpaceEnvironment(){
     if(typeof _rainIntensity!=='undefined')_rainIntensity=0;
     if(rainCanvas)rainCanvas.style.display='none';
   }
-  buildSpaceVoid();      // replaces ground — empty abyss
-  buildSpaceStars();
-  buildSpacePlanets();
-  buildNebula();
-  buildSpaceTrackPlatform(); // underkant + vertical rails + underglow
-  buildSpaceTrackEdges();
-  buildSpaceOrbs();
-  buildSpaceStation();
-  buildSpaceGate();
-  buildSpaceBarriers();
-  buildSpaceDust();
-  buildSpaceGravityWells();
-  buildSpaceRailguns();
-  buildSpaceUFOs();
-  buildSpaceMeteorSystem();
-  buildSpaceTractorBeam();
+  // Cold-start instrumentatie: mark elke top-level build-helper. Naming
+  // convention build:world:space:<helper>:start/end. Helper-namen identiek
+  // aan functie-namen zodat een longtask near-mark direct naar de juiste
+  // helper wijst. Allemaal geguard via window.perfMark (no-op zonder dbg).
+  const _M = (label, fn) => {
+    if (!window.perfMark) { fn(); return; }
+    const s = 'build:world:space:'+label+':start';
+    const e = 'build:world:space:'+label+':end';
+    perfMark(s);
+    try { fn(); }
+    finally { perfMark(e); perfMeasure('build.world.space.'+label, s, e); }
+  };
+  _M('void', buildSpaceVoid);          // replaces ground — empty abyss
+  _M('stars', buildSpaceStars);
+  _M('planets', buildSpacePlanets);
+  _M('nebula', buildNebula);           // Canvas 256×256
+  _M('trackPlatform', buildSpaceTrackPlatform); // underkant + vertical rails + underglow
+  _M('trackEdges', buildSpaceTrackEdges);
+  _M('orbs', buildSpaceOrbs);
+  _M('station', buildSpaceStation);    // Canvas 512×64
+  _M('gate', buildSpaceGate);
+  _M('barriers', buildSpaceBarriers);
+  _M('dust', buildSpaceDust);
+  _M('gravityWells', buildSpaceGravityWells);
+  _M('railguns', buildSpaceRailguns);
+  _M('ufos', buildSpaceUFOs);          // nested loops
+  _M('meteorSystem', buildSpaceMeteorSystem);
+  _M('tractorBeam', buildSpaceTractorBeam);
   // Car headlights (same hardware as GP)
   plHeadL=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);
   plHeadR=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);
@@ -205,6 +217,7 @@ function buildSpaceEnvironment(){
   plTail=new THREE.PointLight(0xff2200,0,10);scene.add(plTail);
   // GLTF space props — three layers: floating asteroids, surface
   // craters, and dramatic satellite dishes high above the track.
+  if(window.perfMark)perfMark('build:world:space:roadsideProps:start');
   if(window.spawnRoadsideProps){
     // Floating asteroids — varied y-heights so they don't glue to y=0.
     // Density bumped 2026-05-09 to fill the 8-25u side-of-track zone the
@@ -252,10 +265,13 @@ function buildSpaceEnvironment(){
       });
     }
   }
+  if(window.perfMark){perfMark('build:world:space:roadsideProps:end');perfMeasure('build.world.space.roadsideProps','build:world:space:roadsideProps:start','build:world:space:roadsideProps:end');}
+  if(window.perfMark)perfMark('build:world:space:phaseHelpers:start');
   _buildSpaceCloseBand();      // Phase 12A
   _buildSpaceMidRing();        // Phase 11A
   _buildSpaceFarSilhouette();  // Phase 12C
   _buildSpaceHexArchway();     // Phase 12D
+  if(window.perfMark){perfMark('build:world:space:phaseHelpers:end');perfMeasure('build.world.space.phaseHelpers','build:world:space:phaseHelpers:start','build:world:space:phaseHelpers:end');}
 }
 
 // Phase 12D — signature: floating hex-archway over track at t=0.5.
