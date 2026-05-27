@@ -207,15 +207,25 @@
     // dbg.enabled true is (zie _startSpikeDetector hieronder).
     spikes() { return _spikeRing.slice(); },
     clearSpikes() { _spikeRing.length = 0; },
+
+    // longTasks(): main-thread blocks >50ms tijdens boot/menu/build/post-boot
+    // gevangen via PerformanceObserver('longtask'). Vult de blinde vlek die
+    // de spike-detector heeft (die start pas zinvol in raceloop rAF).
+    // Observer draait alleen onder dbg.enabled — productie-overhead = 0.
+    // Blijft doorlopen ná menu:interactive om post-boot nasleep te vangen.
+    longTasks() { return _longTaskRing.slice(); },
+    clearLongTasks() { _longTaskRing.length = 0; },
   };
 
   // ── Performance audit ringbuffers + snapshot helper ──────────────────
   const MEASURE_RING_MAX = 100;
   const RACE_EVENT_RING_MAX = 32;
   const SPIKE_RING_MAX = 20;
+  const LONGTASK_RING_MAX = 50;
   const _measureRing = [];
   const _raceEventRing = [];
   const _spikeRing = [];
+  const _longTaskRing = [];
 
   function _captureRaceEventSnapshot(name, extras) {
     const snap = {
@@ -294,6 +304,62 @@
     _spikeRafId = requestAnimationFrame(_spikeTick);
   }
   if (ENABLED) _startSpikeDetector();
+
+  // ── Cold-start longtask observer (channel: coldstart) ────────────────
+  // Vangt elke main-thread blocking >50ms via PerformanceObserver('longtask').
+  // Werkt op Chromium-based browsers; Firefox/Safari ondersteunen 'longtask'
+  // niet — daar wordt silent ge-no-op (feature-detect via supportedEntryTypes).
+  // Observer wordt NIET disconnect na menu:interactive: de eerste 10-15s ná
+  // boot bevat vaak nasleep (lazy preload, shader-warmup, GC) die we óók
+  // willen zien. Ringbuffer-cap (50) bounded vanzelf bij lange sessies.
+  function _findRecentMark(t) {
+    try {
+      const log = window.perfLog;
+      if (!log || !log.length) return null;
+      for (let i = log.length - 1; i >= 0; i--) {
+        if (log[i].t <= t) return log[i].name;
+      }
+      return null;
+    } catch (_) { return null; }
+  }
+  let _longTaskObserver = null;
+  function _startLongTaskObserver() {
+    if (_longTaskObserver) return;
+    if (typeof PerformanceObserver === 'undefined') return;
+    try {
+      const types = PerformanceObserver.supportedEntryTypes;
+      if (!types || types.indexOf('longtask') < 0) return;
+    } catch (_) { return; }
+    try {
+      _longTaskObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          const att = (entry.attribution && entry.attribution[0]) || null;
+          const rec = {
+            t: ts(),
+            startTime: +entry.startTime.toFixed(1),
+            dur: +entry.duration.toFixed(1),
+            name: entry.name || 'self',
+            attribution: att ? (att.name || att.containerType || 'unknown') : null,
+            nearestMark: _findRecentMark(entry.startTime),
+            gameState: window.gameState,
+            activeWorld: window.activeWorld,
+          };
+          _longTaskRing.push(rec);
+          if (_longTaskRing.length > LONGTASK_RING_MAX) _longTaskRing.shift();
+          if (shouldLog('coldstart')) {
+            console.warn('[' + ts() + '][coldstart][longtask] ' + rec.dur +
+              'ms near ' + (rec.nearestMark || '(no mark)'), rec);
+          }
+        }
+      });
+      // buffered:true geeft entries van vóór observer-init terug (Chrome).
+      _longTaskObserver.observe({ type: 'longtask', buffered: true });
+    } catch (e) {
+      _longTaskObserver = null;
+      // silent: geen toast voor instrumentatie-failures
+    }
+  }
+  if (ENABLED) _startLongTaskObserver();
 
   // ── Error-viewer overlay (lazy-built op eerste open) ─────────────────
   let _viewerEl = null, _viewerList = null, _viewerToast = null;
@@ -412,6 +478,14 @@
   });
 
   window.dbg = dbg;
+  // Pick up scene.js' compile-breakdown helper als die er al is. Scene.js
+  // attacht 'm tijdens script-init wanneer window.dbg nog niet bestaat
+  // (dbg laadt lazy onder ?dev=1), dus de alias-set in scene.js mist
+  // — debug.js handelt het hier op.
+  if (typeof window._dumpCompileBreakdown === 'function') dbg.dumpCompileBreakdown = window._dumpCompileBreakdown;
+  if (typeof window._dumpMaterialDups === 'function') dbg.dumpMaterialDups = window._dumpMaterialDups;
+  if (typeof window._matTraceStatus === 'function') dbg.matTraceStatus = window._matTraceStatus;
+  if (window._sharedMat && typeof window._sharedMat.dump === 'function') dbg.dumpSharedMatCache = window._sharedMat.dump;
   if (ENABLED) {
     console.log('[dbg] enabled (url=' + URL_FLAG + ' ls=' + LS_FLAG + ')' +
       (CHANNEL_FILTER ? ' channels=[' + [...CHANNEL_FILTER].join(',') + ']' : ' all channels') +

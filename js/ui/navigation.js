@@ -399,7 +399,16 @@ async function goToRace(){
     // cars toevoegde — desktop GPU-driver shader-link kan 50-500ms zijn
     // (hybride GPUs zelfs >1s). Door het hier te doen + overlay ervoor
     // ziet de gebruiker geen single-frame freeze.
-    if(typeof window._precompileScene==='function'){
+    // Cold-start fix: chunked compile met rAF-yields tussen batches om de
+    // 38s Page Unresponsive te voorkomen. Helper is async; goToRace is al
+    // async. Fallback naar sync _precompileScene als helper niet beschikbaar
+    // (oudere builds). Per-batch setStatus voor zichtbaar progress.
+    if(typeof window._precompileSceneChunked==='function'){
+      const _lbl=(i,N)=>setStatus('COMPILING SHADERS '+i+'/'+N);
+      if(window.dbg) await dbg.measureAsync('perf','precompile.afterCars',
+        () => window._precompileSceneChunked({batchSize:8,labelFn:_lbl}));
+      else await window._precompileSceneChunked({batchSize:8,labelFn:_lbl});
+    } else if(typeof window._precompileScene==='function'){
       if(window.dbg)dbg.measure('perf','precompile.afterCars',window._precompileScene);
       else window._precompileScene();
     }

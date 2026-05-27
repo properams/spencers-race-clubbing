@@ -29,6 +29,17 @@
 // Duplicaat van _aMat in arctic.js — apart prefixed om naambotsing
 // te vermijden (arctic-iceshelf.js laadt vóór arctic.js).
 function _aiMat(lambertDef, stdExtras, tag){
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  if(_gocm){
+    const key='arctic-iceshelf/'+(tag||'untagged')+'#'+(window._isMobile?'L':'S')+'#'+JSON.stringify(lambertDef||{})+'#'+JSON.stringify(stdExtras||{});
+    return _gocm(key, function(){
+      if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+      const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+      mat.userData = mat.userData || {};
+      mat.userData.envTag = tag;
+      return mat;
+    });
+  }
   if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
   const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
   mat.userData = mat.userData || {};

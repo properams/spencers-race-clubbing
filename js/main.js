@@ -276,4 +276,5 @@ clock=new THREE.Clock();
 // ══ BOOT ════════════════════════════════════
 // boot() + helpers → js/core/boot.js. Aanroep blijft hier zodat alle
 // top-level globals in dit bestand eerst geinitialiseerd zijn.
+if(window.perfMark)perfMark('boot:start');
 boot();

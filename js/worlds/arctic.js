@@ -44,6 +44,17 @@ if(typeof window!=='undefined')window._applyArcticDayLighting=_applyArcticDayLig
 // Usage:
 //   const mat = _aMat({color:0xccddee}, {metalness:0.0, roughness:0.15}, 'ice-mirror');
 function _aMat(lambertDef, stdExtras, tag){
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  if(_gocm){
+    const key='arctic/'+(tag||'untagged')+'#'+(window._isMobile?'L':'S')+'#'+JSON.stringify(lambertDef||{})+'#'+JSON.stringify(stdExtras||{});
+    return _gocm(key, function(){
+      if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+      const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+      mat.userData = mat.userData || {};
+      mat.userData.envTag = tag;
+      return mat;
+    });
+  }
   if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
   const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
   mat.userData = mat.userData || {};

@@ -61,9 +61,50 @@
     m.userData._sharedAsset = true;
   });
 
-  window._sharedMat = { purewhite, cyanEmissive, iceLightblue, lavaOrange, fairylightAmber };
+  // Centrale on-demand cache voor shared materialen. Caller geeft een
+  // stabiele key + factory; zelfde key → zelfde instance. Resultaten
+  // krijgen userData._sharedAsset=true (disposeScene-veilig). MUST NOT
+  // door callers gemuteerd worden — kleur/emissive/opacity zijn
+  // read-only na creatie. Voor variërende waarden: differentieer de
+  // key (bv. 'candy/rainbow#'+colorHex+'#'+opacity). Eén shared
+  // emissive-mat blijft veilig onder night.js mutations omdat die
+  // een idempotente absolute-waarde assign doet
+  // (mat.emissiveIntensity = isDark ? 0.8 : 0.20), niet relatief.
+  const _matCache = new Map();
+  const _stats = { hits: 0, misses: 0 };
+  function getOrCreateMat(key, factory){
+    let m = _matCache.get(key);
+    if(m){
+      _stats.hits++;
+      return m;
+    }
+    _stats.misses++;
+    m = factory();
+    if(m){
+      m.userData = m.userData || {};
+      m.userData._sharedAsset = true;
+      _matCache.set(key, m);
+    }
+    return m;
+  }
 
-  if(window.dbg) dbg.log('shared-materials', 'initialised 5 shared Lambert materials');
+  // Observability voor de cache. dumpSharedMatCache() levert eigenaar
+  // direct inzicht in (a) hoeveel unieke materials gecached zijn (size),
+  // (b) welke wereld-prefixen actief zijn (keys), en (c) hits/misses
+  // ratio. Zonder dit is "is sharing actief op cold-start" niet
+  // observeerbaar van buiten — dat was sessie 7's diagnose-probleem.
+  function dumpSharedMatCache(){
+    return {
+      size: _matCache.size,
+      hits: _stats.hits,
+      misses: _stats.misses,
+      keys: Array.from(_matCache.keys())
+    };
+  }
+
+  window._sharedMat = { purewhite, cyanEmissive, iceLightblue, lavaOrange, fairylightAmber, getOrCreate: getOrCreateMat, dump: dumpSharedMatCache };
+
+  if(window.dbg) dbg.log('shared-materials', 'initialised 5 shared Lambert materials + getOrCreate cache + dump helper');
 })();
 
 // ES module marker.

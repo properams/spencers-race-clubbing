@@ -27,6 +27,89 @@
 
 'use strict';
 
+// Material constructor creator-trace — dev-only (?dev=1 of ?debug).
+// Wrapt Three.js Mesh*Material-constructors zodat elk nieuw materiaal
+// userData._creatorSite krijgt met 1-3 stack-frames die naar js/ wijzen.
+// _dumpMaterialDups leest dat om per duplicate-groep de bron-builder te
+// tonen — anders zijn sampleMeshNames meestal "<anon>" en is bron-trace
+// onmogelijk. Productie-users (zonder URL-flag) krijgen GEEN wrap en
+// dus geen stack-capture-overhead. Installeert vroeg in scene.js'
+// eval — vóór elke buildScene() of world-builder-aanroep, zodat alle
+// runtime-materialen worden getrapt. Singletons gemaakt vóór scene.js
+// (shared-materials.bundle.js + car-parts getSharedCarMats() lazy IIFE)
+// kunnen mogelijk ontsnappen, maar dat zijn juist al-gedeelde
+// instanties die niet de bron zijn van de duplicate-groepen.
+//
+// Wrap-strategie: THREE[type] vervangen door functie die new Orig(...args)
+// returnt. Traced.prototype = Orig.prototype zodat `instanceof
+// THREE.MeshStandardMaterial` en de .isMeshXxx-flags blijven werken.
+// Geen `.constructor === Mesh*Material` patterns in de codebase
+// (gegrep) → geen breekrisico.
+(function _installMaterialCreatorTrace(){
+  let wrappedCount = 0;
+  let installError = null;
+  try{
+    if(typeof window==='undefined' || typeof THREE==='undefined') return;
+    const q = (location.search||'').toLowerCase();
+    if(q.indexOf('dev=1')<0 && q.indexOf('debug')<0) return;
+    const TYPES = ['MeshStandardMaterial','MeshPhysicalMaterial','MeshLambertMaterial','MeshBasicMaterial'];
+    for(const t of TYPES){
+      const Orig = THREE[t];
+      if(!Orig || Orig.__srcTraced) continue;
+      function Traced(){
+        const inst = new Orig(...arguments);
+        try{
+          if(!inst.userData) inst.userData = {};
+          const stack = (new Error()).stack || '';
+          const frames = stack.split('\n').slice(2,8)
+            .map(function(s){
+              return s.trim().replace(/^at\s+/,'').replace(/.*\/js\//,'js/').replace(/\?[^\s)]*/,'').replace(/:\d+:\d+\)?$/,'');
+            })
+            .filter(function(s){ return s && s.indexOf('material-trace')<0 && s.indexOf('Traced')<0 && s.indexOf('http')!==0; });
+          inst.userData._creatorSite = frames.slice(0,3).join(' < ');
+        }catch(e){}
+        return inst;
+      }
+      Traced.prototype = Orig.prototype;
+      Traced.__srcTraced = true;
+      THREE[t] = Traced;
+      wrappedCount++;
+    }
+  }catch(e){
+    installError = e && e.message || String(e);
+    if(window.console && console.warn) console.warn('[material-trace v2] install failed', e);
+  }
+  // Self-test + status-helper. Bewijst onvoorwaardelijk in de console of
+  // de wrap actief is — anders blijft het diagnose-pad blind voor de
+  // eigenaar (vergelijkbaar met sessie 5 dbg-pickup probleem). Wordt
+  // ALLEEN uitgevoerd onder dezelfde URL-gate als de wrap zelf.
+  try{
+    if(typeof window==='undefined' || typeof THREE==='undefined') return;
+    const q = (location.search||'').toLowerCase();
+    if(q.indexOf('dev=1')<0 && q.indexOf('debug')<0) return;
+    let testHasCreatorSite = false, sample = null, testError = null;
+    try{
+      const probe = new THREE.MeshStandardMaterial({color:0xff00ff});
+      const site = probe && probe.userData && probe.userData._creatorSite;
+      testHasCreatorSite = !!site;
+      sample = site || null;
+      try{ probe.dispose(); }catch(_){}
+    }catch(e){ testError = e && e.message || String(e); }
+    const status = {
+      installed: wrappedCount > 0,
+      wrapped: wrappedCount,
+      testHasCreatorSite: testHasCreatorSite,
+      sample: sample,
+      installError: installError,
+      testError: testError
+    };
+    window._matTraceStatus = function(){ return Object.assign({}, status); };
+    if(window.console && console.log) console.log('[material-trace v2] installed:', status);
+  }catch(e){
+    if(window.console && console.warn) console.warn('[material-trace v2] self-test failed', e);
+  }
+})();
+
 // Asset-cached textures (HDRI envMap, PBR ground maps, GLTF instance maps)
 // carry userData._sharedAsset=true; disposeScene must skip these or the
 // next build pulls a disposed handle from window.Assets cache. Each layer
@@ -1403,7 +1486,14 @@ async function buildScene(){
   // (PHASE-C fix), die langs het echte race-render-pad gaat zodat de
   // juiste shader-permutaties en postfx-pipeline gewarmd worden.
   if(window.perfMark)perfMark('build:precompile:start');
-  _precompileScene();
+  // Cold-start fix: chunked variant met rAF-yields. boot LOADING-screen
+  // (SrcLoader) blijft staan tot buildScene resolved, dus deze await
+  // verlengt zichtbaar de spinner i.p.v. de main thread blokkeert.
+  // Per-batch SrcLoader.setLabel voor 'LOADING SHADERS i/N' feedback.
+  await _precompileSceneChunked({
+    batchSize: 8,
+    labelFn: (i, N) => { if(window.SrcLoader && typeof SrcLoader.setLabel==='function') SrcLoader.setLabel('LOADING SHADERS '+i+'/'+N); }
+  });
   if(window.perfMark){perfMark('build:precompile:end');perfMeasure('build.precompile','build:precompile:start','build:precompile:end');}
   // Title warm-render: _precompileScene() roept alleen renderer.compile() aan,
   // wat shader-source uploadt + async compileert. Driver-link + texture-upload
@@ -1497,6 +1587,24 @@ async function buildScene(){
     window._seamSamplerDone=false;
   }
   if(window.perfMark){perfMark('build:total:end');perfMeasure('build.total','build:total:start','build:total:end');}
+  // Cold-start diagnose: meet de tijd tussen buildScene-eind en de eerste
+  // rAF-callback ná build. Deze gap isoleert kosten die NIET in de build
+  // zelf zitten maar bij het eerste echte render-frame opduiken: shader-link
+  // van net-gecompileerde programs, GPU-upload van pas-aangemaakte textures,
+  // postfx-pipeline link. Verwante measure: build.warmRender (boven) dekt
+  // de bare/postfx warmup binnen buildScene; deze meet wat erna nog komt.
+  if(window.perfMark){
+    perfMark('build:firstRenderAfterBuild:scheduled');
+    const _worldAtBuild = activeWorld;
+    requestAnimationFrame(()=>{ try{
+      perfMark('build:firstRenderAfterBuild:done');
+      perfMeasure('build.firstRenderAfterBuild','build:firstRenderAfterBuild:scheduled','build:firstRenderAfterBuild:done');
+      if(window.perfLog){
+        const _last = window.perfLog[window.perfLog.length-1];
+        if(_last && _last.name==='build.firstRenderAfterBuild') _last.world = _worldAtBuild;
+      }
+    }catch(_){} });
+  }
   // Shader-program count delta over the buildScene window.
   if(window.perfLog){
     const _perfProgAfter=(renderer&&renderer.info&&renderer.info.programs&&renderer.info.programs.length)||0;
@@ -1546,6 +1654,246 @@ function _precompileScene(){
 // toevoegt. Zonder deze re-precompile zou Phase 3.1.a geen effect hebben
 // op werelden waar PBR ground/HDRI later async resolveert.
 window._precompileScene=_precompileScene;
+
+// Chunked variant van _precompileScene voor cold-start fix-sessie. Doel:
+// de 38s race-start shader-compile breken in batches met rAF-yields, zodat
+// Chrome's "Page Unresponsive"-heuristic niet triggert. Spinner is al
+// zichtbaar via navigation.js' raceStartOverlay / boot.js' loadingScreen;
+// deze fix levert main-thread vrij periodiek aan event loop.
+//
+// Feature-detect compileAsync (r152+) — als ooit beschikbaar in de vendor-
+// build (huidige assets/vendor/three-r160.min.js heeft 'm niet), gebruik
+// die native async-route. Fallback: per-mesh compile via scene.traverse,
+// yield elke BATCH_SIZE_DEFAULT meshes.
+//
+// labelFn(i, N) wordt per voltooide batch aangeroepen voor UI-feedback
+// (setStatus in goToRace, SrcLoader.setLabel in buildScene-pad). Optional.
+const BATCH_SIZE_DEFAULT = 8;
+async function _precompileSceneChunked(opts){
+  opts = opts || {};
+  const batchSize = (opts.batchSize|0) || BATCH_SIZE_DEFAULT;
+  const labelFn = opts.labelFn;
+  if(!renderer||!scene||!camera)return;
+
+  // Native fast-path. compileAsync sinds r152, niet in deze vendor build —
+  // maar feature-detect houdt het pad open voor toekomstige upgrade.
+  if(typeof renderer.compileAsync==='function'){
+    if(window.perfMark)perfMark('precompile:compileAsync:start');
+    try{ await renderer.compileAsync(scene,camera); }
+    catch(e){ if(window.dbg)dbg.error('scene',e,'compileAsync failed'); }
+    if(window.perfMark){perfMark('precompile:compileAsync:end');perfMeasure('build.precompile.compileAsync','precompile:compileAsync:start','precompile:compileAsync:end');}
+    return;
+  }
+
+  // Chunked synchroon. Verzamel alle meshes via traverse, compileer per
+  // mesh, yield via rAF NA ELKE MESH. Eerdere variant yieldde per
+  // batchSize-blok (8 meshes), waardoor één extreem zware mesh-compile
+  // de hele batch tot een 20s longtask kon maken. Per-mesh-yield breekt
+  // dat op: elke mesh is z'n eigen yield-punt. batchSize controleert nu
+  // alleen labelFn-throttle (DOM-update-frequentie).
+  // Three.js' shader-program cache zorgt dat herhaalde compile-calls
+  // op al-gelinkte materials no-op zijn, dus per-mesh herhaalt geen werk.
+  const meshes = [];
+  scene.traverse(o => { if(o && o.isMesh) meshes.push(o); });
+  const N = Math.max(1, Math.ceil(meshes.length/batchSize));
+  if(window.perfMark)perfMark('precompile:chunked:start');
+  const _t0 = performance.now();
+  const _progBefore=(renderer.info.programs&&renderer.info.programs.length)||0;
+  const _HEAVY_MS = 50;
+  const _heavyMeshes = window.dbg ? [] : null;
+  for(let i=0;i<meshes.length;i++){
+    const _m = meshes[i];
+    const _mt = window.dbg ? performance.now() : 0;
+    const _mpBefore = window.dbg ? ((renderer.info.programs&&renderer.info.programs.length)|0) : 0;
+    try{ renderer.compile(_m,camera); }
+    catch(e){ if(window.dbg)dbg.warn('scene','chunked compile mesh failed: '+(e&&e.message||e)); }
+    if(window.dbg){
+      const _mdur = performance.now() - _mt;
+      const _mpAfter = (renderer.info.programs&&renderer.info.programs.length)|0;
+      const _mdelta = _mpAfter - _mpBefore;
+      if(_mdur >= _HEAVY_MS || _mdelta > 0){
+        const _entry = {
+          idx: i,
+          name: ((_m.name||(_m.material&&_m.material.name)||'<anon>')+'').slice(0,40),
+          matType: (_m.material&&(_m.material.type||(_m.material.constructor&&_m.material.constructor.name)))||'<no-mat>',
+          dur: +_mdur.toFixed(1),
+          progDelta: _mdelta
+        };
+        _heavyMeshes.push(_entry);
+        // Race-event alleen voor de echt zware mesh-compiles (>=200ms),
+        // anders 200+ entries voor een normale cold-run.
+        if(_mdur >= 200) dbg.markRaceEvent('PRECOMPILE-MESH-HEAVY', _entry);
+      }
+    }
+    // labelFn-throttle: één UI-update per `batchSize` meshes, niet per
+    // mesh — 200+ innerHTML-writes is te veel DOM-overhead.
+    if(labelFn && ((i+1)%batchSize===0 || i===meshes.length-1)){
+      const batchIdx = Math.min(N, Math.ceil((i+1)/batchSize));
+      try{ labelFn(batchIdx, N); }catch(_){}
+    }
+    // rAF-yield NA ELKE MESH (de eigenlijke fix). Geeft Chrome elke mesh
+    // de gelegenheid input + compositor af te handelen.
+    if(typeof requestAnimationFrame==='function'){
+      await new Promise(r => requestAnimationFrame(()=>r()));
+    }
+  }
+  if(window.perfMark){perfMark('precompile:chunked:end');perfMeasure('build.precompile.chunked','precompile:chunked:start','precompile:chunked:end');}
+  if(window.dbg){
+    const _dur=performance.now()-_t0;
+    const _progAfter=(renderer.info.programs&&renderer.info.programs.length)||0;
+    dbg.markRaceEvent('PRECOMPILE-CHUNKED-DONE',{
+      durMs:+_dur.toFixed(2),
+      meshes:meshes.length,
+      batches:N,
+      batchSize,
+      progDelta:_progAfter-_progBefore,
+      world:activeWorld,
+      heavyCount: _heavyMeshes ? _heavyMeshes.length : 0,
+      top5Heavy: _heavyMeshes ? _heavyMeshes.slice().sort((a,b)=>b.dur-a.dur).slice(0,5) : []
+    });
+  }
+}
+window._precompileSceneChunked=_precompileSceneChunked;
+
+// Diagnose-helper voor compile-breakdown analyse. Categoriseert
+// renderer.info.programs op materialType (via cacheKey-substring) en
+// detecteert near-duplicate cacheKeys (prefix-hash). Geeft eigenaar één
+// commando om te dumpen tijdens cold-start triage:
+//   window.dbg.dumpCompileBreakdown()  -> {total, byType, topDuplicates}
+// of fallback:
+//   window._dumpCompileBreakdown()
+function _dumpCompileBreakdown(){
+  if(!renderer||!renderer.info||!renderer.info.programs)return null;
+  const progs = renderer.info.programs;
+  // Three.js r160 programType-mapping is lowercase + kort: MeshLambertMaterial
+  // → 'lambert', MeshStandardMaterial + MeshPhysicalMaterial → 'physical'
+  // (samen in één bucket, niet te onderscheiden via cacheKey alleen).
+  const cats = {PhysicalOrStandard:0, Basic:0, Lambert:0, Toon:0, Sprite:0, Depth:0, Distance:0, Shader:0, Other:0};
+  const keys = [];
+  for(const p of progs){
+    const key = (p&&p.cacheKey)||'';
+    keys.push(key);
+    if(key.indexOf('physical')>=0) cats.PhysicalOrStandard++;
+    else if(key.indexOf('lambert')>=0) cats.Lambert++;
+    else if(key.indexOf('basic')>=0) cats.Basic++;
+    else if(key.indexOf('toon')>=0) cats.Toon++;
+    else if(key.indexOf('sprite')>=0) cats.Sprite++;
+    else if(key.indexOf('depth')>=0) cats.Depth++;
+    else if(key.indexOf('distance')>=0) cats.Distance++;
+    else if(key.indexOf('shader')>=0 || key.indexOf('raw')>=0) cats.Shader++;
+    else cats.Other++;
+  }
+  // Duplicates op prefix-80 + full-key inventarisatie zodat eigenaar kan
+  // zien WAAR in de string de divergentie zit (positie 80+ ergens).
+  const dupAgg = {}; // prefix → {count, fullKeys:Set<string>}
+  for(const k of keys){
+    const pref = k.slice(0,80);
+    if(!dupAgg[pref]) dupAgg[pref] = {count:0, fullKeys:new Set()};
+    dupAgg[pref].count++;
+    dupAgg[pref].fullKeys.add(k.slice(0,300));
+  }
+  const topDuplicates = Object.keys(dupAgg).filter(p=>dupAgg[p].count>1)
+    .map(p=>({
+      count: dupAgg[p].count,
+      prefix: p.slice(0,60),
+      uniqueFullKeys: dupAgg[p].fullKeys.size,
+      fullKeySamples: Array.from(dupAgg[p].fullKeys).slice(0,3).map(s=>s.slice(0,150))
+    }))
+    .sort((a,b)=>b.count-a.count).slice(0,10);
+  const out = {total: progs.length, byType: cats, topDuplicates};
+  if(window.console&&console.log) console.log('[compile-breakdown]', out);
+  return out;
+}
+window._dumpCompileBreakdown=_dumpCompileBreakdown;
+if(window.dbg) window.dbg.dumpCompileBreakdown=_dumpCompileBreakdown;
+
+// Material-duplicates detector. Scan scene.traverse(isMesh), groepeer
+// materials op een flag-hash (alle properties die Three.js in
+// programCacheKey kan stoppen: texture-presence-flags, side, transparent,
+// flatShading, vertexColors, fog, alphaTest>0, clearcoat>0, transmission>0,
+// sheen>0). Per groep ≥2 entries: rapporteer welke texture-property
+// tussen entries divergeert (uuid-counts). Geeft eigenaar actionable
+// data: "groep X: 16 lambert, divergerende `map` (16 unieke uuids)" →
+// die N props delen één gedeelde texture-instance.
+function _dumpMaterialDups(){
+  if(!scene)return null;
+  const groups = new Map();
+  scene.traverse(o => {
+    if(!o||!o.isMesh||!o.material)return;
+    const matArr = Array.isArray(o.material) ? o.material : [o.material];
+    for(const m of matArr){
+      if(!m)continue;
+      const k = (m.type||(m.constructor&&m.constructor.name)||'?')+
+        '|side='+((m.side|0))+
+        '|trans='+(m.transparent?'T':'F')+
+        '|flat='+(m.flatShading?'T':'F')+
+        '|vert='+(m.vertexColors?'T':'F')+
+        '|fog='+(m.fog?'T':'F')+
+        '|alpha='+((m.alphaTest>0)?'T':'F')+
+        '|hasMap='+(m.map?'T':'F')+
+        '|hasLM='+(m.lightMap?'T':'F')+
+        '|hasAO='+(m.aoMap?'T':'F')+
+        '|hasNM='+(m.normalMap?'T':'F')+
+        '|hasEM='+(m.emissiveMap?'T':'F')+
+        '|hasAM='+(m.alphaMap?'T':'F')+
+        '|hasBM='+(m.bumpMap?'T':'F')+
+        '|hasMM='+(m.metalnessMap?'T':'F')+
+        '|hasRM='+(m.roughnessMap?'T':'F')+
+        '|hasENV='+(m.envMap?'T':'F')+
+        '|hasGM='+(m.gradientMap?'T':'F')+
+        '|cc='+((m.clearcoat>0)?'T':'F')+
+        '|tm='+((m.transmission>0)?'T':'F')+
+        '|sh='+((m.sheen>0)?'T':'F');
+      if(!groups.has(k))groups.set(k,[]);
+      groups.get(k).push({material:m,mesh:o});
+    }
+  });
+  const TEXTURE_PROPS = ['map','lightMap','aoMap','normalMap','emissiveMap','alphaMap','bumpMap','metalnessMap','roughnessMap','envMap','gradientMap'];
+  const dups = [];
+  for(const [k, entries] of groups){
+    if(entries.length<2)continue;
+    const sampleMat = entries[0].material;
+    const divergingProps = {};
+    for(const p of TEXTURE_PROPS){
+      const uuids = [];
+      for(const e of entries){
+        const t = e.material[p];
+        if(t && t.uuid) uuids.push(t.uuid);
+      }
+      if(uuids.length===0)continue;
+      const uniqs = new Set(uuids);
+      if(uniqs.size>1) divergingProps[p] = {uniqueCount:uniqs.size, totalWithMap:uuids.length};
+    }
+    const matInstanceUuids = new Set(entries.map(e=>e.material.uuid));
+    // sampleCreatorSites: ingevuld door material-trace wrapper (dev-only,
+    // ?dev=1 of ?debug). Toont per duplicate-groep welke builder(s) de
+    // materials gemaakt heeft. Zonder dev-flag is dit "<no-trace>".
+    const creatorSet = new Set();
+    for(const e of entries){
+      const site = e.material && e.material.userData && e.material.userData._creatorSite;
+      creatorSet.add(site || '<no-trace>');
+      if(creatorSet.size>=5) break;
+    }
+    dups.push({
+      flagHash: k.slice(0,140),
+      matType: sampleMat.type||(sampleMat.constructor&&sampleMat.constructor.name)||'?',
+      count: entries.length,
+      matInstances: matInstanceUuids.size,
+      divergingTextureProps: divergingProps,
+      sampleCreatorSites: Array.from(creatorSet).slice(0,5),
+      sampleMeshNames: entries.slice(0,5).map(e=>({
+        mesh: ((e.mesh.name||'<anon>')+'').slice(0,30),
+        matName: ((e.material.name||'<anon>')+'').slice(0,30)
+      }))
+    });
+  }
+  dups.sort((a,b)=>b.count-a.count);
+  const out = dups.slice(0,15);
+  if(window.console&&console.log) console.log('[material-dups]', out);
+  return out;
+}
+window._dumpMaterialDups=_dumpMaterialDups;
+if(window.dbg) window.dbg.dumpMaterialDups=_dumpMaterialDups;
 
 // Pre-upload alle CanvasTextures + andere niet-shared texture maps naar GPU
 // vóór de eerste echte race-frame render. renderer.compile() linkt shaders

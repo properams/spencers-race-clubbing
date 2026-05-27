@@ -60,10 +60,20 @@
   // ── Manifest ─────────────────────────────────────────────────────────
   async function _loadManifest(){
     if (_manifestLoaded) return _manifest;
+    if (window.perfMark) perfMark('assets:manifest:fetch:start');
     try {
       const r = await fetch(MANIFEST_PATH);
       if (!r.ok) throw new Error('HTTP '+r.status);
+      if (window.perfMark){
+        perfMark('assets:manifest:fetch:end');
+        perfMeasure('assets.manifest.fetch','assets:manifest:fetch:start','assets:manifest:fetch:end');
+        perfMark('assets:manifest:parse:start');
+      }
       _manifest = await r.json();
+      if (window.perfMark){
+        perfMark('assets:manifest:parse:end');
+        perfMeasure('assets.manifest.parse','assets:manifest:parse:start','assets:manifest:parse:end');
+      }
       _log('manifest loaded', { worlds: Object.keys(_manifest.worlds||{}) });
     } catch (e) {
       _log('manifest absent — all slots will be null', String(e&&e.message||e));
@@ -347,6 +357,9 @@
     // Perf Phase A: split timings per asset-class. Logged in window.perfLog
     // tagged with world-id so the runner can attribute load cost per world.
     const _t0 = performance.now();
+    const _startLabel = 'assets:preloadWorld:'+worldId+':start';
+    const _endLabel = 'assets:preloadWorld:'+worldId+':end';
+    if (window.perfMark) perfMark(_startLabel);
     await _loadManifest();
     const w = _manifest.worlds && _manifest.worlds[worldId];
     if (!w){ _worldPreloaded.add(worldId); return { kind:'no-manifest' }; }
@@ -380,6 +393,10 @@
     });
     await Promise.all([_modelP, _texP]);
     if (window.perfLog) window.perfLog.push({ name:'assets.preloadWorld.total', ms: performance.now()-_t0, t: performance.now(), world: worldId });
+    if (window.perfMark){
+      perfMark(_endLabel);
+      perfMeasure('assets.preloadWorld.'+worldId, _startLabel, _endLabel);
+    }
     _worldPreloaded.add(worldId);
     return { kind:'loaded' };
   }
