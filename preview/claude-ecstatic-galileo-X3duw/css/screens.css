@@ -1,0 +1,279 @@
+/* screens.css — auto-split from index.html */
+[id^="hud"],.tcBtn,#mirrorFrame{outline:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.12}}
+#cdOverlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#cdNum{font-family:var(--font-display);font-size:min(48vw,280px);font-weight:700;
+  background:var(--iridescent);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 80px rgba(255,58,138,.7)) drop-shadow(0 0 160px rgba(0,224,255,.45));
+  opacity:0;letter-spacing:-4px}
+/* goFlashScale handles BOTH the dramatic pop AND the fade-out so the
+   countdown.js GO branch can use a single animation instead of layering
+   a CSS transform-pop with a JS fadePop opacity-driver (which used to
+   conflict — animation 'forwards' fill kept opacity:1 and the inline
+   fade never rendered). Animation runs ~700ms total; cdOv display is
+   cleared at the same offset by countdown.js after the keyframe ends. */
+@keyframes goFlashScale{
+  0%{transform:scale(0.6);opacity:0;}
+  12%{opacity:1;}
+  18%{transform:scale(1.7);opacity:1;}
+  35%{transform:scale(1.35);opacity:1;}
+  60%{transform:scale(1.5);opacity:1;}
+  78%{transform:scale(1.5);opacity:.92;}
+  100%{transform:scale(1.4);opacity:0;}
+}
+#sFinish{background:radial-gradient(ellipse at 50% 40%,rgba(12,0,30,.98),rgba(4,0,12,.99),#000005);padding:clamp(20px,3.5vh,40px) clamp(28px,4vw,56px) clamp(18px,2.5vh,28px);justify-content:flex-start;align-items:stretch;gap:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:760px){
+  #sFinish{padding:24px 18px 24px}
+}
+
+/* Legacy finish blocks — markup is kept so existing showFinish() side-effects
+   stay functional, but visually replaced by .finL layout below. */
+.finLegacy{display:none!important}
+
+/* ── Light Edition finish layout (S04) ─────────────────────────────── */
+.finL{display:flex;flex-direction:column;gap:clamp(14px,2.4vh,24px);width:100%;max-width:1400px;margin:0 auto;position:relative;z-index:1;min-height:100%}
+.finLHeader{display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+.finLHead{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(40px,min(7vw,10vh),96px);letter-spacing:-3px;line-height:0.95;
+  color:var(--text);margin:0;
+}
+/* P-tier color variant — bronze/peach for podium-3 */
+.finLHead[data-tier="bronze"]{color:var(--peach)}
+.finLHead[data-tier="silver"]{color:var(--text)}
+.finLHead[data-tier="gold"]{color:var(--gold)}
+.finLSub{
+  font-family:var(--font-body);font-size:clamp(13px,1.4vw,16px);
+  color:var(--text-mid);margin:0;letter-spacing:0;line-height:1.4;max-width:680px;
+}
+
+.finLBody{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:clamp(16px,2vw,24px);flex:1;align-items:start}
+@media(max-width:960px){
+  .finLBody{grid-template-columns:1fr;gap:18px}
+}
+.finLLeft{display:flex;flex-direction:column;gap:clamp(14px,1.8vh,20px);min-width:0}
+
+/* Podium row — 3 cards */
+.finLPodium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:560px){
+  .finLPodium{grid-template-columns:1fr;gap:10px}
+}
+.finLPodCard{
+  background:linear-gradient(135deg,var(--bg) 0%,var(--bg-2) 100%);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px 14px 12px;
+  display:flex;flex-direction:column;gap:6px;
+  min-width:0;
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 8px 28px rgba(0,0,0,.4);
+}
+.finLPodCard[data-tier="gold"]{border-color:rgba(255,208,0,.4);box-shadow:0 8px 28px rgba(255,208,0,.18)}
+.finLPodCard[data-tier="silver"]{border-color:rgba(212,168,255,.45);box-shadow:0 12px 40px rgba(212,168,255,.30)}
+.finLPodCard[data-tier="bronze"]{border-color:rgba(205,127,50,.4);box-shadow:0 8px 28px rgba(205,127,50,.16)}
+.finLPodCard.finLPodMe{
+  border-color:transparent;
+  box-shadow:0 0 0 1px var(--pink),0 12px 40px rgba(255,58,138,.30),inset 0 0 22px rgba(212,168,255,.06);
+}
+.finLPodCard.finLPodMe::before{
+  content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;
+  background:linear-gradient(135deg,rgba(255,58,138,.10),rgba(212,168,255,.04));
+}
+.finLPodCard > *{position:relative}
+.finLPodEy{font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase}
+.finLPodCard[data-tier="gold"] .finLPodEy{color:var(--gold)}
+.finLPodCard[data-tier="silver"] .finLPodEy{color:var(--violet)}
+.finLPodCard[data-tier="bronze"] .finLPodEy{color:var(--peach)}
+.finLPodName{font-family:var(--font-display);font-weight:700;font-size:clamp(20px,2.2vw,28px);letter-spacing:-1px;color:var(--text);line-height:1;margin-top:2px}
+.finLPodCar{font-family:var(--font-body);font-size:12px;color:var(--text-mid);line-height:1.2}
+.finLPodTime{font-family:var(--font-display);font-weight:600;font-size:clamp(18px,1.9vw,24px);letter-spacing:-0.5px;color:var(--text);margin-top:4px}
+.finLPodBest{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:1px}
+
+/* YOUR LIGHT strip */
+.finLStrip{padding:14px 18px}
+.finLStripEy{margin-bottom:8px}
+.finLStripRow{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+@media(max-width:560px){.finLStripRow{grid-template-columns:repeat(2,1fr);gap:12px}}
+.finLStripCol{display:flex;flex-direction:column;gap:4px;min-width:0}
+.finLStripLbl{font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase}
+.finLStripVal{font-family:var(--font-display);font-weight:600;font-size:clamp(17px,1.7vw,22px);letter-spacing:-0.5px;color:var(--text);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Formation panel (right column) */
+.finLRight{padding:14px 18px;align-self:start;max-height:calc(100vh - 220px);overflow-y:auto}
+.finLForm{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.finLForm li{
+  display:grid;
+  grid-template-columns:36px 1fr auto;
+  gap:10px;
+  align-items:baseline;
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--text-mid);
+  padding:5px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.finLForm li:last-child{border-bottom:0}
+.finLForm li .finLFormPos{color:var(--text-dim);font-size:11px;letter-spacing:2px}
+.finLForm li .finLFormName{color:var(--text-mid);letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.finLForm li .finLFormTime{color:var(--text-dim);font-size:11px;letter-spacing:1px}
+.finLForm li.finLFormMe .finLFormPos,
+.finLForm li.finLFormMe .finLFormName,
+.finLForm li.finLFormMe .finLFormTime{color:var(--violet)}
+
+/* Action buttons (right-aligned) */
+.finLBtns{display:flex;justify-content:flex-end;gap:12px;flex-shrink:0;padding-top:4px}
+@media(max-width:760px){
+  .finLBtns{justify-content:stretch}
+  .finLBtns .holoPill{flex:1;justify-content:center}
+}
+@media (max-height:760px) and (min-width:761px){
+  .finLHead{font-size:clamp(36px,7.5vh,72px);letter-spacing:-2px}
+  .finL{gap:14px}
+  .finLLeft{gap:12px}
+  .finLPodCard{padding:12px 12px 10px}
+  .finLStrip{padding:12px 16px}
+  .finLStripEy{margin-bottom:6px}
+  .finLRight{padding:12px 16px}
+}
+#sFinish::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(180,100,255,.28) 1px,transparent 1px),radial-gradient(circle,rgba(204,136,255,.14) .7px,transparent .7px);background-size:30px 30px,20px 20px;background-position:3px 4px,12px 14px;pointer-events:none;opacity:.18;z-index:0}
+@media (min-width:601px) and (prefers-reduced-motion:no-preference){
+  #sFinish::after{content:'';position:absolute;left:50%;top:55%;width:120vmax;height:120vmax;transform:translate(-50%,-50%);background:conic-gradient(from 0deg,transparent 0deg,rgba(204,68,255,.07) 12deg,transparent 24deg,transparent 60deg,rgba(164,91,255,.05) 72deg,transparent 84deg,transparent 180deg,rgba(255,68,221,.06) 192deg,transparent 204deg);animation:finRays 28s linear infinite;z-index:0;pointer-events:none;mix-blend-mode:screen}
+}
+@keyframes finRays{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes stripeShift{from{background-position:0% 0}to{background-position:200% 0}}
+
+/* ── Hero panel (replaces #finTop) ──────────────────────────────────── */
+#finHero{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 28px 22px;width:min(640px,94vw);background:var(--surface);border:1px solid var(--line);border-radius:22px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 0 40px rgba(212,168,255,.12),inset 0 0 30px rgba(212,168,255,.04)}
+#finHero::before{content:'';position:absolute;left:10%;right:10%;top:-1px;height:2px;background:var(--iridescent);background-size:200% 100%;animation:stripeShift 3.6s linear infinite;border-radius:2px;box-shadow:0 0 12px rgba(255,58,138,.4);pointer-events:none}
+
+/* Position badge ── dubbele neon-ring met grote rank-cijfer */
+#finPositionBadge{position:relative;width:128px;height:128px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.12) 0%,transparent 55%),var(--bg);border:2px solid var(--line);box-shadow:0 0 32px rgba(212,168,255,.25),inset 0 0 22px rgba(212,168,255,.1)}
+#finPositionBadge::before{content:'';position:absolute;inset:-4px;border-radius:50%;padding:2px;background:var(--iridescent);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.9}
+#finPositionBadge[data-pos="1"]{box-shadow:0 0 50px rgba(255,58,138,.45),inset 0 0 28px rgba(255,58,138,.2);animation:badgeP1Pulse 2.6s ease-in-out infinite}
+#finPositionBadge[data-pos="1"]::before{background:var(--iridescent);opacity:1;animation:badgeP1Ring 4s linear infinite}
+#finPositionBadge[data-pos="2"]{box-shadow:0 0 38px rgba(212,168,255,.35),inset 0 0 24px rgba(212,168,255,.15)}
+#finPositionBadge[data-pos="3"]{box-shadow:0 0 32px rgba(168,212,255,.3),inset 0 0 22px rgba(168,212,255,.12)}
+#finPositionBadge[data-pos="dnf"]{box-shadow:0 0 18px rgba(120,80,160,.15);opacity:.85}
+@keyframes badgeP1Pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes badgeP1Ring{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
+.finPosNum{font-family:var(--font-display);font-size:64px;font-weight:700;line-height:1;color:var(--text);text-shadow:-2px 0 rgba(255,58,138,.5),2px 0 rgba(0,224,255,.5),0 0 1px var(--text)}
+.finPosSuffix{font-family:var(--font-mono);font-size:10px;letter-spacing:4px;color:var(--text-mid);margin-top:2px}
+
+.finTitle{font-family:var(--font-display);font-size:clamp(20px,3.4vw,40px);font-weight:700;color:var(--text);text-shadow:-2px 0 rgba(255,58,138,.5),2px 0 rgba(0,224,255,.5),0 0 1px var(--text);letter-spacing:4px;position:relative;z-index:1;margin-top:4px}
+
+/* ── Stats grid ────────────────────────────────────────────────────── */
+#finStatsGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:min(720px,94vw);position:relative;z-index:1}
+.finStatTile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 10px 14px;text-align:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);position:relative;overflow:hidden}
+.finStatTile.tileHighlight{box-shadow:0 0 22px rgba(255,58,138,.2),inset 0 0 18px rgba(255,58,138,.08);border-color:rgba(255,58,138,.45)}
+.finStatLabel{font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--text-dim)}
+.finStatValue{font-family:var(--font-mono);font-size:clamp(16px,2.4vw,26px);font-weight:500;letter-spacing:1px;margin-top:4px;color:var(--text)}
+.finStatSub{font-family:var(--font-mono);font-size:10px;letter-spacing:1.5px;color:var(--text-dim);margin-top:2px;min-height:12px}
+
+/* ── Body (podium + leaderboard) ───────────────────────────────────── */
+#finBody{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap;width:min(820px,95vw);position:relative;z-index:1}
+#finLeft{display:flex;flex-direction:column;align-items:center;min-width:220px}
+#finRight{flex:1;max-width:440px;min-width:260px}
+#finLapTimes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:min(720px,94vw);margin:4px 0;position:relative;z-index:1}
+#finExtraStats{display:flex;flex-direction:column;gap:4px;align-items:center;position:relative;z-index:1;margin-top:2px}
+
+/* ── Bottom buttons — altijd zichtbaar ─────────────────────────────── */
+#finBtns{position:fixed;left:0;right:0;bottom:0;display:flex;gap:14px;justify-content:center;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(8,8,14,0) 0%,rgba(8,8,14,.88) 35%,rgba(8,8,14,.96) 100%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:5;box-shadow:0 -8px 30px rgba(0,0,0,.6)}
+.finBtn{font-family:var(--font-display);font-size:13px;border:none;border-radius:999px;padding:13px 28px;cursor:pointer;letter-spacing:3px;font-weight:600;transition:all .15s;position:relative;margin:0}
+.finBtnPrimary{color:var(--text);background:var(--bg);box-shadow:0 0 0 2px var(--pink),0 0 26px rgba(255,58,138,.45),0 0 12px rgba(212,168,255,.3);padding:14px 38px;font-size:14px}
+.finBtnPrimary:hover{transform:scale(1.04);box-shadow:0 0 0 2px var(--violet),0 0 38px rgba(212,168,255,.6)}
+.finBtnSecondary{color:var(--text-mid);background:var(--surface);border:1.5px solid var(--line);box-shadow:none}
+.finBtnSecondary:hover{color:var(--text);background:var(--surface-2);border-color:var(--line-strong)}
+#finBtnHint{position:fixed;left:0;right:0;bottom:0;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:3px;text-align:center;pointer-events:none;padding:0 0 calc(2px + env(safe-area-inset-bottom,0px));z-index:6;display:none;text-transform:uppercase}
+@media(hover:hover) and (min-width:601px){#finBtnHint{display:block;bottom:auto;top:auto;position:fixed;bottom:2px}}
+
+/* ── Neon pulse layer — replaces confetti ──────────────────────────── */
+#finPulseLayer{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+#finPulseLayer::before,#finPulseLayer::after{content:'';position:absolute;top:32%;left:50%;width:240px;height:240px;border-radius:50%;transform:translate(-50%,-50%) scale(0);background:radial-gradient(circle,rgba(204,68,255,.35) 0%,rgba(180,80,255,.16) 38%,transparent 68%);mix-blend-mode:screen;opacity:0}
+#sFinish.finPulsing #finPulseLayer::before{animation:finPulse 1.8s ease-out 0s 1 forwards}
+#sFinish.finPulsing #finPulseLayer::after{animation:finPulse 2.1s ease-out .55s 1 forwards}
+@keyframes finPulse{0%{transform:translate(-50%,-50%) scale(.1);opacity:.95}65%{opacity:.45}100%{transform:translate(-50%,-50%) scale(16);opacity:0}}
+@media (prefers-reduced-motion:reduce){#sFinish.finPulsing #finPulseLayer::before,#sFinish.finPulsing #finPulseLayer::after{animation:none;opacity:0}}
+#pauseOverlay{position:fixed;inset:0;z-index:60;background:radial-gradient(ellipse at 50% 40%,rgba(26,14,40,.96),rgba(8,8,14,.98));display:none;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#pauseOverlay::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(180,100,255,.4) 1px,transparent 1px),radial-gradient(circle,rgba(100,200,255,.2) .7px,transparent .7px);background-size:28px 28px,18px 18px;background-position:3px 4px,10px 12px;pointer-events:none;opacity:.3}
+.pauseStack{position:relative;z-index:1;display:flex;flex-direction:column;align-items:stretch;gap:16px;width:min(440px,92vw);text-align:left}
+.pauseEyebrow{align-self:center}
+.pauseTitle{align-self:center}
+.pauseSection{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%}
+.pauseSectionLabel{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:4px;text-align:left;text-transform:uppercase;padding-left:4px}
+.pauseRow{display:flex;gap:6px;width:100%}
+.pauseHints{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-top:4px;text-align:center}
+/* Light Edition pause buttons — outline pills instead of pink-ring chrome */
+.pauseBtn{font-family:var(--font-display);font-size:13px;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:999px;padding:11px 24px;cursor:pointer;letter-spacing:2px;font-weight:600;position:relative;z-index:1;transition:color .15s ease,background .15s ease,border-color .15s ease,box-shadow .2s ease,transform .12s ease}
+.pauseBtn:hover{border-color:var(--line-strong);background:var(--surface)}
+.pauseBtn:active{transform:scale(.97)}
+/* Resume = iridescent gradient border primary */
+.pauseBtnPrimary{width:100%;font-size:14px;padding:13px 28px;letter-spacing:3px;border:1.5px solid transparent;background:linear-gradient(var(--bg),var(--bg)) padding-box,var(--iridescent) border-box;box-shadow:var(--glow-cta)}
+.pauseBtnPrimary:hover{background:linear-gradient(rgba(8,8,14,.85),rgba(8,8,14,.85)) padding-box,var(--iridescent) border-box;box-shadow:0 8px 22px rgba(212,168,255,.55)}
+.pauseBtnGray{background:transparent!important;color:var(--text-mid)!important;border:1px solid var(--line)!important;box-shadow:none!important}
+.pauseBtnGray:hover{border-color:var(--line-strong)!important;color:var(--text)!important;background:var(--surface)!important;box-shadow:none!important}
+.pauseCamBtn,.pauseQualBtn{flex:1 1 0;min-width:0;font-size:10px;padding:9px 4px;letter-spacing:1.5px}
+.pauseCamBtn.active,.pauseQualBtn.active{color:var(--text)!important;border-color:transparent!important;background:linear-gradient(135deg,var(--pink),var(--violet))!important;box-shadow:0 4px 12px rgba(255,58,138,.35)!important}
+.pauseBtnFx{width:100%;font-size:12px;padding:10px 18px;letter-spacing:3px}
+.pauseBtnFx.active{color:var(--peach)!important;border-color:rgba(255,212,168,.55)!important;box-shadow:0 0 16px rgba(255,212,168,.25)!important}
+.pauseBtnQuit{width:100%;font-size:12px;padding:10px 18px;letter-spacing:3px;margin-top:6px}
+.pauseBtnQuit:hover{border-color:rgba(255,58,138,.65)!important;color:var(--pink)!important;box-shadow:0 0 18px rgba(255,58,138,.25)!important}
+#controlHints{position:fixed;bottom:220px;left:50%;transform:translateX(-50%);z-index:15;pointer-events:none;text-align:center;transition:opacity .6s}
+/* Championship message — glass-blur banner; border tints via currentColor
+   set inline from finish.js per finish-position. */
+.finMsg{font-family:var(--font-body);font-size:clamp(13px,2vw,22px);letter-spacing:3px;margin:2px auto 0;display:inline-block;padding:5px 20px;border:1px solid currentColor;border-radius:18px;background:var(--surface);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);position:relative;z-index:1}
+.finHighScore{font-family:var(--font-mono);font-size:11px;color:var(--violet);letter-spacing:2px;margin:3px 0}
+#victoryHint{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:16px;color:var(--violet);letter-spacing:4px;pointer-events:none;display:none;text-shadow:0 0 14px rgba(212,168,255,.6),0 0 28px rgba(255,58,138,.3);animation:blink 1.1s ease-in-out infinite}
+#camViewHint{position:fixed;top:48%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-mono);font-size:15px;color:var(--blue);letter-spacing:3px;pointer-events:none;display:none;text-shadow:0 0 10px rgba(168,212,255,.6);opacity:0.85}
+#f1Lights{position:fixed;top:18%;left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;z-index:30;pointer-events:none}
+#rstBar{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);width:160px;height:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:3px;display:none;overflow:hidden;z-index:20}
+#colFlash{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:0;background:radial-gradient(ellipse at 50% 50%,transparent 35%,rgba(255,60,0,.7) 100%);transition:opacity .05s}
+#pitStopOverlay{position:fixed;inset:0;z-index:55;display:none;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,.55)}
+#pitStopOverlay .pitTitle{font-family:var(--font-display);font-size:clamp(28px,5vw,64px);font-weight:700;color:var(--text);letter-spacing:6px;text-shadow:-2px 0 rgba(255,58,138,.5),2px 0 rgba(0,224,255,.5),0 0 1px var(--text);animation:pitPulse .7s ease-in-out infinite}
+#pitStopOverlay .pitSub{font-family:var(--font-mono);font-size:clamp(14px,2vw,22px);color:var(--text-mid);letter-spacing:4px;margin-top:10px}
+#pitCountFill{height:100%;width:0%;background:var(--iridescent);border-radius:4px;transition:width .07s}
+@keyframes pitPulse{0%,100%{text-shadow:-2px 0 rgba(255,58,138,.5),2px 0 rgba(0,224,255,.5),0 0 1px var(--text)}50%{text-shadow:-3px 0 rgba(255,58,138,.8),3px 0 rgba(0,224,255,.8),0 0 20px var(--text)}}
+.finReveal{animation:revealIn .55s cubic-bezier(.34,1.3,.64,1) both}
+@keyframes revealIn{from{opacity:0;transform:translateY(18px) scale(.94)}to{opacity:1;transform:none}}
+/* 3-star race rating row — sits inside #finHero. Dim pips for missed
+   stars; freshly-earned pips pop with the starPop keyframe. */
+#finStarsRow{display:flex;justify-content:center;gap:14px;margin:10px 0 4px;font-family:var(--font-display)}
+#finStarsRow .starPip{font-size:clamp(28px,5vw,46px);line-height:1;color:var(--text-dim);text-shadow:none;opacity:.35;transition:color .3s,text-shadow .3s,opacity .3s}
+#finStarsRow .starPip.earned{color:var(--peach);text-shadow:0 0 18px rgba(255,212,168,.7),0 0 36px rgba(255,212,168,.4);opacity:1}
+#finStarsRow .starPip.fresh{animation:starPop .65s cubic-bezier(.34,1.7,.64,1) both}
+#finStarsRow .starPip.dim{color:var(--text-dim);text-shadow:none;opacity:.3}
+@keyframes starPop{0%{opacity:0;transform:scale(.2) rotate(-180deg)}55%{opacity:1;transform:scale(1.45) rotate(15deg);color:#fff;text-shadow:0 0 30px #fff,0 0 60px rgba(255,212,168,.8)}100%{opacity:1;transform:scale(1) rotate(0);color:var(--peach);text-shadow:0 0 18px rgba(255,212,168,.7),0 0 36px rgba(255,212,168,.4)}}
+@media(max-width:600px){#finStarsRow{gap:10px;margin:6px 0 2px}}
+@media(max-width:600px),(pointer:coarse) and (max-width:900px){
+#controlHints{display:none!important}
+#cdNum{font-size:min(36vw,180px)!important}
+}
+@media(min-width:769px) and (max-width:1200px){
+#controlHints{display:none!important}
+}
+@media(max-width:600px){
+#sFinish{padding:14px 12px 140px!important;overflow-x:hidden!important;overflow-y:auto!important;gap:10px!important}
+#finHero{padding:14px 18px 16px!important;gap:8px!important;width:min(560px,96vw)!important}
+#finPositionBadge{width:98px!important;height:98px!important}
+.finPosNum{font-size:46px!important}
+.finPosSuffix{font-size:9px!important;letter-spacing:3px!important}
+.finTitle{letter-spacing:2px!important;font-size:clamp(16px,4.4vw,24px)!important}
+.finMsg{font-size:12px!important;padding:4px 14px!important;letter-spacing:2px!important}
+#finStatsGrid{grid-template-columns:1fr 1fr!important;gap:8px!important}
+.finStatTile{padding:9px 8px 11px!important}
+.finStatValue{font-size:clamp(15px,5.2vw,22px)!important;letter-spacing:.5px!important}
+.finStatLabel{font-size:8px!important;letter-spacing:1.5px!important}
+.finStatSub{font-size:9px!important}
+.finBtn{padding:12px 16px!important;font-size:12px!important;letter-spacing:2px!important;margin:0!important;flex:1!important;max-width:200px}
+.finBtnPrimary{padding:13px 20px!important;font-size:13px!important}
+}
+@media(max-width:600px),(pointer:coarse) and (max-width:900px){
+.pauseDesktopOnly{display:none!important}
+}
+@media(max-width:600px){
+#pauseOverlay{padding:20px!important}
+.pauseStack{width:min(340px,92vw)!important;gap:10px!important}
+.pauseBtnPrimary{padding:12px 18px!important;font-size:13px!important;letter-spacing:3px!important}
+.pauseCamBtn,.pauseQualBtn{font-size:9px!important;letter-spacing:1px!important;padding:9px 2px!important}
+.pauseBtnFx,.pauseBtnQuit{font-size:11px!important;letter-spacing:2px!important}
+}
