@@ -36,6 +36,17 @@ var _wpGravityZones=[],_wpOrbitAsteroids=[],_wpWarpTunnels=[];
 // Usage:
 //   const mat = _spMat({color:0x665544}, {metalness:0.0, roughness:0.88}, 'cosmic-rock');
 function _spMat(lambertDef, stdExtras, tag){
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  if(_gocm){
+    const key='space/'+(tag||'untagged')+'#'+(window._isMobile?'L':'S')+'#'+JSON.stringify(lambertDef||{})+'#'+JSON.stringify(stdExtras||{});
+    return _gocm(key, function(){
+      if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+      const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+      mat.userData = mat.userData || {};
+      mat.userData.envTag = tag;
+      return mat;
+    });
+  }
   if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
   const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
   mat.userData = mat.userData || {};
@@ -45,15 +56,22 @@ function _spMat(lambertDef, stdExtras, tag){
 
 function buildGravityZones(){
   const defs=[{t:.15},{t:.47},{t:.73}];
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  const padMat = _gocm
+    ? _gocm('space/gravity/pad', ()=> new THREE.MeshLambertMaterial({color:0x8800ff,emissive:0x5500cc,emissiveIntensity:1.2,transparent:true,opacity:.7}))
+    : null;
+  const arrMat = _gocm
+    ? _gocm('space/gravity/arr', ()=> new THREE.MeshLambertMaterial({color:0xff44ff,emissive:0xcc00cc,emissiveIntensity:1.5}))
+    : null;
   defs.forEach(def=>{
     const p=trackCurve.getPoint(def.t).clone();
     // Glowing hexagonal pad on track
     const pad=new THREE.Mesh(new THREE.CylinderGeometry(6,6,.08,6),
-      new THREE.MeshLambertMaterial({color:0x8800ff,emissive:0x5500cc,emissiveIntensity:1.2,transparent:true,opacity:.7}));
+      padMat || new THREE.MeshLambertMaterial({color:0x8800ff,emissive:0x5500cc,emissiveIntensity:1.2,transparent:true,opacity:.7}));
     pad.position.copy(p);pad.position.y=.025;scene.add(pad);
     // Arrow ring floating above
     const arr=new THREE.Mesh(new THREE.TorusGeometry(4,.15,6,24),
-      new THREE.MeshLambertMaterial({color:0xff44ff,emissive:0xcc00cc,emissiveIntensity:1.5}));
+      arrMat || new THREE.MeshLambertMaterial({color:0xff44ff,emissive:0xcc00cc,emissiveIntensity:1.5}));
     arr.rotation.x=Math.PI/2;arr.position.copy(p);arr.position.y=1.8;scene.add(arr);
     // WARNING text sprite
     const cvs=document.createElement('canvas');cvs.width=256;cvs.height=40;
@@ -88,6 +106,10 @@ function checkGravityZones(dt){
 
 function buildOrbitingAsteroids(){
   const defs=[{t:.23,r:9,speed:.4},{t:.55,r:11,speed:-.35},{t:.85,r:8,speed:.5}];
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  const dustMat = _gocm
+    ? _gocm('space/asteroid/dust', ()=> new THREE.MeshBasicMaterial({color:0x443322,transparent:true,opacity:.25}))
+    : null;
   defs.forEach(def=>{
     const centre=trackCurve.getPoint(def.t).clone();centre.y=1.0;
     // Rocky asteroid (irregular sphere)
@@ -103,7 +125,7 @@ function buildOrbitingAsteroids(){
     scene.add(rock);
     // Small dust halo (torus)
     const dust=new THREE.Mesh(new THREE.TorusGeometry(def.r,.25,4,32),
-      new THREE.MeshBasicMaterial({color:0x443322,transparent:true,opacity:.25}));
+      dustMat || new THREE.MeshBasicMaterial({color:0x443322,transparent:true,opacity:.25}));
     dust.rotation.x=Math.PI/2;dust.position.copy(centre);scene.add(dust);
     _wpOrbitAsteroids.push({centre:centre.clone(),rock,orbitR:def.r,speed:def.speed,angle:Math.random()*Math.PI*2,radius:2.8,cooldown:0});
   });
@@ -129,18 +151,30 @@ function checkOrbitingAsteroids(dt){
 
 function buildWarpTunnels(){
   const defs=[{t:.38},{t:.77}];
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  // Eén ring/strip/gnd-materiaal gedeeld over alle tunnels + ring-instances.
+  // ringMat.clone() per ring was overerfd preventief; geen runtime mutation
+  // op ring.material in checkWarpTunnels of elders → veilig om te delen.
+  const ringMat = _gocm
+    ? _gocm('space/warp/ring', ()=> new THREE.MeshLambertMaterial({color:0x4400aa,emissive:0x2200bb,emissiveIntensity:1.8}))
+    : new THREE.MeshLambertMaterial({color:0x4400aa,emissive:0x2200bb,emissiveIntensity:1.8});
+  const stripMat = _gocm
+    ? _gocm('space/warp/strip', ()=> new THREE.MeshLambertMaterial({color:0x6622cc,emissive:0x4411aa,emissiveIntensity:1.2,transparent:true,opacity:.6}))
+    : new THREE.MeshLambertMaterial({color:0x6622cc,emissive:0x4411aa,emissiveIntensity:1.2,transparent:true,opacity:.6});
+  const gndMat = _gocm
+    ? _gocm('space/warp/gnd', ()=> new THREE.MeshLambertMaterial({color:0x8833ff,emissive:0x5511dd,transparent:true,opacity:.4}))
+    : new THREE.MeshLambertMaterial({color:0x8833ff,emissive:0x5511dd,transparent:true,opacity:.4});
   defs.forEach(def=>{
     const p=trackCurve.getPoint(def.t),tg=trackCurve.getTangent(def.t).normalize();
     const angle=Math.atan2(tg.x,tg.z);
-    // Tunnel arch (two rings + connecting bars)
-    const ringMat=new THREE.MeshLambertMaterial({color:0x4400aa,emissive:0x2200bb,emissiveIntensity:1.8});
+    // Tunnel arch (two rings + connecting bars). Geen ringMat.clone() meer
+    // — alle ringen delen één materiaal (geen per-ring mutation).
     [-5,5].forEach(oz=>{
-      const ring=new THREE.Mesh(new THREE.TorusGeometry(TW+2,.55,8,24),ringMat.clone());
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(TW+2,.55,8,24),ringMat);
       ring.position.copy(p).addScaledVector(tg,oz);ring.position.y=TW+1.8;
       ring.rotation.y=angle;ring.rotation.x=Math.PI/2;scene.add(ring);
     });
     // Connecting strips along the sides and top
-    const stripMat=new THREE.MeshLambertMaterial({color:0x6622cc,emissive:0x4411aa,emissiveIntensity:1.2,transparent:true,opacity:.6});
     for(let i=0;i<6;i++){
       const ang=(i/6)*Math.PI; // top half arch
       const bar=new THREE.Mesh(new THREE.BoxGeometry(.25,10.5,.3),stripMat);
@@ -151,8 +185,7 @@ function buildWarpTunnels(){
       scene.add(bar);
     }
     // Glowing ground panel
-    const gnd=new THREE.Mesh(new THREE.PlaneGeometry(TW*1.8,10),
-      new THREE.MeshLambertMaterial({color:0x8833ff,emissive:0x5511dd,transparent:true,opacity:.4}));
+    const gnd=new THREE.Mesh(new THREE.PlaneGeometry(TW*1.8,10), gndMat);
     gnd.rotation.x=-Math.PI/2;gnd.position.copy(p);gnd.position.y=.02;gnd.rotation.y=angle;scene.add(gnd);
     _wpWarpTunnels.push({pos:p.clone(),tg:tg.clone(),radius:TW*.85,len:10,cooldown:0});
   });

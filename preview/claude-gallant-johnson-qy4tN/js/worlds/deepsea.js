@@ -60,6 +60,17 @@ const DS_CAM_FAR              = 800;      // afgestemd op fog-cutoff (~2/d deskt
 // Usage:
 //   const mat = _dsMat({color:0x334455}, {metalness:0.30, roughness:0.55}, 'aqua-metal');
 function _dsMat(lambertDef, stdExtras, tag){
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  if(_gocm){
+    const key='deepsea/'+(tag||'untagged')+'#'+(window._isMobile?'L':'S')+'#'+JSON.stringify(lambertDef||{})+'#'+JSON.stringify(stdExtras||{});
+    return _gocm(key, function(){
+      if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+      const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+      mat.userData = mat.userData || {};
+      mat.userData.envTag = tag;
+      return mat;
+    });
+  }
   if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
   const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
   mat.userData = mat.userData || {};

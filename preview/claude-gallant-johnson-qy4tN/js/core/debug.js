@@ -484,6 +484,8 @@
   // — debug.js handelt het hier op.
   if (typeof window._dumpCompileBreakdown === 'function') dbg.dumpCompileBreakdown = window._dumpCompileBreakdown;
   if (typeof window._dumpMaterialDups === 'function') dbg.dumpMaterialDups = window._dumpMaterialDups;
+  if (typeof window._matTraceStatus === 'function') dbg.matTraceStatus = window._matTraceStatus;
+  if (window._sharedMat && typeof window._sharedMat.dump === 'function') dbg.dumpSharedMatCache = window._sharedMat.dump;
   if (ENABLED) {
     console.log('[dbg] enabled (url=' + URL_FLAG + ' ls=' + LS_FLAG + ')' +
       (CHANNEL_FILTER ? ' channels=[' + [...CHANNEL_FILTER].join(',') + ']' : ' all channels') +

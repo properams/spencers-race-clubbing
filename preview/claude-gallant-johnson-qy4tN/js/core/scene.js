@@ -27,6 +27,89 @@
 
 'use strict';
 
+// Material constructor creator-trace — dev-only (?dev=1 of ?debug).
+// Wrapt Three.js Mesh*Material-constructors zodat elk nieuw materiaal
+// userData._creatorSite krijgt met 1-3 stack-frames die naar js/ wijzen.
+// _dumpMaterialDups leest dat om per duplicate-groep de bron-builder te
+// tonen — anders zijn sampleMeshNames meestal "<anon>" en is bron-trace
+// onmogelijk. Productie-users (zonder URL-flag) krijgen GEEN wrap en
+// dus geen stack-capture-overhead. Installeert vroeg in scene.js'
+// eval — vóór elke buildScene() of world-builder-aanroep, zodat alle
+// runtime-materialen worden getrapt. Singletons gemaakt vóór scene.js
+// (shared-materials.bundle.js + car-parts getSharedCarMats() lazy IIFE)
+// kunnen mogelijk ontsnappen, maar dat zijn juist al-gedeelde
+// instanties die niet de bron zijn van de duplicate-groepen.
+//
+// Wrap-strategie: THREE[type] vervangen door functie die new Orig(...args)
+// returnt. Traced.prototype = Orig.prototype zodat `instanceof
+// THREE.MeshStandardMaterial` en de .isMeshXxx-flags blijven werken.
+// Geen `.constructor === Mesh*Material` patterns in de codebase
+// (gegrep) → geen breekrisico.
+(function _installMaterialCreatorTrace(){
+  let wrappedCount = 0;
+  let installError = null;
+  try{
+    if(typeof window==='undefined' || typeof THREE==='undefined') return;
+    const q = (location.search||'').toLowerCase();
+    if(q.indexOf('dev=1')<0 && q.indexOf('debug')<0) return;
+    const TYPES = ['MeshStandardMaterial','MeshPhysicalMaterial','MeshLambertMaterial','MeshBasicMaterial'];
+    for(const t of TYPES){
+      const Orig = THREE[t];
+      if(!Orig || Orig.__srcTraced) continue;
+      function Traced(){
+        const inst = new Orig(...arguments);
+        try{
+          if(!inst.userData) inst.userData = {};
+          const stack = (new Error()).stack || '';
+          const frames = stack.split('\n').slice(2,8)
+            .map(function(s){
+              return s.trim().replace(/^at\s+/,'').replace(/.*\/js\//,'js/').replace(/\?[^\s)]*/,'').replace(/:\d+:\d+\)?$/,'');
+            })
+            .filter(function(s){ return s && s.indexOf('material-trace')<0 && s.indexOf('Traced')<0 && s.indexOf('http')!==0; });
+          inst.userData._creatorSite = frames.slice(0,3).join(' < ');
+        }catch(e){}
+        return inst;
+      }
+      Traced.prototype = Orig.prototype;
+      Traced.__srcTraced = true;
+      THREE[t] = Traced;
+      wrappedCount++;
+    }
+  }catch(e){
+    installError = e && e.message || String(e);
+    if(window.console && console.warn) console.warn('[material-trace v2] install failed', e);
+  }
+  // Self-test + status-helper. Bewijst onvoorwaardelijk in de console of
+  // de wrap actief is — anders blijft het diagnose-pad blind voor de
+  // eigenaar (vergelijkbaar met sessie 5 dbg-pickup probleem). Wordt
+  // ALLEEN uitgevoerd onder dezelfde URL-gate als de wrap zelf.
+  try{
+    if(typeof window==='undefined' || typeof THREE==='undefined') return;
+    const q = (location.search||'').toLowerCase();
+    if(q.indexOf('dev=1')<0 && q.indexOf('debug')<0) return;
+    let testHasCreatorSite = false, sample = null, testError = null;
+    try{
+      const probe = new THREE.MeshStandardMaterial({color:0xff00ff});
+      const site = probe && probe.userData && probe.userData._creatorSite;
+      testHasCreatorSite = !!site;
+      sample = site || null;
+      try{ probe.dispose(); }catch(_){}
+    }catch(e){ testError = e && e.message || String(e); }
+    const status = {
+      installed: wrappedCount > 0,
+      wrapped: wrappedCount,
+      testHasCreatorSite: testHasCreatorSite,
+      sample: sample,
+      installError: installError,
+      testError: testError
+    };
+    window._matTraceStatus = function(){ return Object.assign({}, status); };
+    if(window.console && console.log) console.log('[material-trace v2] installed:', status);
+  }catch(e){
+    if(window.console && console.warn) console.warn('[material-trace v2] self-test failed', e);
+  }
+})();
+
 // Asset-cached textures (HDRI envMap, PBR ground maps, GLTF instance maps)
 // carry userData._sharedAsset=true; disposeScene must skip these or the
 // next build pulls a disposed handle from window.Assets cache. Each layer
@@ -1782,12 +1865,22 @@ function _dumpMaterialDups(){
       if(uniqs.size>1) divergingProps[p] = {uniqueCount:uniqs.size, totalWithMap:uuids.length};
     }
     const matInstanceUuids = new Set(entries.map(e=>e.material.uuid));
+    // sampleCreatorSites: ingevuld door material-trace wrapper (dev-only,
+    // ?dev=1 of ?debug). Toont per duplicate-groep welke builder(s) de
+    // materials gemaakt heeft. Zonder dev-flag is dit "<no-trace>".
+    const creatorSet = new Set();
+    for(const e of entries){
+      const site = e.material && e.material.userData && e.material.userData._creatorSite;
+      creatorSet.add(site || '<no-trace>');
+      if(creatorSet.size>=5) break;
+    }
     dups.push({
       flagHash: k.slice(0,140),
       matType: sampleMat.type||(sampleMat.constructor&&sampleMat.constructor.name)||'?',
       count: entries.length,
       matInstances: matInstanceUuids.size,
       divergingTextureProps: divergingProps,
+      sampleCreatorSites: Array.from(creatorSet).slice(0,5),
       sampleMeshNames: entries.slice(0,5).map(e=>({
         mesh: ((e.mesh.name||'<anon>')+'').slice(0,30),
         matName: ((e.material.name||'<anon>')+'').slice(0,30)

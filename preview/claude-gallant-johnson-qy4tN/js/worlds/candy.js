@@ -314,9 +314,16 @@ function _buildCandyCarnivalLandmarks(){
   // Subtiele warm-paarse emissive zodat de silhouetten als volume lezen
   // i.p.v. als zwarte gaten in de midnight-sky. Gradient near→far: dichterbij
   // krijgt iets meer interne luminantie. Houdt het grimmig-donker karakter.
-  const matNear = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR, emissive: 0x3a2050, emissiveIntensity: 0.08});
-  const matMid  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID,  emissive: 0x2a1840, emissiveIntensity: 0.06});
-  const matFar  = new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR,  emissive: 0x201230, emissiveIntensity: 0.04});
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  const matNear = _gocm
+    ? _gocm('candy/landmark/near#'+CANDY_LANDMARK_COL_NEAR, ()=> new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR, emissive: 0x3a2050, emissiveIntensity: 0.08}))
+    : new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_NEAR, emissive: 0x3a2050, emissiveIntensity: 0.08});
+  const matMid  = _gocm
+    ? _gocm('candy/landmark/mid#'+CANDY_LANDMARK_COL_MID, ()=> new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID, emissive: 0x2a1840, emissiveIntensity: 0.06}))
+    : new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_MID, emissive: 0x2a1840, emissiveIntensity: 0.06});
+  const matFar  = _gocm
+    ? _gocm('candy/landmark/far#'+CANDY_LANDMARK_COL_FAR, ()=> new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR, emissive: 0x201230, emissiveIntensity: 0.04}))
+    : new THREE.MeshLambertMaterial({color: CANDY_LANDMARK_COL_FAR, emissive: 0x201230, emissiveIntensity: 0.04});
 
   function pickMat(offset){
     if(offset < CANDY_LANDMARK_MAT_NEAR_BELOW) return matNear;
@@ -481,6 +488,17 @@ function _buildCandyDonutHoops(){
 // Usage:
 //   const mat = _cMat({color:0xffffff}, {metalness:0.0, roughness:0.35}, 'candy-glaze');
 function _cMat(lambertDef, stdExtras, tag){
+  const _gocm = window._sharedMat && window._sharedMat.getOrCreate;
+  if(_gocm){
+    const key='candy/'+(tag||'untagged')+'#'+(window._isMobile?'L':'S')+'#'+JSON.stringify(lambertDef||{})+'#'+JSON.stringify(stdExtras||{});
+    return _gocm(key, function(){
+      if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
+      const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
+      mat.userData = mat.userData || {};
+      mat.userData.envTag = tag;
+      return mat;
+    });
+  }
   if(window._isMobile) return new THREE.MeshLambertMaterial(lambertDef);
   const mat = new THREE.MeshStandardMaterial(Object.assign({}, lambertDef, stdExtras));
   mat.userData = mat.userData || {};
@@ -787,8 +805,11 @@ function _buildCandyCloseBand(){
   const COLS=[0xff6699,0xffeb66,0xa3e056,0xc77dff];
   const perColor = (typeof _mobCount==='function')?_mobCount(3):3;
   const miniGeo = new THREE.SphereGeometry(0.6, 6, 4, 0, Math.PI*2, 0, Math.PI/2);
+  const _gocmCB = window._sharedMat && window._sharedMat.getOrCreate;
   COLS.forEach((col, ci) => {
-    const mat = new THREE.MeshLambertMaterial({color:col, emissive:col, emissiveIntensity:0.22});
+    const mat = _gocmCB
+      ? _gocmCB('candy/closeband#'+col, ()=> new THREE.MeshLambertMaterial({color:col, emissive:col, emissiveIntensity:0.22}))
+      : new THREE.MeshLambertMaterial({color:col, emissive:col, emissiveIntensity:0.22});
     const im = new THREE.InstancedMesh(miniGeo, mat, perColor*2);
     _populateMidRing(im, {
       perSide: perColor, offsetMin:6, offsetMax:13,
@@ -912,10 +933,14 @@ function buildCandySky(){
   }
   // Fallback to original rainbow arc if helper missing (build never breaks).
   const rainbowColors=[0xff2200,0xff8800,0xffee00,0x44dd44,0x2299ff,0x5544ff,0xcc44ff];
+  const _gocmRB = window._sharedMat && window._sharedMat.getOrCreate;
   rainbowColors.forEach((col,i)=>{
     const r=260-i*14,tube=7-i*.5;
     const geo=new THREE.TorusGeometry(r,tube,6,48,Math.PI);
-    const mat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.55-i*.02,side:THREE.DoubleSide});
+    const op=.55-i*.02;
+    const mat= _gocmRB
+      ? _gocmRB('candy/rainbow#'+col+'#'+op.toFixed(3), ()=> new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,side:THREE.DoubleSide}))
+      : new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,side:THREE.DoubleSide});
     const m=new THREE.Mesh(geo,mat);
     m.rotation.x=Math.PI/2;m.position.set(-20,60+i*.4,-20);
     scene.add(m);
