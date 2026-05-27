@@ -1468,7 +1468,7 @@ async function buildScene(){
   // if the manifest has no slots filled or preload hasn't completed yet —
   // boot.js + select.js re-call maybeUpgradeWorld when preload resolves.
   if(window.perfMark)perfMark('build:assetBridge:start');
-  if(typeof maybeUpgradeWorld==='function')maybeUpgradeWorld(activeWorld);
+  if(typeof maybeUpgradeWorld==='function'){maybeUpgradeWorld._lastCalledFrom='sceneBuild';maybeUpgradeWorld(activeWorld);}
   if(window.perfMark){perfMark('build:assetBridge:end');perfMeasure('build.assetBridge','build:assetBridge:start','build:assetBridge:end');}
   // CubeCamera scene-env bake: replaces the sky-based env with a real cube
   // rendering of the live 3D world (buildings, lava, neon, trees show in

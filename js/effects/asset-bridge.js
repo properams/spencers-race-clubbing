@@ -138,9 +138,10 @@
   };
 
   function applyProceduralGroundEnv(worldId){
-    if (!window.scene) return false;
-    if (window.activeWorld !== worldId) return false;
-    if (window._isMobile) return false;
+    if(window.perfMark)perfMark('assetBridge:procGround:start');
+    if (!window.scene){ if(window.perfMark){perfMark('assetBridge:procGround:end');perfMeasure('assetBridge.procGround','assetBridge:procGround:start','assetBridge:procGround:end');} return false; }
+    if (window.activeWorld !== worldId){ if(window.perfMark){perfMark('assetBridge:procGround:end');perfMeasure('assetBridge.procGround','assetBridge:procGround:start','assetBridge:procGround:end');} return false; }
+    if (window._isMobile){ if(window.perfMark){perfMark('assetBridge:procGround:end');perfMeasure('assetBridge.procGround','assetBridge:procGround:start','assetBridge:procGround:end');} return false; }
     // Idempotent: HDRI-pad heeft al gedraaid OF wij hebben al gedraaid.
     if (scene.userData._groundApplied) return false;
     if (scene.userData._procGroundEnvApplied) return false;
@@ -186,12 +187,15 @@
       scene.userData._procGroundEnvApplied = true;
       if (window.dbg) dbg.log('asset-bridge', 'procedural ground env applied', { world: worldId, meshes: touched, intensity });
     }
+    if(window.perfMark){perfMark('assetBridge:procGround:end');perfMeasure('assetBridge.procGround','assetBridge:procGround:start','assetBridge:procGround:end');}
     return touched > 0;
   }
 
   // Public: re-apply everything available for the given world. Cheap if
   // already applied (idempotent).
   function maybeUpgradeWorld(worldId){
+    if(window.perfMark)perfMark('assetBridge:maybeUpgrade:start');
+    maybeUpgradeWorld._calls = (maybeUpgradeWorld._calls||0)+1;
     let any = false;
     if (applyHDRI(worldId))   any = true;
     if (applyGround(worldId)) any = true;
@@ -217,6 +221,7 @@
         catch(_){/* same defensive try/catch als andere warm-paths */}
       }
     }
+    if(window.perfMark){perfMark('assetBridge:maybeUpgrade:end');perfMeasure('assetBridge.maybeUpgrade','assetBridge:maybeUpgrade:start','assetBridge:maybeUpgrade:end');}
     return any;
   }
 

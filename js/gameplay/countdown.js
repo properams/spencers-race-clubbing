@@ -12,6 +12,7 @@ function runCountdown(onGo){
   try{
     if(window.dbg)dbg.markRaceEvent('CD-START');
     if(window._rpp)_rpp.mark('countdown:start');
+    if(window.perfMark)perfMark('countdown:total:start');
     // Pre-warm bloom/post-FX shaders + RTs zodat shader-link en GPU
     // texture-upload tijdens countdown landen (gemaskeerd door countdown-
     // animatie) ipv op het eerste race-frame na GO (visible freeze).
@@ -132,7 +133,7 @@ function runCountdown(onGo){
             // ALWAYS fire onGo — even if visuals fail
             if(window.dbg)dbg.markRaceEvent('GO');
             if(window._rpp)_rpp.mark('countdown:GO');
-            if(window.perfMark){perfMark('go:fired');window._waitingForFirstRaceFrame=true;}
+            if(window.perfMark){perfMark('go:fired');perfMeasure('countdown.total','countdown:total:start','go:fired');window._waitingForFirstRaceFrame=true;}
             // End cinematic intro (B1) on GO — updateCamera() takes over.
             if(typeof endIntroCamera==='function')endIntroCamera();
             onGo();

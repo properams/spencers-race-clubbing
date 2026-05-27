@@ -403,6 +403,7 @@ async function goToRace(){
     // 38s Page Unresponsive te voorkomen. Helper is async; goToRace is al
     // async. Fallback naar sync _precompileScene als helper niet beschikbaar
     // (oudere builds). Per-batch setStatus voor zichtbaar progress.
+    if(window.perfMark)perfMark('goToRace:precompileChunked:start');
     if(typeof window._precompileSceneChunked==='function'){
       const _lbl=(i,N)=>setStatus('COMPILING SHADERS '+i+'/'+N);
       if(window.dbg) await dbg.measureAsync('perf','precompile.afterCars',
@@ -412,6 +413,7 @@ async function goToRace(){
       if(window.dbg)dbg.measure('perf','precompile.afterCars',window._precompileScene);
       else window._precompileScene();
     }
+    if(window.perfMark){perfMark('goToRace:precompileChunked:end');perfMeasure('goToRace.precompileChunked','goToRace:precompileChunked:start','goToRace:precompileChunked:end');}
     await _nextFrame();
 
     // ── Phase 3: texture upload + postFX multi-pose warm-render ──────────
@@ -419,16 +421,19 @@ async function goToRace(){
     // Pre-upload alle CanvasTextures naar GPU. renderer.compile() linkt
     // shaders maar upload textures lazy bij de eerste render(). Pakken we
     // hier weg van het 1e race-frame (30-100ms spike op Guangzhou).
+    if(window.perfMark)perfMark('goToRace:warmTextures:start');
     if(typeof window._warmTextures==='function'){
       if(window.dbg)dbg.measure('perf','warmTextures.afterCars',window._warmTextures);
       else window._warmTextures();
     }
+    if(window.perfMark){perfMark('goToRace:warmTextures:end');perfMeasure('goToRace.warmTextures','goToRace:warmTextures:start','goToRace:warmTextures:end');}
     // Multi-pose warm-render — rendert 4 view-poses (intro, chase, lucht,
     // mirror) door de complete postFX pipeline. Dit dwingt GPU driver om
     // shader-permutaties voor alle race-relevante frusta te linken tijdens
     // de overlay-fase. Vervangt de prior single-pose warm-render. Eindfix
     // voor de ~5s freeze na "GO!" (chase-cam permutaties) en de korte hang
     // bij hoge jumps (sky/far-LOD permutaties).
+    if(window.perfMark)perfMark('goToRace:warmRender:start');
     try{
       if(p && typeof _warmRenderMultiPose === 'function'){
         if(window.dbg) dbg.measure('perf','warmRender.multiPose',()=>_warmRenderMultiPose(p));
@@ -441,6 +446,7 @@ async function goToRace(){
     }catch(e){
       if(window.dbg)dbg.warn('perf','warm-render failed: '+(e&&e.message||e));
     }
+    if(window.perfMark){perfMark('goToRace:warmRender:end');perfMeasure('goToRace.warmRender','goToRace:warmRender:start','goToRace:warmRender:end');}
     // Restore camera naar intro-pose zodat het 1e COUNTDOWN-frame van een
     // correcte start-state vertrekt (updateIntroCamera lerpt sowieso, maar
     // een mismatch tussen camPos/camTgt en de echte camera-state kan een
@@ -597,6 +603,7 @@ async function goToRace(){
     // (lazy buffers, lazy probes, mirror RT, first per-helper allocs) een
     // ~5s freeze geven op desktop. Hier draaien we ze één keer met dt~0
     // gemaskt door de overlay zodat die kosten al betaald zijn voor 'GO!'.
+    if(window.perfMark)perfMark('goToRace:warmRaceTick:start');
     if(typeof window._warmRaceTick === 'function'){
       try{
         if(window.dbg) dbg.measure('perf','warmRaceTick', window._warmRaceTick);
@@ -605,6 +612,7 @@ async function goToRace(){
         if(window.dbg) dbg.warn('perf','warmRaceTick failed: '+(e && e.message || e));
       }
     }
+    if(window.perfMark){perfMark('goToRace:warmRaceTick:end');perfMeasure('goToRace.warmRaceTick','goToRace:warmRaceTick:start','goToRace:warmRaceTick:end');}
     await _nextFrame();
 
     // ── Phase 5: race-state reset + HUD show + countdown ─────────────────
@@ -637,7 +645,7 @@ async function goToRace(){
       window.menuMusic._fadeStarted=true;
       try{ _fadeOutMusic(window.menuMusic, 0.8); }catch(_){}
     }
-    if(window.perfMark){perfMark('goToRace:end');perfMeasure('goToRace.total','goToRace:start','goToRace:end');}
+    if(window.perfMark){perfMark('goToRace:end');perfMeasure('goToRace.total','goToRace:start','goToRace:end');try{perfMeasure('goToRace.fromClick','goToRace:click','goToRace:end');}catch(_){/* goToRace:click ontbreekt bij dev-hook startRace — geen probleem */}}
     setTouchControlsVisible(true);
     runCountdown(()=>{
     gameState='RACE';

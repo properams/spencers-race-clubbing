@@ -1036,7 +1036,7 @@ async function rebuildWorld(newWorld){
   // is synchronous and falls back to procedural if cache is empty at race-start.
   if(window.Assets&&window.Assets.preloadWorld){
     window.Assets.preloadWorld(newWorld).then(()=>{
-      try{ if(typeof maybeUpgradeWorld==='function')maybeUpgradeWorld(newWorld); }
+      try{ if(typeof maybeUpgradeWorld==='function'){maybeUpgradeWorld._lastCalledFrom='selectPreloadResolve';maybeUpgradeWorld(newWorld);} }
       catch(e){ if(window.dbg)dbg.error('select',e,'maybeUpgradeWorld failed (rebuild)'); else console.error('maybeUpgradeWorld failed:',e); }
     }).catch(e=>{
       if(window.dbg)dbg.error('select',e,'Assets.preloadWorld rejected (rebuild)');
@@ -2107,6 +2107,7 @@ function _selMWireOnce(){
       return;
     }
     _selMVibrate(15);
+    if(window.perfMark)perfMark('goToRace:click');
     if(typeof goToRace==='function')goToRace();
   });
   // Tier tabs — share _activeTier with desktop garage list.

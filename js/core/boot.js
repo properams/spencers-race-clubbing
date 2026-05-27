@@ -116,7 +116,7 @@ function _wireFirstGestureAudio(){
 // ── Hoofdmenu / world-select / difficulty knoppen ────────────────────
 function _wireMenuButtons(){
   document.getElementById('btnStart').addEventListener('click',()=>{initAudio();startMenuMusic();goToWorldSelect();});
-  document.getElementById('btnRace').addEventListener('click',goToRace);
+  document.getElementById('btnRace').addEventListener('click',function(){if(window.perfMark)perfMark('goToRace:click');goToRace();});
   document.getElementById('btnBackTitle').addEventListener('click',()=>goToWorldSelect());
   _wireDevPanelButtons();
   _wireDevPanelSecretTap();
@@ -649,7 +649,7 @@ async function boot(){
       // procedural fallback als de cache niet op tijd klaar is).
       if(window.Assets&&window.Assets.preloadWorld&&window.activeWorld){
         window.Assets.preloadWorld(window.activeWorld).then(()=>{
-          try{ if(typeof maybeUpgradeWorld==='function')maybeUpgradeWorld(window.activeWorld); }
+          try{ if(typeof maybeUpgradeWorld==='function'){maybeUpgradeWorld._lastCalledFrom='bootPreloadResolve';maybeUpgradeWorld(window.activeWorld);} }
           catch(e){ if(window.dbg)dbg.error('boot',e,'maybeUpgradeWorld failed (initial)'); else console.error('maybeUpgradeWorld failed:',e); }
         }).catch(e=>{
           if(window.dbg)dbg.error('boot',e,'Assets.preloadWorld rejected (initial)');
