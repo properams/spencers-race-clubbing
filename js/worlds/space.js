@@ -3,6 +3,13 @@
 
 'use strict';
 
+// Material-share helper — delegate naar window._sharedMat.getOrCreate
+// (cache uit dist/shared-materials.bundle.js). Cache-keys MOETEN alle
+// visueel-bepalende props bevatten (kleur, emissive, ei, opacity, side,
+// transparent, depthWrite, polygonOffset) — voorkomt onbedoelde sharing
+// tussen visueel-divergerende call-sites.
+function _shMat(k, f){ const g = window._sharedMat && window._sharedMat.getOrCreate; return g ? g(k, f) : f(); }
+
 // Per-world state (uit main.js verhuisd) — gereset in core/scene.js buildScene().
 let _spaceAsteroids=[];
 let _spaceDebrisIM=null;   // InstancedMesh for void debris rocks (was 55 individual meshes pre-2026-05-14)
@@ -317,7 +324,8 @@ function _buildSpaceHexArchway(){
   const tg = trackCurve.getTangent(t).normalize();
   const rotY = Math.atan2(tg.x, tg.z);
   const geo = new THREE.TorusGeometry(30, 1.4, 6, 6);  // 6 radial = hex
-  const mat = new THREE.MeshLambertMaterial({color:0x4477ff, emissive:0x2244ff, emissiveIntensity:0.6, transparent:true, opacity:0.85});
+  const mat = _shMat('space/hexarch#col=0x4477ff#em=0x2244ff#ei=0.6#op=0.850#t=T#s=0',
+    ()=> new THREE.MeshLambertMaterial({color:0x4477ff, emissive:0x2244ff, emissiveIntensity:0.6, transparent:true, opacity:0.85}));
   const arch = new THREE.Mesh(geo, mat);
   arch.position.set(pt.x, 18, pt.z);
   arch.rotation.y = rotY;
@@ -332,7 +340,8 @@ function _buildSpaceHexArchway(){
 function _buildSpaceFarSilhouette(){
   const count = (typeof _mobCount==='function')?_mobCount(14):14;
   const geo = new THREE.SphereGeometry(1.6, 8, 6);
-  const mat = new THREE.MeshLambertMaterial({color:0x6644ff, emissive:0x6644ff, emissiveIntensity:0.6});
+  const mat = _shMat('space/farsil-main#col=0x6644ff#em=0x6644ff#ei=0.6',
+    ()=> new THREE.MeshLambertMaterial({color:0x6644ff, emissive:0x6644ff, emissiveIntensity:0.6}));
   const im = new THREE.InstancedMesh(geo, mat, count);
   im.userData = {_noLodCull:true};
   const m4 = new THREE.Matrix4();
@@ -350,10 +359,11 @@ function _buildSpaceFarSilhouette(){
   scene.add(im);
   // Halo plane per buoy
   const haloGeo = new THREE.PlaneGeometry(4, 4);
-  const haloMat = new THREE.MeshBasicMaterial({
-    color:0x6644ff, transparent:true, opacity:0.35,
-    blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide
-  });
+  const haloMat = _shMat('space/farsil-halo#col=0x6644ff#op=0.350#t=T#blend=add#dw=D0#s=2',
+    ()=> new THREE.MeshBasicMaterial({
+      color:0x6644ff, transparent:true, opacity:0.35,
+      blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide
+    }));
   const haloIm = new THREE.InstancedMesh(haloGeo, haloMat, count);
   haloIm.userData = {_noLodCull:true};
   for(let i=0;i<count;i++){
@@ -372,7 +382,8 @@ function _buildSpaceCloseBand(){
   if(typeof _populateMidRing!=='function')return;
   const count = (typeof _mobCount==='function')?_mobCount(25):25;
   const geo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-  const mat = new THREE.MeshLambertMaterial({color:0x1a1a3a, emissive:0x000a22, emissiveIntensity:0.5});
+  const mat = _shMat('space/closeband#col=0x1a1a3a#em=0x000a22#ei=0.5',
+    ()=> new THREE.MeshLambertMaterial({color:0x1a1a3a, emissive:0x000a22, emissiveIntensity:0.5}));
   const im = new THREE.InstancedMesh(geo, mat, count*2);
   _populateMidRing(im, {
     perSide: count, offsetMin:4, offsetMax:14,
@@ -408,7 +419,8 @@ function _buildSpaceMidRing(){
 function buildSpaceVoid(){
   // Deep abyss plane far below — creates infinite depth feeling
   const abyss=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000,1,1),
-    new THREE.MeshBasicMaterial({color:0x000008}));
+    _shMat('space/void-abyss#col=0x000008',
+      ()=> new THREE.MeshBasicMaterial({color:0x000008})));
   abyss.rotation.x=-Math.PI/2;abyss.position.y=-400;scene.add(abyss);
   // Mid-depth debris — small grey rocks drifting far below.
   // Single InstancedMesh; per-instance scale carries the silhouette
@@ -457,14 +469,16 @@ function buildSpaceTrackPlatform(){
     const nr=new THREE.Vector3(-tg.z,0,tg.x);
     const edge=p.clone().addScaledVector(nr,-TW);
     return{L:edge.clone().setY(-.55),R:edge.clone().setY(.35)};
-  },new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00aaff,emissiveIntensity:.9,transparent:true,opacity:.5,side:THREE.DoubleSide}));
+  },_shMat('space/platform-wall-L#col=0x00ffff#em=0x00aaff#ei=0.9#op=0.500#t=T#s=2',
+    ()=> new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00aaff,emissiveIntensity:.9,transparent:true,opacity:.5,side:THREE.DoubleSide})));
   // Right wall
   ribbon(N,t=>{
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
     const nr=new THREE.Vector3(-tg.z,0,tg.x);
     const edge=p.clone().addScaledVector(nr,TW);
     return{L:edge.clone().setY(-.55),R:edge.clone().setY(.35)};
-  },new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:.9,transparent:true,opacity:.5,side:THREE.DoubleSide}));
+  },_shMat('space/platform-wall-R#col=0xff00ff#em=0xcc00cc#ei=0.9#op=0.500#t=T#s=2',
+    ()=> new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:.9,transparent:true,opacity:.5,side:THREE.DoubleSide})));
   // Underglow point lights — 8 widely-spaced lights (emissive walls already provide glow).
   // Mobile: halve to 4 — PointLights with distance:55 zijn duur en de emissive walls dragen.
   const _M_ug = !!window._isMobile;
@@ -613,7 +627,8 @@ function buildSpacePlanets(){
   planet.position.set(-520,115,-520);planet.rotation.z=.18;scene.add(planet);
   // Ring
   const ring=new THREE.Mesh(new THREE.RingGeometry(125,178,64),
-    new THREE.MeshBasicMaterial({color:0xc89050,transparent:true,opacity:.52,side:THREE.DoubleSide}));
+    _shMat('space/planet-ring#col=0xc89050#op=0.520#t=T#s=2',
+      ()=> new THREE.MeshBasicMaterial({color:0xc89050,transparent:true,opacity:.52,side:THREE.DoubleSide})));
   ring.position.copy(planet.position);ring.rotation.x=1.3;ring.rotation.z=.08;scene.add(ring);
   // Moon 1 — grey
   const m1=new THREE.Mesh(new THREE.SphereGeometry(17,12,12),_spMat({color:0xaaaabc},{metalness:0.0,roughness:0.85},'cosmic-rock'));
@@ -660,10 +675,16 @@ function buildSpaceTrackEdges(){
   // PolygonOffset -3 is stronger than the curbs (-1) and elines (-2), so these neon edges always
   // win the depth test and never z-fight against the track.
   const N=400;
-  const cyMat=new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00ccff,emissiveIntensity:2.2,transparent:true,opacity:.92});
-  cyMat.polygonOffset=true;cyMat.polygonOffsetFactor=-3;cyMat.polygonOffsetUnits=-3;
-  const mgMat=new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:2.2,transparent:true,opacity:.92});
-  mgMat.polygonOffset=true;mgMat.polygonOffsetFactor=-3;mgMat.polygonOffsetUnits=-3;
+  const cyMat=_shMat('space/edge-cyan#col=0x00ffff#em=0x00ccff#ei=2.2#op=0.920#t=T#s=0#pf=-3/-3', function(){
+    const m=new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00ccff,emissiveIntensity:2.2,transparent:true,opacity:.92});
+    m.polygonOffset=true; m.polygonOffsetFactor=-3; m.polygonOffsetUnits=-3;
+    return m;
+  });
+  const mgMat=_shMat('space/edge-magenta#col=0xff00ff#em=0xcc00cc#ei=2.2#op=0.920#t=T#s=0#pf=-3/-3', function(){
+    const m=new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:2.2,transparent:true,opacity:.92});
+    m.polygonOffset=true; m.polygonOffsetFactor=-3; m.polygonOffsetUnits=-3;
+    return m;
+  });
   ribbon(N,t=>{
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
     const nr=new THREE.Vector3(-tg.z,0,tg.x);
@@ -703,8 +724,10 @@ function buildSpaceStation(){
   const nr=new THREE.Vector3(-tg.z,0,tg.x);
   const base=p.clone().addScaledVector(nr,-(TW+13));
   const mM=_spMat({color:0x22223a},{metalness:0.40,roughness:0.45},'cosmic-metal');
-  const gM=new THREE.MeshLambertMaterial({color:0x0044ff,emissive:0x0022aa,emissiveIntensity:1.6});
-  const glM=new THREE.MeshLambertMaterial({color:0x88aaff,emissive:0x2244cc,emissiveIntensity:.9,transparent:true,opacity:.72});
+  const gM=_shMat('space/station-glow#col=0x0044ff#em=0x0022aa#ei=1.6',
+    ()=> new THREE.MeshLambertMaterial({color:0x0044ff,emissive:0x0022aa,emissiveIntensity:1.6}));
+  const glM=_shMat('space/station-glass#col=0x88aaff#em=0x2244cc#ei=0.9#op=0.720#t=T#s=0',
+    ()=> new THREE.MeshLambertMaterial({color:0x88aaff,emissive:0x2244cc,emissiveIntensity:.9,transparent:true,opacity:.72}));
   // Main block
   const bld=new THREE.Mesh(new THREE.BoxGeometry(22,8,13),mM);
   bld.position.copy(base);bld.position.y=4;bld.rotation.y=Math.atan2(tg.x,tg.z);scene.add(bld);
@@ -729,8 +752,10 @@ function buildSpaceGate(){
   const p=trackCurve.getPoint(0),tg=trackCurve.getTangent(0).normalize();
   const nr=new THREE.Vector3(-tg.z,0,tg.x),hw=TW+4;
   const mM=_spMat({color:0x1a1a2e},{metalness:0.40,roughness:0.45},'cosmic-metal');
-  const nC=new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00aaff,emissiveIntensity:2.4});
-  const nM=new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:2.4});
+  const nC=_shMat('space/gate-cyan#col=0x00ffff#em=0x00aaff#ei=2.4',
+    ()=> new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00aaff,emissiveIntensity:2.4}));
+  const nM=_shMat('space/gate-magenta#col=0xff00ff#em=0xcc00cc#ei=2.4',
+    ()=> new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:2.4}));
   [-1,1].forEach((s,si)=>{
     const pp=p.clone().addScaledVector(nr,s*hw);
     const post=new THREE.Mesh(new THREE.BoxGeometry(1.1,14,.8),mM);
@@ -776,9 +801,11 @@ function buildSpaceBarriers(){
     geo.setAttribute('normal',new THREE.Float32BufferAttribute(nrm,3));
     geo.setIndex(idx);
     const col=side===-1?0x0088ff:0xff0088;
-    scene.add(new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
-      color:col,emissive:col,emissiveIntensity:.9,transparent:true,opacity:.30,side:THREE.DoubleSide
-})));
+    scene.add(new THREE.Mesh(geo,
+      _shMat('space/barrier-energy#col='+col+'#em='+col+'#ei=0.9#op=0.300#t=T#s=2',
+        ()=> new THREE.MeshLambertMaterial({
+          color:col,emissive:col,emissiveIntensity:.9,transparent:true,opacity:.30,side:THREE.DoubleSide
+        }))));
   });
 }
 
@@ -815,14 +842,19 @@ function buildSpaceGravityWells(){
     const center=p.clone().addScaledVector(nr,def.side*7); // 7 units off centerline
     center.y=.02;
     // Outer ring
-    const torusMat=new THREE.MeshLambertMaterial({color:0x110033,emissive:0x4400aa,emissiveIntensity:1.8});
+    const torusMat=_shMat('space/gravwell-ring1#col=0x110033#em=0x4400aa#ei=1.8',
+      ()=> new THREE.MeshLambertMaterial({color:0x110033,emissive:0x4400aa,emissiveIntensity:1.8}));
     const ring1=new THREE.Mesh(new THREE.TorusGeometry(5.5,.22,8,40),torusMat);
     ring1.position.copy(center);ring1.rotation.x=Math.PI/2;scene.add(ring1);
     // Middle ring (spins opposite)
-    const ring2=new THREE.Mesh(new THREE.TorusGeometry(3.5,.18,8,32),new THREE.MeshLambertMaterial({color:0x220066,emissive:0x6600cc,emissiveIntensity:2.2}));
+    const ring2=new THREE.Mesh(new THREE.TorusGeometry(3.5,.18,8,32),
+      _shMat('space/gravwell-ring2#col=0x220066#em=0x6600cc#ei=2.2',
+        ()=> new THREE.MeshLambertMaterial({color:0x220066,emissive:0x6600cc,emissiveIntensity:2.2})));
     ring2.position.copy(center);ring2.rotation.x=Math.PI/2;ring2.rotation.z=.4;scene.add(ring2);
     // Inner disc
-    const disc=new THREE.Mesh(new THREE.CircleGeometry(2.2,32),new THREE.MeshLambertMaterial({color:0x000000,emissive:0x3300aa,emissiveIntensity:1.4,transparent:true,opacity:.88}));
+    const disc=new THREE.Mesh(new THREE.CircleGeometry(2.2,32),
+      _shMat('space/gravwell-disc#col=0x000000#em=0x3300aa#ei=1.4#op=0.880#t=T#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:0x000000,emissive:0x3300aa,emissiveIntensity:1.4,transparent:true,opacity:.88})));
     disc.position.copy(center);disc.position.y=.03;disc.rotation.x=-Math.PI/2;scene.add(disc);
     // Glow point light
     const pl=new THREE.PointLight(0x6600ff,2.5,18);pl.position.copy(center);pl.position.y=1;scene.add(pl);
@@ -838,17 +870,21 @@ function buildSpaceRailguns(){
     const nr=new THREE.Vector3(-tg.z,0,tg.x);
     const ang=Math.atan2(tg.x,tg.z);
     // Rail strips (two parallel, center of track)
-    const railMat=new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00aaff,emissiveIntensity:2.5});
+    const railMat=_shMat('space/railgun-rail#col=0x00ffff#em=0x00aaff#ei=2.5',
+      ()=> new THREE.MeshLambertMaterial({color:0x00ffff,emissive:0x00aaff,emissiveIntensity:2.5}));
     [-1,1].forEach(s=>{
       const rail=new THREE.Mesh(new THREE.BoxGeometry(.22,.08,8),railMat);
       rail.position.copy(p);rail.position.y=.05;rail.rotation.y=ang;
       rail.position.addScaledVector(nr,s*2.5);scene.add(rail);
     });
     // Glowing pad between rails
-    const pad=new THREE.Mesh(new THREE.BoxGeometry(5.5,.06,8),new THREE.MeshLambertMaterial({color:0x0044ff,emissive:0x0022ff,emissiveIntensity:1.2,transparent:true,opacity:.7}));
+    const pad=new THREE.Mesh(new THREE.BoxGeometry(5.5,.06,8),
+      _shMat('space/railgun-pad#col=0x0044ff#em=0x0022ff#ei=1.2#op=0.700#t=T#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:0x0044ff,emissive:0x0022ff,emissiveIntensity:1.2,transparent:true,opacity:.7})));
     pad.position.copy(p);pad.position.y=.03;pad.rotation.y=ang;scene.add(pad);
     // Arrow chevrons
-    const arMat=new THREE.MeshBasicMaterial({color:0x88ffff,transparent:true,opacity:.8});
+    const arMat=_shMat('space/railgun-arrows#col=0x88ffff#op=0.800#t=T#s=0',
+      ()=> new THREE.MeshBasicMaterial({color:0x88ffff,transparent:true,opacity:.8}));
     [-2,0,2].forEach(oz=>{
       [-1,1].forEach(s=>{
         const bar=new THREE.Mesh(new THREE.BoxGeometry(.12,.07,1.6),arMat);
@@ -883,7 +919,8 @@ function buildSpaceUFOs(){
     body.position.set(spawnX,spawnY,spawnZ);scene.add(body);
     // Dome
     const dome=new THREE.Mesh(new THREE.SphereGeometry(1.1,12,8,0,Math.PI*2,0,Math.PI*.5),
-      new THREE.MeshLambertMaterial({color:0x8899ff,emissive:0x4466cc,emissiveIntensity:.8,transparent:true,opacity:.75}));
+      _shMat('space/ufo-dome#col=0x8899ff#em=0x4466cc#ei=0.8#op=0.750#t=T#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:0x8899ff,emissive:0x4466cc,emissiveIntensity:.8,transparent:true,opacity:.75})));
     dome.position.copy(body.position);dome.position.y+=.4;scene.add(dome);
     // Glow ring
     const glowRing=new THREE.Mesh(new THREE.TorusGeometry(2.4,.12,6,28),

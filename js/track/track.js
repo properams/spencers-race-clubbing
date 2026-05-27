@@ -2,6 +2,12 @@
 
 'use strict';
 
+// Material-share helper — delegate naar de globale getOrCreate-cache
+// (gedefinieerd in dist/shared-materials.bundle.js). Fallback-guard zodat
+// als de bundle ontbreekt de factory direct wordt uitgevoerd.
+// Cache-keys MOETEN alle visueel-bepalende props bevatten — sessie 8.
+function _shMat(k, f){ const g = window._sharedMat && window._sharedMat.getOrCreate; return g ? g(k, f) : f(); }
+
 // Procedurele asfalt-noise texture — werkt multiplicatief over material.color
 // zodat per-world tint (color) behouden blijft. Tileable 256×256 canvas met
 // grain + lichte streep-wear in racing direction. Niet gecached: disposeScene()
@@ -395,15 +401,18 @@ function buildRacingLineWear(){
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  const mat = new THREE.LineBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.55,
-    depthWrite: false
+  const mat = _shMat('track/racing-line-wear#vc=T#op=0.550#t=T#dw=D0#pf=-3/-3', function(){
+    const m = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false
+    });
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = -3;
+    m.polygonOffsetUnits = -3;
+    return m;
   });
-  mat.polygonOffset = true;
-  mat.polygonOffsetFactor = -3;
-  mat.polygonOffsetUnits = -3;
   const lines = new THREE.LineSegments(geo, mat);
   scene.add(lines);
 }
@@ -416,8 +425,16 @@ function buildStartLine(){
   // .025 (delta vs asphalt at .005 = 0.020, well within iOS depth precision).
   // polygonOffset -2/-2 matches the edge-line strength so the start-line
   // never z-fights against the asphalt regardless of view angle.
-  const mat=new THREE.MeshLambertMaterial({color:0xffffff,map:_buildStartLineTex()});
-  mat.polygonOffset=true;mat.polygonOffsetFactor=-2;mat.polygonOffsetUnits=-2;
+  // Cache-key bevat de texture-uuid om twee verschillende start-line
+  // textures (per build via _buildStartLineTex) niet ten onrechte te
+  // delen. Bij identieke uuid (zelfde texture-instance hergebruikt) →
+  // cached mat. Bij nieuwe uuid → nieuwe mat in cache.
+  const _slTex=_buildStartLineTex();
+  const mat=_shMat('track/startline#col=0xffffff#map='+(_slTex&&_slTex.uuid?_slTex.uuid.slice(0,8):'none')+'#pf=-2/-2', function(){
+    const m=new THREE.MeshLambertMaterial({color:0xffffff,map:_slTex});
+    m.polygonOffset=true; m.polygonOffsetFactor=-2; m.polygonOffsetUnits=-2;
+    return m;
+  });
   const m=new THREE.Mesh(new THREE.PlaneGeometry(W,D),mat);
   m.rotation.x=-Math.PI/2;
   // After rotation.x=-PI/2 the plane's local +X stays world +X. Rotate
@@ -460,7 +477,8 @@ function buildBarriers(){
       mat=new THREE.MeshLambertMaterial({color:0x1e7766,emissive:0x083322,emissiveIntensity:1.0,side:THREE.DoubleSide});
       _pulseBarriers.push({mat,phase:side*0.9,kind:'coral',baseOp:1,baseInt:1.0});
     } else {
-      mat=new THREE.MeshLambertMaterial({color:0xbbbbbb,side:THREE.DoubleSide});
+      mat=_shMat('track/barrier-generic#col=0xbbbbbb#s=2',
+        ()=> new THREE.MeshLambertMaterial({color:0xbbbbbb,side:THREE.DoubleSide}));
     }
     scene.add(new THREE.Mesh(geo,mat));
   });
@@ -540,10 +558,13 @@ function buildGantry(){
   const yaw=Math.atan2(-tg.x,-tg.z);
 
   // Materials shared across the gantry parts.
-  const steelMat=new THREE.MeshLambertMaterial({color:0x1c1c28});   // dark steel shaft
-  const chromeMat=new THREE.MeshLambertMaterial({color:0xd8dae0});  // brushed chrome trim
+  const steelMat=_shMat('track/gantry-steel#col=0x1c1c28',
+    ()=> new THREE.MeshLambertMaterial({color:0x1c1c28}));   // dark steel shaft
+  const chromeMat=_shMat('track/gantry-chrome#col=0xd8dae0',
+    ()=> new THREE.MeshLambertMaterial({color:0xd8dae0}));  // brushed chrome trim
   const stripeMat=new THREE.MeshLambertMaterial({color:accentCol,emissive:accentEmit,emissiveIntensity:1.9});
-  const beaconMat=new THREE.MeshLambertMaterial({color:0xffffff,emissive:0xffeecc,emissiveIntensity:2.3});
+  const beaconMat=_shMat('track/gantry-beacon#col=0xffffff#em=0xffeecc#ei=2.3',
+    ()=> new THREE.MeshLambertMaterial({color:0xffffff,emissive:0xffeecc,emissiveIntensity:2.3}));
 
   // ─── Pillars ──────────────────────────────────────────────────────────
   // Slim dark-steel shafts with chrome base flange + mid-ring + cap, an

@@ -2,6 +2,14 @@
 
 'use strict';
 
+// Material-share helper — delegate naar de globale getOrCreate-cache
+// (gedefinieerd in dist/shared-materials.bundle.js). Fallback-guard zodat
+// als de bundle ontbreekt (mockup-tests, edge-cases) de factory direct
+// wordt uitgevoerd. Cache-keys MOETEN alle visueel-bepalende props
+// bevatten — zie sessie 8 plan, voorkomt onbedoelde sharing tussen
+// twee call-sites met identieke kleur maar afwijkende opacity/side.
+function _shMat(k, f){ const g = window._sharedMat && window._sharedMat.getOrCreate; return g ? g(k, f) : f(); }
+
 // Pre-allocated scratch vector (uit main.js verhuisd).
 const _jFwdV=new THREE.Vector3();
 
@@ -26,8 +34,11 @@ function buildJumpRamps(){
     const stripeColR=isSpR?0x00ccff:isDsR?0x00ffaa:isSsR?0xffd870:0xffdd00;
 
     // Flat glowing launchpad on the track — no obstacle
-    const padMat=new THREE.MeshLambertMaterial({color:padCol,emissive:padEmit,emissiveIntensity:1.2,transparent:true,opacity:.88});
-    padMat.polygonOffset=true;padMat.polygonOffsetFactor=-3;padMat.polygonOffsetUnits=-3;
+    const padMat=_shMat('ramps/jump-pad#col='+padCol+'#em='+padEmit+'#ei=1.2#op=0.880#t=T#s=0#pf=-3/-3', function(){
+      const m=new THREE.MeshLambertMaterial({color:padCol,emissive:padEmit,emissiveIntensity:1.2,transparent:true,opacity:.88});
+      m.polygonOffset=true; m.polygonOffsetFactor=-3; m.polygonOffsetUnits=-3;
+      return m;
+    });
     const pad=new THREE.Mesh(new THREE.PlaneGeometry(padW,padLen),padMat);
     pad.rotation.x=-Math.PI/2;pad.rotation.z=angle;
     pad.position.copy(p);pad.position.y=.06;
@@ -36,7 +47,8 @@ function buildJumpRamps(){
     // Chevron arrows painted on pad pointing forward (3 bright chevrons)
     // Phase 7.5: MeshBasicMaterial → MeshLambertMaterial met emissive zodat
     // de chevrons in bloom mee gloeien (was flat color).
-    const stripeMat=new THREE.MeshLambertMaterial({color:stripeColR,emissive:stripeColR,emissiveIntensity:1.2});
+    const stripeMat=_shMat('ramps/jump-stripe#col='+stripeColR+'#em='+stripeColR+'#ei=1.2#t=F#s=0',
+      ()=> new THREE.MeshLambertMaterial({color:stripeColR,emissive:stripeColR,emissiveIntensity:1.2}));
     [-1,0,1].forEach(i=>{
       const a1=new THREE.Mesh(new THREE.PlaneGeometry(padW*.7,.35),stripeMat);
       a1.rotation.x=-Math.PI/2;a1.rotation.z=angle;
@@ -47,16 +59,19 @@ function buildJumpRamps(){
 
     // Floating JUMP! sign above pad
     const glowPole=new THREE.Mesh(new THREE.CylinderGeometry(.2,.25,h+3.5,6),
-      new THREE.MeshLambertMaterial({color:padCol,emissive:padEmit,emissiveIntensity:.6}));
+      _shMat('ramps/jump-pole#col='+padCol+'#em='+padEmit+'#ei=0.6#t=F#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:padCol,emissive:padEmit,emissiveIntensity:.6})));
     glowPole.position.copy(p);glowPole.position.y=(h+3.5)*.5;
     glowPole.position.addScaledVector(nr,padW*.52);
     scene.add(glowPole);
     const sign=new THREE.Mesh(new THREE.BoxGeometry(padW*.6,1.2,.15),
-      new THREE.MeshBasicMaterial({color:0xffffff}));
+      _shMat('ramps/jump-sign#col=0xffffff#t=F#s=0',
+        ()=> new THREE.MeshBasicMaterial({color:0xffffff})));
     sign.position.copy(p);sign.position.y=h+3.2;sign.rotation.y=angle;
     scene.add(sign);
     const signAccent=new THREE.Mesh(new THREE.BoxGeometry(padW*.6,.18,.16),
-      new THREE.MeshBasicMaterial({color:padEmit}));
+      _shMat('ramps/jump-signAccent#col='+padEmit+'#t=F#s=0',
+        ()=> new THREE.MeshBasicMaterial({color:padEmit})));
     signAccent.position.copy(p);signAccent.position.y=h+4;signAccent.rotation.y=angle;
     scene.add(signAccent);
     // Point light for dramatic glow
@@ -99,17 +114,23 @@ function buildSpinPads(){
   spinDefs.forEach(def=>{
     const p=trackCurve.getPoint(def.t).clone();p.y=.015;
 
-    // Flat hazard disc — clean circle
+    // Flat hazard disc — clean circle. disc.material wordt NIET per-frame
+    // gemuteerd (alleen disc.rotation.y in checkSpinPads); pad.ring IS dat
+    // wel. Disc dus shareable, ring NIET (zie regel verderop).
     // Phase 7.4: disc intensity 0.9 → 1.1 — central hazard-circle leest
     // nu als glowing ipv painted; tied into bumped outer-ring below.
-    const discMat=new THREE.MeshLambertMaterial({color:pal.disc,emissive:pal.emit,emissiveIntensity:1.1,transparent:true,opacity:.9});
-    discMat.polygonOffset=true;discMat.polygonOffsetFactor=-3;discMat.polygonOffsetUnits=-3;
+    const discMat=_shMat('ramps/spin-disc#col='+pal.disc+'#em='+pal.emit+'#ei=1.1#op=0.900#t=T#s=0#pf=-3/-3', function(){
+      const m=new THREE.MeshLambertMaterial({color:pal.disc,emissive:pal.emit,emissiveIntensity:1.1,transparent:true,opacity:.9});
+      m.polygonOffset=true; m.polygonOffsetFactor=-3; m.polygonOffsetUnits=-3;
+      return m;
+    });
     const disc=new THREE.Mesh(new THREE.CylinderGeometry(4.2,4.2,.1,40),discMat);
     disc.position.copy(p);disc.position.y=.05;
     scene.add(disc);
 
     // Bold hazard X-pattern in center (2 bars crossed)
-    const xMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.85});
+    const xMat=_shMat('ramps/spin-X#col=0xffffff#op=0.850#t=T#s=0',
+      ()=> new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.85}));
     [-1,1].forEach(s=>{
       const bar=new THREE.Mesh(new THREE.PlaneGeometry(5.2,.45),xMat);
       bar.rotation.x=-Math.PI/2;bar.rotation.z=s*Math.PI*.25;
@@ -117,10 +138,12 @@ function buildSpinPads(){
       scene.add(bar);
     });
 
-    // Inner ring pattern (smaller)
+    // Inner ring pattern (smaller). innerRing.material is NIET in pad.ring
+    // (alleen outer ring is) → safe te delen.
     // Phase 7.4: inner intensity 1.2 → 1.5
     const innerRing=new THREE.Mesh(new THREE.TorusGeometry(2.8,.08,6,36),
-      new THREE.MeshLambertMaterial({color:pal.ring,emissive:pal.ring,emissiveIntensity:1.5,transparent:true,opacity:.7}));
+      _shMat('ramps/spin-innerring#col='+pal.ring+'#em='+pal.ring+'#ei=1.5#op=0.700#t=T#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:pal.ring,emissive:pal.ring,emissiveIntensity:1.5,transparent:true,opacity:.7})));
     innerRing.rotation.x=Math.PI/2;innerRing.position.copy(p);innerRing.position.y=.12;
     scene.add(innerRing);
 
@@ -185,7 +208,8 @@ function buildBoostPads(){
 
     // Subtle bright center line
     const centre=new THREE.Mesh(new THREE.PlaneGeometry(TW*.25,4.8),
-      new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55}));
+      _shMat('ramps/boost-centre#col=0xffffff#op=0.550#t=T#s=0',
+        ()=> new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55})));
     centre.rotation.x=-Math.PI/2;centre.rotation.z=angle;
     centre.position.copy(p);centre.position.y=.06;
     scene.add(centre);
