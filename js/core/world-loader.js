@@ -88,8 +88,15 @@
   // loadWorldScript's normale pad.
   function prefetchAllWorlds(except){
     const queue=ALL_WORLDS.filter(w=>w!==except&&!_loaded[w]&&!_pending[w]);
+    const _tPrefetchStart=performance.now();
+    const _initialCount=queue.length;
+    if(window.perfMark)perfMark('prefetch:start');
+    const _finish=()=>{
+      if(window.perfMark){perfMark('prefetch:end');perfMeasure('prefetch.allWorlds','prefetch:start','prefetch:end');}
+      if(window.perfLog)window.perfLog.push({name:'prefetch.allWorlds',ms:performance.now()-_tPrefetchStart,t:performance.now(),worldsCount:_initialCount,except:except||null});
+    };
     const next=()=>{
-      if(!queue.length)return;
+      if(!queue.length){_finish();return;}
       const w=queue.shift();
       loadWorldScript(w).catch(()=>{}).finally(()=>{
         if(window.requestIdleCallback){

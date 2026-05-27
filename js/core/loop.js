@@ -99,7 +99,11 @@ function _rppResetSub(){
 // /texture-upload spike to a measurable window. Reset by navigation.js when
 // gameState transitions COUNTDOWN→RACE.
 let _firstRaceFrameLogged=false;
-window._resetFirstRaceFrameMarker=()=>{_firstRaceFrameLogged=false;};
+window._resetFirstRaceFrameMarker=()=>{_firstRaceFrameLogged=false;_wallclockUrlToFirstFrameEmitted=false;};
+// Cold-start diagnose: emit wallclock.urlToFirstFrame én een 5s shader-watch
+// éénmalig zodra _isFirstRaceFrame voor het eerst optreedt. Alles gated op
+// window.perfLog zodat productie (zonder debug.bundle.js) 0 overhead heeft.
+let _wallclockUrlToFirstFrameEmitted=false;
 // Auto-quality detection thresholds: during frames [START..END], count frames slower than BAD_MS.
 // If the count exceeds BAD_THRESHOLD within that window, downgrade to low quality.
 const QUALITY_CHECK_FRAME_START=30,QUALITY_CHECK_FRAME_END=180;
@@ -369,6 +373,40 @@ function loop(){
     }else{
       if(typeof renderWithPostFX==='function')renderWithPostFX(scene,camera);
       else renderer.render(scene,camera);
+    }
+    if(_isFirstRaceFrame && window.perfLog && !_wallclockUrlToFirstFrameEmitted){
+      _wallclockUrlToFirstFrameEmitted=true;
+      // wallclock.urlToFirstFrame = navigationStart → eerste race-render
+      // einde. Sluit countdown uit; isoleert pure code-tijd vanaf navigatie.
+      try{
+        performance.measure('wallclock.urlToFirstFrame',{start:0,end:'firstRaceFrame:render:end'});
+        const _m=performance.getEntriesByName('wallclock.urlToFirstFrame','measure');
+        const _last=_m[_m.length-1];
+        if(_last)window.perfLog.push({name:'wallclock.urlToFirstFrame',ms:_last.duration,t:performance.now()});
+      }catch(_){
+        // Browser zonder options-object measure-form (pre-Chrome 87 etc):
+        // val terug op boot:start als start. Mist alleen de pre-boot tijd,
+        // die blijft zichtbaar via performance.getEntriesByName('boot:start')[0].startTime.
+        if(window.perfMeasure)window.perfMeasure('wallclock.urlToFirstFrame','boot:start','firstRaceFrame:render:end');
+      }
+      // Post-first-frame shader-watch: 5s of 300 frames lang. Log delta's
+      // > 0 in renderer.info.programs.length zodat runtime-shader-compile
+      // na de eerste race-render zichtbaar wordt — anders alleen indirect
+      // via dbg.longTasks().
+      let _spfFrames=0, _spfLast=(renderer.info.programs&&renderer.info.programs.length)||0;
+      const _spfT0=performance.now();
+      const _spfTick=()=>{
+        const _now=(renderer.info.programs&&renderer.info.programs.length)||0;
+        if(_now>_spfLast){
+          window.perfLog.push({name:'shaderPrograms.postFirstFrame',ms:performance.now()-_spfT0,t:performance.now(),frame:_spfFrames,delta:_now-_spfLast,total:_now});
+          _spfLast=_now;
+        }
+        _spfFrames++;
+        // Stop ook bij race-exit (quit-to-menu, world-switch) zodat we geen
+        // log-noise pushen die de 500-entry perfLog cap kan rolleren.
+        if(gameState==='RACE' && _spfFrames<300 && performance.now()-_spfT0<5000)requestAnimationFrame(_spfTick);
+      };
+      requestAnimationFrame(_spfTick);
     }
     if(window._showStats && performance.now()-_lastStatsLog>1000){
       console.log('[stats]', renderer.info.render.calls, 'calls,',

@@ -134,6 +134,31 @@ function runCountdown(onGo){
             if(window.dbg)dbg.markRaceEvent('GO');
             if(window._rpp)_rpp.mark('countdown:GO');
             if(window.perfMark){perfMark('go:fired');perfMeasure('countdown.total','countdown:total:start','go:fired');window._waitingForFirstRaceFrame=true;}
+            // Cold-start diagnose: emit drie wallclock-totals vanaf
+            // navigationStart tot drie aparte mijlpalen. Helpt de tijdsbalans
+            // tussen boot-werk, menu-wait en countdown uitsplitsen in de
+            // dump. Eindpunt urlToRaceable = nu = moment dat speler echt
+            // gaspedaal kan indrukken. urlToFirstFrame is een eigen pad in
+            // loop.js (gemeten op eerste race-render einde). Alles gated
+            // op perfLog zodat productie 0 overhead heeft.
+            if(window.perfLog){
+              const _emit=(name,endLabel)=>{
+                try{
+                  performance.measure(name,{start:0,end:endLabel});
+                  const _m=performance.getEntriesByName(name,'measure');
+                  const _last=_m[_m.length-1];
+                  if(_last)window.perfLog.push({name,ms:_last.duration,t:performance.now()});
+                }catch(_){
+                  // Fallback voor browsers zonder options-object measure-form:
+                  // boot:start als start. Pre-boot blijft afleidbaar via
+                  // performance.getEntriesByName('boot:start')[0].startTime.
+                  if(window.perfMeasure)window.perfMeasure(name,'boot:start',endLabel);
+                }
+              };
+              _emit('wallclock.urlToBootDone','boot:initialBuild:end');
+              _emit('wallclock.urlToMenuInteractive','menu:interactive');
+              _emit('wallclock.urlToRaceable','go:fired');
+            }
             // End cinematic intro (B1) on GO — updateCamera() takes over.
             if(typeof endIntroCamera==='function')endIntroCamera();
             onGo();

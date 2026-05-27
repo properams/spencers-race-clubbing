@@ -368,7 +368,16 @@
     // layers. Audio is a separate preloadWorldAudio path (samples.js).
     const _modelTasks = [];
     const _textureTasks = [];
-    if (w.hdri) _modelTasks.push(loadHDRI(w.hdri));
+    if (w.hdri){
+      // Isoleer HDRI fetch+decode+PMREM van de overige models zodat de
+      // cold-start dump laat zien hoeveel van assets.models in werkelijkheid
+      // HDRI-werk is (PMREMGenerator + equirectangular decode is duur).
+      const _tHdri = performance.now();
+      _modelTasks.push(loadHDRI(w.hdri).then(r=>{
+        if (window.perfLog) window.perfLog.push({ name:'assets.hdri', ms: performance.now()-_tHdri, t: performance.now(), world: worldId, success: r!==null });
+        return r;
+      }));
+    }
     if (w.ground) _textureTasks.push(loadGroundSet(worldId));
     if (w.props){
       // Each prop slot may be a string (single variant) or an array

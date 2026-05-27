@@ -686,9 +686,15 @@ async function boot(){
     // de eerste-bezoek boot niet vertraagd wordt door SW install.
     if('serviceWorker' in navigator&&location.protocol!=='file:'){
       const _swRegister=()=>{
+        const _tSw=performance.now();
+        if(window.perfMark)perfMark('sw:register:start');
         navigator.serviceWorker.register('/sw.js').then(reg=>{
+          if(window.perfMark){perfMark('sw:register:end');perfMeasure('sw.register','sw:register:start','sw:register:end');}
+          if(window.perfLog)window.perfLog.push({name:'sw.register',ms:performance.now()-_tSw,t:performance.now(),success:true,scope:reg.scope});
           if(window.dbg)dbg.log('boot','service-worker registered ('+reg.scope+')');
         }).catch(err=>{
+          if(window.perfMark){perfMark('sw:register:end');perfMeasure('sw.register','sw:register:start','sw:register:end');}
+          if(window.perfLog)window.perfLog.push({name:'sw.register',ms:performance.now()-_tSw,t:performance.now(),success:false,error:String(err&&err.message||err)});
           if(window.dbg)dbg.warn('boot','service-worker register failed: '+err.message);
         });
       };
