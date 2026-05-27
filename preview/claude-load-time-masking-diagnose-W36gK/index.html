@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#8833cc">
+<title>Spencer's Race Club</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJoIiB4MT0iMCIgeTE9IjAiIHgyPSIzMiIgeTI9IjMyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmYzYThhIi8+PHN0b3Agb2Zmc2V0PSIuNCIgc3RvcC1jb2xvcj0iI2Q0YThmZiIvPjxzdG9wIG9mZnNldD0iLjciIHN0b3AtY29sb3I9IiNhOGQ0ZmYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNmZmQ0YTgiLz48L2xpbmVhckdyYWRpZW50PjxyYWRpYWxHcmFkaWVudCBpZD0iZyIgY3g9Ii41IiBjeT0iLjUiIHI9Ii42Ij48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM4ODMzY2MiIHN0b3Atb3BhY2l0eT0iLjU1Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjODgzM2NjIiBzdG9wLW9wYWNpdHk9IjAiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjMGEwYTE0Ii8+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0idXJsKCNnKSIvPjxwYXRoIGQ9Ik0yMyA5QzIzIDYgMjAgNSAxNiA1QzExIDUgOC41IDcgOC41IDEwQzguNSAxMy41IDExIDE0LjUgMTYgMTUuNUMyMSAxNi41IDIzLjUgMTcuNSAyMy41IDIxQzIzLjUgMjUgMjEgMjcgMTYgMjdDMTIgMjcgOSAyNS41IDkgMjIuNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDBlMGZmIiBzdHJva2Utd2lkdGg9IjQuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIuMzUiLz48cGF0aCBkPSJNMjMgOUMyMyA2IDIwIDUgMTYgNUMxMSA1IDguNSA3IDguNSAxMEM4LjUgMTMuNSAxMSAxNC41IDE2IDE1LjVDMjEgMTYuNSAyMy41IDE3LjUgMjMuNSAyMUMyMy41IDI1IDIxIDI3IDE2IDI3QzEyIDI3IDkgMjUuNSA5IDIyLjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0idXJsKCNoKSIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" href="assets/vendor/three-r160.min.js" as="script">
+<!-- Start de 3 data-fetches direct tijdens HTML-parse, vóór de classic
+     scripts beginnen te downloaden. boot.js → loadGameData() pakt de
+     gedeelde promise op. Geen <link rel=preload as=fetch> nodig: die mismatched
+     met de default credentials-mode van fetch() en zou een dubbele request
+     veroorzaken op browsers die de preload-warning serieus nemen. -->
+<script>window.__gameDataPromise=Promise.all([
+  fetch('data/cars.json').then(r=>r.json()),
+  fetch('data/tracks.json').then(r=>r.json()),
+  fetch('data/prices.json').then(r=>r.json())
+]);</script>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/holo-components.css">
+<link rel="preload" href="css/worlds.css?v=2" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="css/select.css?v=14" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="css/hud.css?v=2" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="css/screens.css?v=2" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="css/settings.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="css/notifications.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript>
+  <link rel="stylesheet" href="css/worlds.css?v=2">
+  <link rel="stylesheet" href="css/select.css?v=14">
+  <link rel="stylesheet" href="css/hud.css?v=2">
+  <link rel="stylesheet" href="css/screens.css?v=2">
+  <link rel="stylesheet" href="css/settings.css">
+  <link rel="stylesheet" href="css/notifications.css">
+</noscript>
+</head>
+<body>
+<div id="__dbg_overlay" style="position:fixed;top:0;left:0;right:0;max-height:50vh;background:rgba(180,0,0,.92);color:#fff;font-family:monospace;font-size:11px;padding:8px;z-index:99999;overflow-y:auto;display:none;white-space:pre-wrap;word-break:break-word"></div>
+<script>
+(function(){
+  var box=document.getElementById('__dbg_overlay');
+  var lines=[];
+  function show(msg){
+    lines.push(msg);
+    if(lines.length>25)lines=lines.slice(-25);
+    if(box){box.textContent=lines.join('\n\n');box.style.display='block';}
+  }
+  window.addEventListener('error',function(e){
+    show('❌ '+e.message+'\nat '+(e.filename||'?')+':'+(e.lineno||'?'));
+  });
+  window.addEventListener('unhandledrejection',function(e){
+    show('❌ Unhandled promise: '+(e.reason&&(e.reason.message||e.reason)));
+  });
+  // Ook console.error routen
+  var oe=console.error;
+  console.error=function(){
+    var args=Array.prototype.slice.call(arguments);
+    show('⚠ '+args.map(function(a){
+      if(a instanceof Error)return a.message+(a.stack?'\n'+a.stack.split('\n')[0]:'');
+      if(typeof a==='object')try{return JSON.stringify(a);}catch(_){return String(a);}
+      return String(a);
+    }).join(' '));
+    return oe.apply(console,args);
+  };
+  // Tap to dismiss
+  if(box)box.addEventListener('click',function(){box.style.display='none';});
+})();
+</script>
+
+<div id="sTitle" class="screen neon-bg">
+  <div id="titleFlames"></div>
+  <div class="neon-stars"></div>
+  <div class="titleTag titleTagTL"><span class="holoDiamond"></span> SPENCER × HOLO · 04</div>
+  <button class="titleTag titleTagTR titleTagBtn" id="titleVersionTag" type="button" aria-label="Open settings" onclick="if(window.goToSettings)window.goToSettings()"><span class="holoDiamond"></span> Settings</button>
+  <div class="tLogoSub">SPENCER'S</div>
+  <div class="tLogo chromatic">RACE CLUB</div>
+  <div class="tLogoDivider">
+    <span class="tDivLine"></span>
+    <span class="tDivText" id="tDivTextEgg" title="" role="button" tabindex="0">S04 · LIGHT EDITION</span>
+    <span class="tDivLine"></span>
+  </div>
+  <button class="tStart" id="btnStart" type="button" aria-label="Enter light">
+    <span class="tStartInner">◇ ENTER LIGHT</span>
+  </button>
+  <div class="titleTag titleTagBL" id="titleFootL"><span class="holoDiamond holoDiamondSolid"></span> SPENCER · LV 1 · 0 CARS · 0 CUPS</div>
+  <div class="titleTag titleTagBR" id="titleHighScore">LAST · — · —:—.—</div>
+  <div id="devPanel" hidden aria-label="Developer tools">
+    <button class="devPanelClose" type="button" aria-label="Close dev panel">×</button>
+    <div class="devPanelTitle">🛠 DEV MODE</div>
+    <div class="devPanelGrid">
+      <button class="devBtn devBig" data-dev="unlockEverything">🚀 UNLOCK EVERYTHING</button>
+      <button class="devBtn" data-dev="unlockAllCars">🔓 All Cars</button>
+      <button class="devBtn" data-dev="unlockAllWorlds">🌍 All Worlds</button>
+      <button class="devBtn" data-dev="give3Stars">⭐ Give 3★ All</button>
+      <button class="devBtn" data-dev="addCoins">💰 +10k Coins</button>
+      <button class="devBtn devDanger" data-dev="resetProgress">🔄 Reset Progress</button>
+      <button class="devBtn" data-dev="dumpState">📊 Dump (Console)</button>
+    </div>
+  </div>
+</div>
+
+<div id="sWorld" class="screen hidden">
+  <div class="worldSelHeader">
+    <div class="worldSelHeaderLeft">
+      <div class="holoEyebrow">&#9671; CHOOSE LIGHT &middot; 9 SPECTRA</div>
+      <div class="worldSelTitle chromatic">WORLDS</div>
+    </div>
+    <div class="worldSelHeaderRight">
+      <div class="holoTabRow worldCupRow" id="worldTierTabs" role="tablist" aria-label="Cup progress">
+        <button class="holoTab worldCupPill" data-tier="rookie" type="button">Rookie <span class="holoTabCount" data-tier-count="rookie">0/27</span></button>
+        <button class="holoTab worldCupPill" data-tier="pro" type="button">Pro <span class="holoTabCount" data-tier-count="pro">0/27</span></button>
+        <button class="holoTab worldCupPill" data-tier="master" type="button">Master <span class="holoTabCount" data-tier-count="master">0/18</span></button>
+        <button class="holoTab worldCupPill" data-tier="legend" type="button">Legend <span class="holoTabCount" data-tier-count="legend">0/9</span></button>
+      </div>
+      <button class="holoPill holoPillSm worldSelBack" onclick="goToTitle()" type="button" aria-label="Back to title">&larr; Back</button>
+    </div>
+  </div>
+  <div id="careerPanel" class="cpHiddenInWorld" aria-label="Career progress">
+    <div id="cpLevelRow">
+      <span id="cpLevelBadge">LV 1</span>
+      <div id="cpXpBar"><div id="cpXpFill"></div></div>
+      <span id="cpXpText">0 / 100 XP</span>
+    </div>
+    <div id="cpStarsRow">
+      <span id="cpStarsIcon">★</span>
+      <span id="cpStarsText">0 / 99</span>
+      <span id="cpCarsText">9 / 13 CARS</span>
+      <span id="cpWorldsText">3 / 9 WORLDS</span>
+    </div>
+    <div id="dailyChallengeEl" style="margin:10px 0;padding:8px 14px;border-radius:8px;background:var(--surface);border:1px solid var(--line);text-align:left"></div>
+    <div id="cpCupsRow"></div>
+  </div>
+  <div class="worldGrid">
+    <div class="worldBigCard" data-world="space">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Cosmic Circuit</div>
+      </div>
+    </div>
+    <div class="worldBigCard" data-world="deepsea">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Deep Sea</div>
+      </div>
+    </div>
+    <div class="worldBigCard" data-world="candy">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Sugar Rush</div>
+      </div>
+    </div>
+    <div class="worldBigCard" data-world="volcano">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Volcano</div>
+      </div>
+    </div>
+    <div class="worldBigCard" data-world="arctic">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Arctic Circuit</div>
+      </div>
+    </div>
+    <div class="worldBigCard" data-world="sandstorm">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Sandstorm Canyon</div>
+      </div>
+    </div>
+    <div class="worldBigCard" data-world="pier47">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Pier 47</div>
+      </div>
+    </div>
+    <div class="worldBigCard" data-world="guangzhou">
+      <div class="worldCardSwatch"></div>
+      <div class="worldCardInfo">
+        <div class="worldCardName">Guangzhou</div>
+      </div>
+    </div>
+  </div>
+  <div class="worldSelFooter">
+    <div class="worldSelFooterLeft">
+      <span class="wsfSpectrum">SPECTRUM LV <span id="wsfLevel">1</span></span>
+      <span class="wsfDot">&#9670;</span>
+      <span class="wsfCoins" id="wsfCoins">0</span>
+    </div>
+    <button class="worldSelEnter" id="worldSelEnter" type="button">
+      <span class="wseDiamond">&#9671;</span>
+      <span class="wseLabel">Enter <span id="wseWorldName">World</span></span>
+    </button>
+  </div>
+</div>
+
+<div id="sSelect" class="screen hidden">
+  <div class="selHeader">
+    <div class="selHeaderLeft">
+      <div class="holoEyebrow" id="selEyebrow">COLLECTION &middot; 13 VEHICLES</div>
+      <div class="selTitle chromatic">GARAGE</div>
+      <div class="selSubtitle" id="selSubtitle">— of 12 unlocked &middot; — coins</div>
+    </div>
+    <div class="selHeaderRight">
+      <button id="worldIndicator" class="holoPill holoPillSm" onclick="goToWorldSelect()" type="button">&#9670; <span id="worldIndicatorName">COSMIC</span></button>
+      <button class="holoPill holoPillSm selBack" id="btnBackTitle" type="button">&larr; Back</button>
+    </div>
+  </div>
+  <!-- ── MOBILE PORTRAIT REDESIGN — parallel block, only visible <600px portrait ── -->
+  <div class="selMobile">
+    <header class="selM-topbar">
+      <button class="selM-iconBtn" id="selMBack" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <button class="selM-trackPill" id="selMTrack">
+        <span class="selM-trackEmoji" id="selMTrackEmoji">🚀</span>
+        <span id="selMTrackName">COSMIC</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="selM-coinsPill">
+        <span class="selM-coinDot"></span>
+        <span id="selMCoins">0</span>
+      </div>
+    </header>
+    <div class="selM-titleBlock">
+      <h1 class="selM-title">SELECT YOUR WEAPON</h1>
+    </div>
+    <div class="selM-tabsRow">
+      <div class="selM-tabs" id="selMTabs">
+        <button class="selM-tab selM-tabActive" data-tier="all">All</button>
+        <button class="selM-tab" data-tier="super">Super</button>
+        <button class="selM-tab" data-tier="f1">F1</button>
+        <button class="selM-tab" data-tier="muscle">Classic</button>
+        <button class="selM-tab" data-tier="electric">Electric</button>
+      </div>
+      <div class="selM-subtitle">
+        <span id="selMUnlocked">— / —</span>
+        <div class="selM-progress"><div class="selM-progressFill" id="selMProgFill"></div></div>
+      </div>
+    </div>
+    <div class="selM-carouselWrap">
+      <div class="selM-activeName">
+        <div class="selM-activeBrand" id="selMActiveBrand"></div>
+        <div class="selM-activeModel" id="selMActiveModel"></div>
+      </div>
+      <div class="selM-carousel" id="selMCarousel"></div>
+    </div>
+    <div class="selM-dots" id="selMDots"></div>
+    <div class="selM-stats" id="selMStats"></div>
+    <div class="selM-options">
+      <div class="selM-optionRow">
+        <div class="selM-optionLabel">LAPS</div>
+        <div class="selM-chips" id="selMLaps">
+          <button class="selM-chip" data-val="1">1</button>
+          <button class="selM-chip" data-val="3">3</button>
+          <button class="selM-chip" data-val="5">5</button>
+        </div>
+      </div>
+      <div class="selM-optionRow">
+        <div class="selM-optionLabel">DIFF</div>
+        <div class="selM-chips" id="selMDiff">
+          <button class="selM-chip" data-val="0"><span class="selM-chipIcon">🌱</span>Easy</button>
+          <button class="selM-chip" data-val="1"><span class="selM-chipIcon">⚡</span>Normal</button>
+          <button class="selM-chip" data-val="2"><span class="selM-chipIcon">🔥</span>Hard</button>
+        </div>
+      </div>
+    </div>
+    <div class="selM-ctaBar">
+      <div class="selM-ctaBarInner">
+        <button class="selM-ctaBtn" id="selMRace">
+          <span class="selM-ctaBtnMain">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <span class="selM-ctaBtnLbl">Begin Race</span>
+          </span>
+          <span class="selM-ctaSummary" id="selMSummary"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="selBody">
+    <!-- LEFT: garage list with tier tabs -->
+    <div class="selLeft">
+      <div class="garageHeader">
+        <div class="garageHeaderLbl">GARAGE</div>
+        <div class="garageProg"><div class="garageProgFill" id="garageProgFill"></div></div>
+        <div class="tierTabs">
+          <span class="tierTab tierTabSel" data-tier="all">ALL</span>
+          <span class="tierTab" data-tier="super">SUPER</span>
+          <span class="tierTab" data-tier="f1">F1</span>
+          <span class="tierTab" data-tier="muscle">CLASSIC</span>
+          <span class="tierTab" data-tier="electric">ELECTRIC</span>
+        </div>
+      </div>
+      <div class="carGrid" id="carGrid"></div>
+    </div>
+    <!-- CENTER: hero preview -->
+    <div class="selCenter">
+      <div class="prevHeader">
+        <div class="prevBrandLine" id="prevBrand">FERRARI</div>
+        <div class="prevModelLine" id="prevName">SF90</div>
+        <div class="prevSpecsLine" id="prevSpecs">SUPER · 986 hp</div>
+      </div>
+      <div class="prevCanvasWrap">
+        <canvas id="carPreviewCvs" width="400" height="220"></canvas>
+        <canvas id="carPreviewLiveCvs"></canvas>
+        <button class="prevNavBtn prevNavBtnL" id="prevNavPrev" aria-label="Previous car">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button class="prevNavBtn prevNavBtnR" id="prevNavNext" aria-label="Next car">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <span class="prevCorner prevCornerTL"></span>
+        <span class="prevCorner prevCornerTR"></span>
+        <span class="prevCorner prevCornerBL"></span>
+        <span class="prevCorner prevCornerBR"></span>
+      </div>
+      <div class="prevHint" id="prevHint">↻ DRAG TO ROTATE</div>
+    </div>
+    <!-- RIGHT: SPECTRUM stats + RACE SETTINGS + Begin Race CTA (Light Edition) -->
+    <div class="selRight">
+      <div class="specPanel holoCard">
+        <div class="specHead">
+          <div class="holoEyebrow">SPECTRUM</div>
+          <div class="specHero">
+            <div class="specHpBox"><span class="specHpVal" id="specHpVal">0</span><span class="specHpLbl">HP</span></div>
+            <div class="specKmhBox"><span class="specKmhVal" id="specKmhVal">0</span><span class="specKmhLbl">KM/H</span></div>
+          </div>
+        </div>
+        <div class="statBars" id="prevStats"></div>
+      </div>
+      <div class="attrPanel holoCard">
+        <div class="holoEyebrow">CAR ATTRIBUTES</div>
+        <div class="attrPills" id="attrPills">
+          <div class="attrPill" data-attr="drivetrain">
+            <svg class="attrIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M6 8.4v7.2M18 8.4v7.2M8.4 6h7.2M8.4 18h7.2"/></svg>
+            <span class="attrLbl" id="attrDrivetrain">—</span>
+          </div>
+          <div class="attrPill" data-attr="engine">
+            <svg class="attrIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="9" width="12" height="9" rx="1.4"/><path d="M9 9V7h6v2M4 13h2M18 13h2M9 18v2M15 18v2"/></svg>
+            <span class="attrLbl" id="attrEngine">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="raceSettings holoCard">
+        <div class="holoEyebrow">RACE SETTINGS</div>
+        <div class="setSeg setSegBig">
+          <div class="setLbl">LAPS</div>
+          <div class="lapPicker">
+            <button class="lapNavBtn" id="lapNavPrev" type="button" aria-label="Previous lap option">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="setOpts lapOpts">
+              <span class="setOpt" id="lap1" data-lap="1">1</span>
+              <span class="setOpt setOptSel" id="lap3" data-lap="3">3</span>
+              <span class="setOpt" id="lap5" data-lap="5">5</span>
+              <span class="setOpt" id="lap10" data-lap="10">10</span>
+              <span class="setOpt" id="lap25" data-lap="25">25</span>
+            </div>
+            <button class="lapNavBtn" id="lapNavNext" type="button" aria-label="Next lap option">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="setSeg setSegBig">
+          <div class="setLbl">DIFFICULTY</div>
+          <div class="setOpts">
+            <span class="setOpt diffBtn" id="dEasy">Easy</span>
+            <span class="setOpt setOptSel diffBtn" id="dNorm">Normal</span>
+            <span class="setOpt diffBtn" id="dHard">Hard</span>
+          </div>
+        </div>
+        <button class="raceSettingsBtn" id="btnRaceSettings" type="button">
+          <svg class="raceSettingsBtnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>RACE SETTINGS</span>
+        </button>
+      </div>
+      <div class="rivalSeg" hidden>
+        <div class="setLbl">RIVAL</div>
+        <div class="rivalCard">
+          <div class="rivalIcon">👻</div>
+          <div class="rivalInfo">
+            <div class="rivalBestLapLbl">BEST LAP</div>
+            <div class="rivalCar" id="rivalCar">— set the first record —</div>
+            <div class="rivalTime" id="rivalTime"></div>
+          </div>
+        </div>
+        <div class="rivalNemesis" id="rivalNemesis" hidden>
+          <span class="rivalNemesisLbl">⚠ NEMESIS</span>
+          <span class="rivalNemesisName" id="rivalNemesisName"></span>
+          <span class="rivalNemesisAggr" id="rivalNemesisAggr"></span>
+        </div>
+      </div>
+      <div class="startBtnWrap">
+        <button class="startBtn" id="btnRace">
+          <span class="startBtnLine"><span class="holoDiamond"></span> Begin Race <span class="startBtnArrow">&rarr;</span></span>
+          <span class="raceSummary" id="lapSummary">3 laps &middot; normal &middot; dark</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="raceSettingsModal" class="raceModal hidden" aria-hidden="true">
+    <div class="raceModalBackdrop" id="raceModalBackdrop"></div>
+    <div class="raceModalPanel" role="dialog" aria-labelledby="raceModalTitle">
+      <button class="raceModalClose" id="raceModalClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="raceModalEyebrow">RACE CONFIGURATION</div>
+      <h2 class="raceModalTitle" id="raceModalTitle">Race Settings</h2>
+      <div class="raceModalSection">
+        <div class="raceModalSecLbl">LAPS</div>
+        <div class="raceModalOpts" id="rmLapOpts">
+          <button class="raceModalOpt" data-lap="1"><span class="rmOptVal">1</span><span class="rmOptDesc">Sprint &middot; ~1 min</span></button>
+          <button class="raceModalOpt" data-lap="3"><span class="rmOptVal">3</span><span class="rmOptDesc">Quick &middot; ~3 min</span></button>
+          <button class="raceModalOpt" data-lap="5"><span class="rmOptVal">5</span><span class="rmOptDesc">Standard &middot; ~5 min</span></button>
+          <button class="raceModalOpt" data-lap="10"><span class="rmOptVal">10</span><span class="rmOptDesc">Long &middot; ~10 min</span></button>
+          <button class="raceModalOpt" data-lap="25"><span class="rmOptVal">25</span><span class="rmOptDesc">Endurance &middot; ~25 min</span></button>
+        </div>
+      </div>
+      <div class="raceModalSection">
+        <div class="raceModalSecLbl">DIFFICULTY</div>
+        <div class="raceModalOpts" id="rmDiffOpts">
+          <button class="raceModalOpt" data-diff="0"><span class="rmOptVal">Easy</span><span class="rmOptDesc">AI handicapped &middot; relaxed</span></button>
+          <button class="raceModalOpt" data-diff="1"><span class="rmOptVal">Normal</span><span class="rmOptDesc">Balanced challenge</span></button>
+          <button class="raceModalOpt" data-diff="2"><span class="rmOptVal">Hard</span><span class="rmOptDesc">AI 30% faster &middot; aggressive</span></button>
+        </div>
+      </div>
+      <button class="raceModalDone" id="raceModalDone" type="button">Apply &amp; Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="pitStopOverlay">
+  <div class="pitTitle">🔧 PIT STOP</div>
+  <div class="pitSub" id="pitStopSub">SERVICING...</div>
+  <div id="pitCountbar"><div id="pitCountFill"></div></div>
+</div>
+<div id="fastestLapFlash"></div>
+
+<div id="raceStartOverlay" class="hidden">
+  <div class="rsoCard">
+    <div class="rsoTitle">LIGHTS OUT</div>
+    <div class="rsoStatus">PREPPING CARS<span class="loadDots">...</span></div>
+  </div>
+</div>
+
+<!-- Achievement icon sprite. Monoline, 24×24 viewBox, currentColor stroke.
+     Gebruikt door notifications.js _showToast via <use href="#ach-…">. -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+  <defs>
+    <symbol id="ach-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></symbol>
+    <symbol id="ach-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4v2a3 3 0 0 0 3 3"/><path d="M17 6h3v2a3 3 0 0 1-3 3"/><path d="M9 20h6"/><path d="M12 14v6"/></symbol>
+    <symbol id="ach-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h10l-2 4 2 4H5"/></symbol>
+    <symbol id="ach-crown" viewBox="0 0 24 24"><path d="M3 18h18"/><path d="M3 8l4 6 5-8 5 8 4-6v10H3V8z"/></symbol>
+    <symbol id="ach-garage" viewBox="0 0 24 24"><path d="M3 21V10l9-6 9 6v11"/><path d="M6 21v-7h12v7"/><path d="M6 17h12"/></symbol>
+    <symbol id="ach-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9h5a2 2 0 0 1 0 4h-5a2 2 0 0 0 0 4h6"/><path d="M12 6v2M12 16v2"/></symbol>
+    <symbol id="ach-lap" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="ach-drift" viewBox="0 0 24 24"><path d="M4 17c3-6 9-6 12-2"/><path d="M4 21c4-2 7-2 10 0"/><path d="M14 13c2-1 4-1 6 1"/></symbol>
+    <symbol id="ach-wings" viewBox="0 0 24 24"><path d="M12 12v6"/><path d="M12 13c-2-4-5-6-9-6 1 4 4 6 9 8"/><path d="M12 13c2-4 5-6 9-6-1 4-4 6-9 8"/></symbol>
+    <symbol id="ach-sparkle" viewBox="0 0 24 24"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><path d="M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/></symbol>
+    <symbol id="ach-podium" viewBox="0 0 24 24"><path d="M3 21h18"/><rect x="9" y="9" width="6" height="12"/><rect x="3" y="13" width="6" height="8"/><rect x="15" y="11" width="6" height="10"/><path d="M12 6l.8 2 2.2.2-1.7 1.4.5 2.2L12 10.6 10.2 11.8l.5-2.2L9 8.2 11.2 8z"/></symbol>
+    <symbol id="ach-overtake" viewBox="0 0 24 24"><path d="M3 8h13l-3-3M3 16h13l-3 3"/><path d="M18 5l3 3-3 3"/></symbol>
+    <symbol id="ach-nitro" viewBox="0 0 24 24"><path d="M12 3c2 3 4 6 4 9a4 4 0 0 1-8 0c0-3 2-6 4-9z"/><path d="M12 13c1 1 2 2 2 4a2 2 0 0 1-4 0c0-2 1-3 2-4z"/></symbol>
+    <symbol id="ach-sandstorm" viewBox="0 0 24 24"><path d="M3 7h14M3 12h18M3 17h12"/><path d="M19 7c1 0 2 .5 2 1.5S20 10 19 10"/><path d="M17 17c1 0 2 .5 2 1.5S18 20 17 20"/></symbol>
+    <symbol id="ach-mirage" viewBox="0 0 24 24"><circle cx="12" cy="10" r="4"/><path d="M3 18h18"/><path d="M3 21h18"/></symbol>
+    <symbol id="ach-challenge" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M9 11h6M9 15h4"/></symbol>
+    <symbol id="ach-star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .9-4.4 4.3 1 6L12 17l-5.2 2.8 1-6L3.4 9.5l6-.9z"/></symbol>
+  </defs>
+</svg>
+
+<div id="hud">
+  <div id="closeBattleEl">CLOSE BATTLE</div>
+  <div id="pitAvailable" style="position:absolute;bottom:330px;right:28px;font-family:var(--font-mono);font-size:10px;color:var(--peach);letter-spacing:3px;display:none;pointer-events:none;text-shadow:0 0 8px rgba(255,212,168,.7);animation:blink 0.9s ease-in-out infinite;text-transform:uppercase">🔧 H = PIT STOP</div>
+  <div id="sectorPanel">
+    <div class="secRow"><span class="secLabel">S1</span><span class="secTime" id="secT1" style="color:#666">--.-</span></div>
+    <div class="secRow"><span class="secLabel">S2</span><span class="secTime" id="secT2" style="color:#666">--.-</span></div>
+    <div class="secRow"><span class="secLabel">S3</span><span class="secTime" id="secT3" style="color:#666">--.-</span></div>
+  </div>
+  <div id="speedTrapEl"></div>
+  <div id="hudCarStatus">
+    <div class="csLabel">TYRES</div>
+    <div class="csGrid">
+      <div class="csTire" id="ttFL"></div><div class="csTire" id="ttFR"></div>
+      <div class="csTire" id="ttRL"></div><div class="csTire" id="ttRR"></div>
+    </div>
+  </div>
+  <div id="comboEl"></div>
+  <div id="hudRaceInfo">
+    <div class="riPosRow"><span class="riPos" id="hdPos">P1</span><span class="riPosOf" id="hdPosOf">/8</span></div>
+    <div class="riLapRow"><span class="riLabel">LAP</span><span class="riLap" id="hdLap">1 / 3</span></div>
+    <div class="riTimeRow"><span id="hdLapTime"></span><span id="hdLapDelta"></span></div>
+  </div>
+  <div id="hudInstruments">
+    <div class="hiGearBox"><span class="hiGearLbl">GEAR</span><span class="hiGearVal" id="hdGear">1</span></div>
+    <div class="hiSpdBox"><span class="hiSpdVal" id="hdSpd">0</span><span class="hiSpdLbl">KM/H</span></div>
+  </div>
+  <div id="hudMap"><canvas id="mapCvs" width="260" height="200"></canvas></div>
+  <div id="nitroBar"><div id="nitroFill" style="height:100%"></div></div>
+  <div id="nitroLbl">NITRO</div>
+  <div id="sectorInfo"></div>
+  <div id="slipIndicator">💨 SLIPSTREAM!</div>
+  <button id="hudPauseBtn" onclick="togglePause()" aria-label="Pause" title="Pause (P · ESC)"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="9" y1="5" x2="9" y2="19" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><line x1="15" y1="5" x2="15" y2="19" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></button>
+  <button id="hudMuteBtn" onclick="toggleMute()">🔊</button>
+  <div id="hudLeader"></div>
+  <div id="nemesisBadge"></div>
+  <div id="hudRpm"><div id="rpmFill"></div></div>
+</div>
+<div id="wrongWayOverlay">⚠ WRONG WAY ⚠</div>
+
+<div id="pauseOverlay">
+  <div class="pauseStack">
+    <div class="holoEyebrow pauseEyebrow">MID-RACE</div>
+    <div class="pauseTitle">Paused</div>
+    <div class="pauseSubtitle pauseDesktopOnly">P &middot; ESC = RESUME</div>
+    <button class="pauseBtn pauseBtnPrimary" id="btnResume" onclick="togglePause()">&#9654; Resume</button>
+    <div class="pauseSection">
+      <div class="pauseSectionLabel">CAMERA</div>
+      <div class="pauseRow">
+        <button class="pauseBtn pauseBtnGray pauseCamBtn" id="pcam0" onclick="setCamView(0)">🎥 CHASE</button>
+        <button class="pauseBtn pauseBtnGray pauseCamBtn" id="pcam1" onclick="setCamView(1)">🚁 HELI</button>
+        <button class="pauseBtn pauseBtnGray pauseCamBtn" id="pcam2" onclick="setCamView(2)">🏎 HOOD</button>
+        <button class="pauseBtn pauseBtnGray pauseCamBtn" id="pcam3" onclick="setCamView(3)">💨 BUMPER</button>
+      </div>
+    </div>
+    <div class="pauseSection">
+      <div class="pauseSectionLabel">QUALITY</div>
+      <div class="pauseRow">
+        <button class="pauseBtn pauseBtnGray pauseQualBtn" id="pqAuto" onclick="setQualityPin('auto')">AUTO</button>
+        <button class="pauseBtn pauseBtnGray pauseQualBtn" id="pqHigh" onclick="setQualityPin('high')">HIGH</button>
+        <button class="pauseBtn pauseBtnGray pauseQualBtn" id="pqMid" onclick="setQualityPin('mid')">MID</button>
+        <button class="pauseBtn pauseBtnGray pauseQualBtn" id="pqLow" onclick="setQualityPin('low')">LOW</button>
+      </div>
+      <div class="pauseHint" id="pqHint" style="display:none;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,.55);margin-top:4px;text-align:center">AUTO ACTIEF BIJ HERSTART</div>
+    </div>
+    <div class="pauseSection">
+      <div class="pauseSectionLabel">EFFECTS</div>
+      <button class="pauseBtn pauseBtnGray pauseBtnFx" id="btnFxToggle" onclick="toggleQuality()">✨ FX ON</button>
+    </div>
+    <button class="pauseBtn pauseBtnGray pauseBtnQuit" id="btnQuit" onclick="goToTitle()">✕ QUIT TO MENU</button>
+    <div class="pauseHints pauseDesktopOnly">H = PIT STOP · N = NITRO · SPACE = DRIFT</div>
+  </div>
+</div>
+<div id="controlHints" style="display:none">
+  <div class="hintBox">⬆ GAS &nbsp;·&nbsp; ⬇ BRAKE &nbsp;·&nbsp; ← → STEER &nbsp;·&nbsp; SPACE DRIFT &nbsp;·&nbsp; N NITRO &nbsp;·&nbsp; H PIT STOP &nbsp;·&nbsp; C CAM &nbsp;·&nbsp; V MIRROR &nbsp;·&nbsp; HOLD R RESTART &nbsp;·&nbsp; P PAUSE</div>
+</div>
+
+<!-- Shared gradient def for circular loader arcs. Hidden SVG persists in DOM
+     even after #loadingScreen hides, so #worldLoadingOverlay can keep using
+     url(#srcLoaderGrad). -->
+<svg width="0" height="0" style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
+  <defs>
+    <linearGradient id="srcLoaderGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00e0ff"/>
+      <stop offset="55%" stop-color="#d4a8ff"/>
+      <stop offset="100%" stop-color="#ff3a8a"/>
+    </linearGradient>
+  </defs>
+</svg>
+<div id="loadingScreen" class="neon-bg">
+  <div class="neon-stars"></div>
+  <div class="tLogo loadLogo">SPENCER'S<br>RACE CLUB</div>
+  <div class="srcLoader" role="status" aria-label="Loading">
+    <div class="srcLoaderHalo" aria-hidden="true"></div>
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <circle class="srcLoaderTrack" cx="32" cy="32" r="26"/>
+      <circle class="srcLoaderArc"   cx="32" cy="32" r="26"/>
+    </svg>
+  </div>
+  <div class="loadStatus srcLoaderLabel" id="loadStep"><span class="srcLoaderLabelText">LOADING</span><span class="loadDots">...</span></div>
+</div>
+<canvas id="rainCanvas"></canvas>
+<div id="speedOverlay"></div>
+<!-- iOS audio unlock: a silent looping clip played on first gesture forces Safari into playback audio session -->
+<audio id="iosAudioUnlock" loop playsinline preload="auto" style="display:none" src="data:audio/mp3;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/zQsQdAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//MSxCkDwAABpAAAACEAAA0gAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//MSxGODwAABpAAAACEAAA0gAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV"></audio>
+<!-- Touch controls (mobile) -->
+<div id="touchControls" style="display:none">
+  <div id="tcLeft"  class="tcBtn" data-key="ArrowLeft">‹</div>
+  <div id="tcRight" class="tcBtn" data-key="ArrowRight">›</div>
+  <div id="tcSteer"><div id="tcSteerThumb">⇔</div></div>
+  <div id="tcGas"   class="tcBtn tcGas"   data-key="ArrowUp">GAS</div>
+  <div id="tcBrake" class="tcBtn tcBrake" data-key="ArrowDown">BRAKE</div>
+  <div id="tcNitro" class="tcBtn tcNitro"><span id="tcNitroIcon">⚡</span><span id="tcNitroFill"></span></div>
+  <div id="tcHbk"   class="tcBtn tcHbk"   data-key="Space">DRIFT</div>
+</div>
+<div id="warnOverlay"><div class="warn">⚠ TRACK LIMITS</div></div>
+<div id="cdOverlay" style="display:none"><div id="cdNum">3</div></div>
+
+<div id="sFinish" class="screen hidden">
+  <div id="finPulseLayer" aria-hidden="true"></div>
+  <!-- Light Edition layout (S04). The old #finHero / #finStatsGrid / #finBody
+       IDs below are kept (display:none) so existing showFinish() side-effects
+       that target them (finTitle / finStat* / leaderBody / finPodium) keep
+       working without race-condition fixes. The visible UI is wired by
+       _renderFinishLight() and reads the same source data (pos[], bestLapTime,
+       totalScore, etc.). -->
+  <div class="finL">
+    <div class="finLHeader">
+      <div class="holoEyebrow">RACE COMPLETE</div>
+      <h1 class="finLHead chromatic" id="finLHead">P— —</h1>
+      <p class="finLSub" id="finLSub"></p>
+    </div>
+    <div class="finLBody">
+      <div class="finLLeft">
+        <div class="finLPodium" id="finLPodium"></div>
+        <div class="finLStrip holoCard">
+          <div class="holoEyebrow finLStripEy">YOUR LIGHT</div>
+          <div class="finLStripRow">
+            <div class="finLStripCol"><span class="finLStripLbl">Race</span><span class="finLStripVal" id="finLRace">&mdash;</span></div>
+            <div class="finLStripCol"><span class="finLStripLbl">Best</span><span class="finLStripVal" id="finLBest">&mdash;</span></div>
+            <div class="finLStripCol"><span class="finLStripLbl">Top</span><span class="finLStripVal" id="finLTop">&mdash;</span></div>
+            <div class="finLStripCol"><span class="finLStripLbl">Gap</span><span class="finLStripVal" id="finLGap">&mdash;</span></div>
+          </div>
+        </div>
+      </div>
+      <aside class="finLRight holoCard">
+        <div class="holoEyebrow">FORMATION</div>
+        <ol class="finLForm" id="finLForm"></ol>
+      </aside>
+    </div>
+    <div class="finLBtns">
+      <button class="holoPill" type="button" onclick="goToSelectAgain()" aria-label="Retry this race">
+        <span aria-hidden="true">&#8634;</span>&nbsp;Retry
+      </button>
+      <button class="holoPill holoPillPrimary" type="button" onclick="goToWorldSelect()" aria-label="Pick next round">
+        <span class="holoPillInner"><span class="holoDiamond"></span>&nbsp;Next round&nbsp;&rarr;</span>
+      </button>
+    </div>
+  </div>
+  <!-- Legacy structure (hidden) — kept so showFinish() side-effects don't NPE. -->
+  <div id="finHero" class="finLegacy" aria-hidden="true">
+    <div id="finPositionBadge" data-pos="1">
+      <div class="finPosNum" id="finPosNum">1</div>
+      <div class="finPosSuffix" id="finPosSuffix">ST PLACE</div>
+    </div>
+    <div class="finTitle" id="finTitle">RACE FINISHED</div>
+    <div class="finMsg" id="finMsg"></div>
+    <div id="finStarsRow" aria-label="Race star rating">
+      <span class="starPip" data-idx="0">★</span>
+      <span class="starPip" data-idx="1">★</span>
+      <span class="starPip" data-idx="2">★</span>
+    </div>
+  </div>
+  <div id="finStatsGrid" class="finLegacy" aria-hidden="true">
+    <div class="finStatTile" id="finTileBest"><div class="finStatLabel">BEST LAP</div><div class="finStatValue" id="finStatBest">&mdash;</div><div class="finStatSub" id="finStatBestSub"></div></div>
+    <div class="finStatTile" id="finTileSpeed"><div class="finStatLabel">TOP SPEED</div><div class="finStatValue" id="finStatSpeed">&mdash;</div><div class="finStatSub" id="finStatSpeedSub">km/h</div></div>
+    <div class="finStatTile" id="finTileScore"><div class="finStatLabel">SCORE</div><div class="finStatValue" id="finStatScore">0</div><div class="finStatSub" id="finStatScoreSub"></div></div>
+    <div class="finStatTile" id="finTileCoins"><div class="finStatLabel">COINS</div><div class="finStatValue" id="finStatCoins">+0</div><div class="finStatSub" id="finStatCoinsSub"></div></div>
+  </div>
+  <div id="finBody" class="finLegacy" aria-hidden="true">
+    <div id="finLeft">
+      <div class="podium" id="finPodium"></div>
+    </div>
+    <div id="finRight">
+      <table class="leaderTable"><thead><tr><th>POS</th><th>CAR</th><th>BEST LAP</th></tr></thead><tbody id="leaderBody"></tbody></table>
+    </div>
+  </div>
+  <div id="finLapTimes" class="finLegacy" aria-hidden="true"></div>
+  <div id="finExtraStats" class="finLegacy" aria-hidden="true">
+    <div id="finStats"></div>
+    <div class="finHighScore" id="finHighScore"></div>
+  </div>
+  <div id="finBtns" class="finLegacy" aria-hidden="true">
+    <button class="finBtn finBtnSecondary" onclick="goToTitle()">&#8962; MAIN MENU</button>
+    <button class="finBtn finBtnPrimary" onclick="goToSelectAgain()">&#127937; RACE AGAIN</button>
+  </div>
+  <div id="finBtnHint" class="finLegacy" aria-hidden="true">[ Esc ] MENU &middot; [ Enter ] RACE AGAIN</div>
+</div>
+
+<div id="sSettings" class="screen hidden">
+  <div class="setHeader">
+    <div class="setHeaderLeft">
+      <div class="holoEyebrow">PREFERENCES</div>
+      <div class="setTitle chromatic">SETTINGS</div>
+    </div>
+    <button class="holoPill holoPillSm setCloseBtn" id="setCloseBtn" type="button" aria-label="Close settings">
+      <span>Close</span>
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  <div class="setBody">
+    <nav class="setNav" id="setNav" aria-label="Settings sections">
+      <button class="setNavItem setNavItemActive" data-set-section="audio" type="button">
+        <span class="setNavLbl">Audio</span>
+      </button>
+      <button class="setNavItem" data-set-section="graphics" type="button">
+        <span class="setNavLbl">Graphics</span>
+      </button>
+      <button class="setNavItem" data-set-section="controls" type="button">
+        <span class="setNavLbl">Controls</span>
+      </button>
+      <button class="setNavItem" data-set-section="gameplay" type="button">
+        <span class="setNavLbl">Gameplay</span>
+      </button>
+      <button class="setNavItem" data-set-section="account" type="button">
+        <span class="setNavLbl">Account</span>
+      </button>
+    </nav>
+    <section class="setPanel holoCard" id="setPanel">
+      <!-- Audio section (default visible) -->
+      <div class="setSection setSectionActive" data-set-pane="audio">
+        <div class="setSectionEyebrow holoEyebrow">AUDIO</div>
+        <h2 class="setSectionTitle">The Sound</h2>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl" for="setMaster">Master volume</label>
+            <span class="setRowVal" id="setMasterVal">78%</span>
+          </div>
+          <input type="range" min="0" max="100" value="78" class="holoSlider" id="setMaster" style="--p:78">
+        </div>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl" for="setMusic">Music</label>
+            <span class="setRowVal" id="setMusicVal">72%</span>
+          </div>
+          <input type="range" min="0" max="100" value="72" class="holoSlider" id="setMusic" style="--p:72">
+        </div>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl" for="setSfx">SFX &amp; engine</label>
+            <span class="setRowVal" id="setSfxVal">78%</span>
+          </div>
+          <input type="range" min="0" max="100" value="78" class="holoSlider" id="setSfx" style="--p:78">
+        </div>
+        <div class="setRow setRowToggle">
+          <label class="setRowLbl" for="setMuteOOF">Mute when out of focus</label>
+          <input type="checkbox" class="holoToggle" id="setMuteOOF" checked>
+        </div>
+      </div>
+      <!-- Graphics — pulls in pause-menu quality presets so they live here too. -->
+      <div class="setSection" data-set-pane="graphics">
+        <div class="setSectionEyebrow holoEyebrow">GRAPHICS</div>
+        <h2 class="setSectionTitle">The Light</h2>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl">Quality preset</label>
+            <span class="setRowVal" id="setQualVal">AUTO</span>
+          </div>
+          <div class="setPillRow" id="setQualRow">
+            <button class="setPill" type="button" data-set-qual="auto">Auto</button>
+            <button class="setPill" type="button" data-set-qual="high">High</button>
+            <button class="setPill" type="button" data-set-qual="mid">Mid</button>
+            <button class="setPill" type="button" data-set-qual="low">Low</button>
+          </div>
+          <p class="setHelp" id="setQualHint" style="display:none">AUTO re-detects on next race.</p>
+        </div>
+        <div class="setRow setRowToggle">
+          <label class="setRowLbl" for="setFxToggle">Post-FX (bloom, motion blur)</label>
+          <input type="checkbox" class="holoToggle" id="setFxToggle">
+        </div>
+      </div>
+      <!-- Controls — keyboard reference + touch toggle + gamepad live status. -->
+      <div class="setSection" data-set-pane="controls">
+        <div class="setSectionEyebrow holoEyebrow">CONTROLS</div>
+        <h2 class="setSectionTitle">The Touch</h2>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl">Keyboard</label>
+          </div>
+          <div class="setKeyGrid">
+            <div class="setKeyRow"><span class="setKeyCap">&larr; &rarr;</span><span>Steer</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">&uarr;</span><span>Gas</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">&darr;</span><span>Brake</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">N</span><span>Nitro</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">Space</span><span>Drift</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">C</span><span>Camera</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">H</span><span>Pit stop</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">M</span><span>Mute</span></div>
+            <div class="setKeyRow"><span class="setKeyCap">P / Esc</span><span>Pause</span></div>
+          </div>
+        </div>
+        <div class="setRow setRowToggle">
+          <label class="setRowLbl" for="setTouchUi">Show on-screen controls</label>
+          <select class="holoSelect" id="setTouchUi">
+            <option value="auto">Auto (touch devices only)</option>
+            <option value="on">Always on</option>
+            <option value="off">Always off</option>
+          </select>
+        </div>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl">Gamepad</label>
+            <span class="setRowVal" id="setGpStatus">No controller detected</span>
+          </div>
+          <p class="setHelp">Standard Xbox/PS layout. A=Nitro, B=Drift, X=Pit, Y=Camera, LB=Mirror, RB=Leaderboard, LT=Brake, RT=Gas, Start=Pause, Back=Mute, L3=Day/Night.</p>
+        </div>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl" for="setGpDead">Stick deadzone</label>
+            <span class="setRowVal" id="setGpDeadVal">18%</span>
+          </div>
+          <input type="range" min="0" max="40" value="18" class="holoSlider" id="setGpDead" style="--p:45">
+        </div>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl" for="setGpTrig">Trigger threshold</label>
+            <span class="setRowVal" id="setGpTrigVal">10%</span>
+          </div>
+          <input type="range" min="0" max="40" value="10" class="holoSlider" id="setGpTrig" style="--p:25">
+        </div>
+      </div>
+      <!-- Gameplay — difficulty + default lap count, shared with SELECT screen. -->
+      <div class="setSection" data-set-pane="gameplay">
+        <div class="setSectionEyebrow holoEyebrow">GAMEPLAY</div>
+        <h2 class="setSectionTitle">The Drive</h2>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl">Difficulty</label>
+            <span class="setRowVal" id="setDiffVal">Normal</span>
+          </div>
+          <div class="setPillRow" id="setDiffRow">
+            <button class="setPill" type="button" data-set-diff="0">Easy</button>
+            <button class="setPill" type="button" data-set-diff="1">Normal</button>
+            <button class="setPill" type="button" data-set-diff="2">Hard</button>
+          </div>
+        </div>
+        <div class="setRow">
+          <div class="setRowHead">
+            <label class="setRowLbl">Default lap count</label>
+            <span class="setRowVal" id="setLapsVal">3 laps</span>
+          </div>
+          <div class="setPillRow" id="setLapsRow">
+            <button class="setPill" type="button" data-set-laps="1">1</button>
+            <button class="setPill" type="button" data-set-laps="3">3</button>
+            <button class="setPill" type="button" data-set-laps="5">5</button>
+          </div>
+          <p class="setHelp">Applies the next time you open the car-select screen.</p>
+        </div>
+      </div>
+      <div class="setSection" data-set-pane="account">
+        <div class="setSectionEyebrow holoEyebrow">ACCOUNT</div>
+        <h2 class="setSectionTitle">Your Light</h2>
+
+        <!-- Identity card: handle + level + XP bar + coin total -->
+        <div class="profCard profCardIdentity">
+          <div class="profIdRow">
+            <label class="profFieldLbl" for="profHandle">Racer name</label>
+            <input class="profHandleInput" id="profHandle" type="text" maxlength="24"
+                   autocomplete="off" spellcheck="false" placeholder="Spencer">
+          </div>
+          <div class="profIdMeta">
+            <span class="profLevelBadge" id="profLevel">LV 1</span>
+            <div class="profXpWrap">
+              <div class="profXpBar"><div class="profXpFill" id="profXpFill"></div></div>
+              <span class="profXpText" id="profXpText">0 / 100 XP</span>
+            </div>
+            <span class="profCoinsBadge"><span class="profCoinsIcon">🪙</span> <span id="profCoins">0</span></span>
+          </div>
+        </div>
+
+        <!-- Career stats grid -->
+        <div class="profCard">
+          <div class="profCardHead">Career</div>
+          <div class="profStatGrid" id="profStats"></div>
+        </div>
+
+        <!-- Cup badges -->
+        <div class="profCard">
+          <div class="profCardHead">Cups</div>
+          <div class="profCupRow" id="profCups"></div>
+        </div>
+
+        <!-- Best laps table -->
+        <div class="profCard">
+          <div class="profCardHead">Best laps</div>
+          <div class="profLapsScroll" id="profLaps"></div>
+        </div>
+
+        <!-- Cloud (placeholder) + save management -->
+        <div class="profCard">
+          <div class="profCardHead">Save</div>
+          <div class="profBtnRow">
+            <button class="profBtn profBtnPrimary" id="profExportBtn" type="button">⬇ Download save</button>
+            <button class="profBtn" id="profImportBtn" type="button">⬆ Import save</button>
+            <input id="profImportFile" type="file" accept="application/json,.json" hidden>
+            <button class="profBtn profBtnDanger" id="profResetBtn" type="button">⟲ Reset progress</button>
+            <button class="profBtn profBtnDisabled" id="profCloudBtn" type="button" disabled>☁ Sign in (coming soon)</button>
+          </div>
+          <p class="profHelp" id="profLastExport"></p>
+          <p class="profStatusMsg" id="profStatusMsg" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="victoryHint">🏆 VICTORY LAP</div>
+<div id="camViewHint">[ C ] = CHANGE CAMERA VIEW</div>
+<div id="mirrorFrame"><canvas id="mirrorCanvas" width="204" height="82"></canvas></div>
+<div id="mirrorLabel">REAR VIEW</div>
+<canvas id="speedLines"></canvas>
+<div id="goldCelebration"></div>
+<div id="driftBar"><div id="driftBarFill"></div></div>
+<div id="driftLabel">DRIFT</div>
+<div id="ghostLabel">👻 GHOST</div>
+<div id="f1Lights"><div class="f1-gantry"><div class="f1-gantry-label">Spencer's Race Club</div><div class="f1-panel"><div class="f1-light-unit"><div class="f1Light" id="fl1"></div></div><div class="f1-light-unit"><div class="f1Light" id="fl2"></div></div><div class="f1-light-unit"><div class="f1Light" id="fl3"></div></div><div class="f1-light-unit"><div class="f1Light" id="fl4"></div></div><div class="f1-light-unit"><div class="f1Light" id="fl5"></div></div></div></div></div>
+<div id="rstBar"><div id="rstFill"></div></div>
+<div id="rstLabel">HOLD R — RESTART</div>
+<div id="colFlash"></div>
+<div id="fpsOverlay" style="position:fixed;top:8px;right:8px;font-family:var(--font-mono);font-size:12px;color:var(--blue);background:var(--surface);border:1px solid var(--line);padding:6px 10px;border-radius:6px;z-index:var(--z-toast);display:none;pointer-events:none"></div>
+<div id="ctxLostOverlay" style="position:fixed;inset:0;background:rgba(8,8,14,.92);color:var(--text);font-family:var(--font-body);display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:var(--z-critical);text-align:center;padding:24px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)">
+  <div style="font-family:var(--font-display);font-size:20px;letter-spacing:3px;color:var(--peach);text-shadow:-1px 0 rgba(255,58,138,.5),1px 0 rgba(0,224,255,.5)">⚠ GRAPHICS RESET</div>
+  <div id="ctxLostMsg" style="font-family:var(--font-body);font-size:13px;color:var(--text-mid);max-width:320px;line-height:1.5">De WebGL context is verloren. Probeer te herstellen…</div>
+  <button id="ctxLostReload" style="display:none;background:var(--surface);color:var(--text);border:1px solid var(--line-strong);padding:12px 28px;border-radius:8px;cursor:pointer;font-family:var(--font-mono);font-size:12px;letter-spacing:2px;margin-top:8px;text-transform:uppercase" onclick="location.reload()">🔄 HERLAAD PAGINA</button>
+  <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">Tik op herladen als het langer duurt dan een paar seconden.</div>
+</div>
+<div id="worldLoadingOverlay" class="wloHidden" aria-live="polite" role="status">
+  <div class="srcLoader" aria-hidden="true">
+    <div class="srcLoaderHalo" aria-hidden="true"></div>
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <circle class="srcLoaderTrack" cx="32" cy="32" r="26"/>
+      <circle class="srcLoaderArc"   cx="32" cy="32" r="26"/>
+    </svg>
+  </div>
+  <div class="wloLabel srcLoaderLabel"><span class="srcLoaderLabelText">loading</span></div>
+</div>
+<canvas id="glCanvas"></canvas>
+<!-- Hidden graphics-demo modal — triple-click "S04 · LIGHT EDITION" to open.
+     iframe isolates the demo's Three.js context from the game's. -->
+<div id="gfxDemoModal" hidden aria-hidden="true" aria-label="Graphics demo">
+  <div class="gfxDemoBackdrop"></div>
+  <div class="gfxDemoCard">
+    <button class="gfxDemoClose" id="gfxDemoClose" type="button" aria-label="Close graphics demo">×</button>
+    <iframe id="gfxDemoFrame" title="Graphics demo" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+</div>
+<!-- Three.js r160 — externalized (Phase 2 Fix F). Bron-blob: assets/vendor/three-r160.min.js -->
+<script defer src="assets/vendor/three-r160.min.js"></script>
+<!-- Persistence modules (loaded deferred, ready before main.js callbacks fire) -->
+<!-- ES modules (deferred, executen na alle classic scripts hieronder) -->
+<script type="module" src="js/persistence/save.js"></script>
+<script type="module" src="js/persistence/progression.js"></script>
+<script type="module" src="js/persistence/career.js"></script>
+<script type="module" src="js/persistence/identity.js"></script>
+<script type="module" src="js/persistence/snapshot.js"></script>
+<script type="module" src="js/persistence/cloudSync.js"></script>
+<script type="module" src="js/audio/music.js"></script>
+<script type="module" src="js/audio/samples.js"></script>
+<script type="module" src="js/audio/music-stems.js"></script>
+<script type="module" src="js/audio/engine-samples.js"></script>
+<script type="module" src="js/audio/api.js"></script>
+
+<!-- Classic scripts — load in dependency order, allemaal vóór main.js.
+     Cross-script let/const wordt in gedeelde script-scope gedeeld; functies
+     worden globals. main.js (laatste) bevat boot() die alles aanroept.
+     defer: alle scripts wachten op DOM-parse + executen daarna in document-
+     order. Modules + defer-classic delen één deferred-queue, dus de
+     globale executie-volgorde komt overeen met de tag-volgorde hier. -->
+
+<!-- Tuning + device + debug.
+     Fase 3A/3B: alle js/core/* leaf modules zijn gemigreerd naar ES modules
+     + esbuild IIFE bundles. Drop-in replacements met identieke window.*
+     surface voor backward-compat met niet-gemigreerde consumers. Bron in
+     js/core/, build via `npm run build`.
+     debug.bundle.js + race-perf-probe.bundle.js zijn ÚIT de boot-chain;
+     ze worden lazy-geïnjecteerd door boot.js wanneer ?dev=1 of localStorage
+     src_dev='1' actief is. Bespaart ~111 KB JS-parse op cold load. -->
+<script defer src="js/config.js"></script>
+<script defer src="dist/device.bundle.js"></script>
+<script defer src="dist/breadcrumb.bundle.js"></script>
+<script defer src="dist/perf.bundle.js"></script>
+<script defer src="dist/three-compat.bundle.js"></script>
+<script defer src="dist/quality-tier.bundle.js"></script>
+<script defer src="dist/shared-materials.bundle.js?v=2026-05-26b"></script>
+<script defer src="js/core/world-visuals.js"></script>
+<script defer src="js/core/math-luts.js"></script>
+
+<!-- Asset loader (HDRI / textures / GLTF) — manifest-driven, fallback-safe -->
+<script defer src="js/assets/loader.js"></script>
+<script defer src="js/effects/asset-bridge.js"></script>
+
+<!-- Core (renderer/scene/loop) -->
+<script defer src="js/effects/postfx.js"></script>
+<script defer src="js/effects/atmosphere-pass.js"></script>
+<script defer src="js/effects/sky-shader.js"></script>
+<script defer src="js/effects/lod-cull.js"></script>
+<script defer src="js/core/popin-diag.js"></script>
+<script defer src="js/effects/mid-ring.js"></script>
+<script defer src="js/effects/finish-celebration.js"></script>
+<script defer src="js/effects/sun-arc.js"></script>
+<script defer src="js/effects/ssao-pass.js"></script>
+<script defer src="js/effects/ssr-pass.js"></script>
+<script defer src="js/effects/smaa-pass.js"></script>
+<script defer src="js/effects/contact-shadows.js"></script>
+<script defer src="js/core/renderer.js"></script>
+<script defer src="js/core/scene.js?v=2026-05-26b"></script>
+<script defer src="js/core/env-baker.js"></script>
+<script defer src="js/core/dev-panel.js"></script>
+<script defer src="js/core/start-freeze-diag.js"></script>
+<script defer src="js/core/loop.js?v=2"></script>
+
+<!-- Procedural helper libraries — must load BEFORE worlds/ so world-builders
+     can call window.ProcTextures / window.ProcGeometry during buildScene. -->
+<script defer src="js/effects/proc-textures.js"></script>
+<script defer src="js/effects/proc-geometry.js"></script>
+<script defer src="js/effects/proc-decor.js"></script>
+
+<!-- Audio implementatie (geregistreerd voor api-facade deferred evalueert) -->
+<script defer src="js/audio/engine.js"></script>
+<script defer src="js/audio/sfx.js"></script>
+<script defer src="js/audio/ambient.js"></script>
+
+<!-- Worlds — lazy-loaded via window.loadWorldScript(name). Voorheen 19
+     statische <script src> tags (~680 KB synchrone parse op boot). Nu laden
+     we alleen de actieve wereld vóór de eerste buildScene, en prefetchen
+     de rest in idle-tijd. Zie js/core/world-loader.js. -->
+<script defer src="js/core/world-loader.js"></script>
+
+<!-- Track / cars / effects (bouwen op core + worlds) -->
+<script defer src="js/effects/particles.js"></script>
+<script defer src="js/effects/horizon.js"></script>
+<script defer src="js/track/environment.js"></script>
+<script defer src="js/track/track.js"></script>
+<script defer src="js/track/ramps.js"></script>
+<script defer src="js/track/collectibles.js"></script>
+<script defer src="js/cars/car-parts.js"></script>
+<script defer src="js/cars/brands.js"></script>
+<script defer src="js/cars/livery.js"></script>
+<script defer src="js/cars/build.js"></script>
+<script defer src="js/cars/physics.js"></script>
+<script defer src="js/cars/ai.js"></script>
+<script defer src="js/effects/weather.js"></script>
+<script defer src="js/effects/world-lighting.js"></script>
+<script defer src="js/effects/weather-lighting.js"></script>
+<script defer src="js/effects/night.js?v=4"></script>
+<script defer src="js/effects/cinematic.js"></script>
+<script defer src="js/effects/speed-feel.js"></script>
+<script defer src="js/effects/visuals.js"></script>
+
+<!-- Gameplay (race lifecycle, hazards, scoring) -->
+<script defer src="js/gameplay/ghost.js"></script>
+<script defer src="js/gameplay/speedtrap.js"></script>
+<script defer src="js/gameplay/sectors.js"></script>
+<script defer src="js/gameplay/tires.js"></script>
+<script defer src="js/gameplay/combo.js"></script>
+<script defer src="js/gameplay/collisions.js"></script>
+<script defer src="js/gameplay/tracklimits.js"></script>
+<script defer src="js/gameplay/wall-collision.js"></script>
+<script defer src="js/gameplay/camera.js"></script>
+<script defer src="js/gameplay/pitstop.js"></script>
+<script defer src="js/gameplay/countdown.js"></script>
+<script defer src="js/gameplay/finish.js"></script>
+<script defer src="js/gameplay/achievements.js"></script>
+<script defer src="js/gameplay/spacefx.js"></script>
+<script defer src="js/gameplay/safetycar.js"></script>
+<script defer src="js/gameplay/race.js"></script>
+
+<!-- UI -->
+<script defer src="js/ui/notifications.js"></script>
+<script defer src="js/ui/hud.js"></script>
+<script defer src="js/ui/touch.js"></script>
+<script defer src="js/ui/worldArt.js?v=1"></script>
+<script defer src="js/ui/select.js?v=15"></script>
+<script defer src="js/ui/pause.js"></script>
+<script defer src="js/ui/settings.js"></script>
+<script defer src="js/ui/profile.js"></script>
+<script defer src="js/core/race-tick-warm.js"></script>
+<script defer src="js/ui/navigation.js?v=6"></script>
+<script defer src="js/ui/input.js"></script>
+<script defer src="js/ui/gamepad.js"></script>
+<script defer src="js/ui/help.js"></script>
+<script defer src="js/ui/smooth-loader.js"></script>
+<script defer src="js/core/boot.js"></script>
+<script defer src="js/main.js"></script>
+<!-- Graphics-demo easter egg: triple-click S04 · LIGHT EDITION (or Alt+G).
+     Iframe lazy-loaded so Three.js scene only spins up when modal opens. -->
+<style>
+#gfxDemoModal{position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center}
+#gfxDemoModal[hidden]{display:none}
+#gfxDemoModal .gfxDemoBackdrop{position:absolute;inset:0;background:rgba(4,6,12,.82);backdrop-filter:blur(6px)}
+#gfxDemoModal .gfxDemoCard{position:relative;width:min(94vw,1180px);height:min(86vh,760px);
+  border-radius:14px;overflow:hidden;background:#0a0c14;
+  box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06) inset}
+#gfxDemoModal iframe{width:100%;height:100%;border:0;display:block;background:#0a0c14}
+#gfxDemoModal .gfxDemoClose{position:absolute;top:10px;right:10px;z-index:2;
+  width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;
+  background:rgba(0,0,0,.55);color:#fff;font-size:20px;line-height:1;
+  display:flex;align-items:center;justify-content:center}
+#gfxDemoModal .gfxDemoClose:hover{background:rgba(0,0,0,.85)}
+#tDivTextEgg{cursor:pointer;user-select:none;-webkit-user-select:none}
+#tDivTextEgg:hover{color:var(--text-light,#fff)}
+</style>
+<script>
+(function(){
+  'use strict';
+  const trigger = document.getElementById('tDivTextEgg');
+  const modal   = document.getElementById('gfxDemoModal');
+  const frame   = document.getElementById('gfxDemoFrame');
+  const closeBtn= document.getElementById('gfxDemoClose');
+  const backdrop= modal && modal.querySelector('.gfxDemoBackdrop');
+  if(!trigger || !modal || !frame) return;
+
+  let clicks = 0, timer = 0;
+  function bumpClick(){
+    clicks++;
+    clearTimeout(timer);
+    timer = setTimeout(() => { clicks = 0; }, 1600);
+    if(clicks >= 3){
+      clicks = 0;
+      clearTimeout(timer);
+      openModal();
+    }
+  }
+  function openModal(){
+    if(!frame.getAttribute('src')) frame.setAttribute('src', 'demo-graphics.html');
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden','false');
+  }
+  function closeModal(){
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden','true');
+    // Unload iframe to stop its render loop + free WebGL context.
+    frame.setAttribute('src','');
+  }
+
+  trigger.addEventListener('click', bumpClick);
+  trigger.addEventListener('keydown', e => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); bumpClick(); }
+  });
+  closeBtn.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', closeModal);
+  document.addEventListener('keydown', e => {
+    if(!modal.hidden && e.key === 'Escape') closeModal();
+    // Power-user shortcut: Alt+G opens the demo from anywhere.
+    if(e.altKey && (e.key === 'g' || e.key === 'G')){ e.preventDefault(); openModal(); }
+  });
+})();
+</script>
+</body>
+</html>
