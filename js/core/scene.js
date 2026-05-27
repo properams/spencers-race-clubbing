@@ -1701,6 +1701,44 @@ async function _precompileSceneChunked(opts){
   const _progBefore=(renderer.info.programs&&renderer.info.programs.length)||0;
   const _HEAVY_MS = 50;
   const _heavyMeshes = window.dbg ? [] : null;
+  // Warm-path fast-exit. renderer.compile() is een µs no-op voor een
+  // material waarvan het program al in three's WebGLPrograms-cache
+  // staat. Sync-probe de eerste batch (8 sync-compiles ≈ <1ms warm).
+  // Als progDelta=0 staan alle "dominante" scene-traverse permutaties al
+  // gelinkt; skip dan de per-mesh rAF-yield-loop (16.6ms × N op 60Hz,
+  // tot ~31s spinner-tijd). Materialen die NIET door de probe gedekt
+  // worden (typisch fresh livery decals van makeAllCars die ná
+  // buildScene zijn toegevoegd) worden alsnog inline gecompileerd door
+  // _warmRenderMultiPose's render-calls in goToRace Fase 3 — nog steeds
+  // achter de LIGHTS OUT overlay. Correctheid komt van three's cache;
+  // dit pad is puur UX-timing.
+  const _probeCount = Math.min(batchSize, meshes.length);
+  for(let i = 0; i < _probeCount; i++){
+    try{ renderer.compile(meshes[i], camera); }
+    catch(e){ if(window.dbg) dbg.warn('scene','warm-probe compile failed: '+(e&&e.message||e)); }
+  }
+  if(((renderer.info.programs&&renderer.info.programs.length)||0) - _progBefore === 0){
+    if(labelFn) try{ labelFn(N, N); }catch(_){}
+    if(window.perfMark){perfMark('precompile:chunked:end');perfMeasure('build.precompile.chunked','precompile:chunked:start','precompile:chunked:end');}
+    if(window.dbg){
+      dbg.markRaceEvent('PRECOMPILE-CHUNKED-DONE',{
+        durMs:+(performance.now()-_t0).toFixed(2),
+        meshes:meshes.length,
+        batches:N,
+        batchSize,
+        progDelta:0,
+        world:activeWorld,
+        heavyCount:0,
+        top5Heavy:[],
+        warmFastPath:true
+      });
+    }
+    return;
+  }
+  // Cold path — eerste batch heeft programs gelinkt → er is echt werk.
+  // Originele per-mesh rAF-yield-loop draait vanaf i=0; de eerste batch
+  // raakt nu de cache (no-op) maar de yields blijven, ~133ms extra op
+  // cold (acceptabel, behoudt per-mesh diagnose-instrumentatie).
   for(let i=0;i<meshes.length;i++){
     const _m = meshes[i];
     const _mt = window.dbg ? performance.now() : 0;
