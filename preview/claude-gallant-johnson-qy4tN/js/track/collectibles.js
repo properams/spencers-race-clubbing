@@ -2,6 +2,14 @@
 
 'use strict';
 
+// Material-share helper — delegate naar de globale getOrCreate-cache
+// (gedefinieerd in dist/shared-materials.bundle.js). Fallback-guard zodat
+// als de bundle ontbreekt (mockup-tests, edge-cases) de factory direct
+// wordt uitgevoerd. Cache-keys MOETEN alle visueel-bepalende props
+// bevatten — voorkomt onbedoelde sharing tussen call-sites met
+// identieke kleur maar afwijkende opacity/side/emissiveIntensity.
+function _shMat(k, f){ const g = window._sharedMat && window._sharedMat.getOrCreate; return g ? g(k, f) : f(); }
+
 // Throttle anchors voor pickup-burst: zonder deze stapelt elke coin in een
 // chain 8 audio-nodes + 2 DOM-mutaties op. Zie checkCollectibles() voor
 // gebruik.
@@ -43,13 +51,15 @@ function buildCollectibles(){
 
     // [0] Core — tiny bright white nucleus (visible through disc)
     const core=new THREE.Mesh(new THREE.SphereGeometry(.2,8,8),
-      new THREE.MeshBasicMaterial({color:0xffffff}));
+      _shMat('collectibles/core-white#col=0xffffff',
+        ()=> new THREE.MeshBasicMaterial({color:0xffffff})));
     g.add(core);
 
     // [1] Main coin disc — thin cylinder standing vertically (faces camera as group rotates)
     // Phase 7.1: intensity 1.2 → 1.8 so coins read as bright neon beacons
     // from longer distance + tie into the universally-bumped halo/light.
-    const coinMat=new THREE.MeshLambertMaterial({color:pal.coin,emissive:pal.emit,emissiveIntensity:1.8});
+    const coinMat=_shMat('collectibles/coin#col='+pal.coin+'#em='+pal.emit+'#ei=1.8',
+      ()=> new THREE.MeshLambertMaterial({color:pal.coin,emissive:pal.emit,emissiveIntensity:1.8}));
     const coin=new THREE.Mesh(new THREE.CylinderGeometry(.92,.92,.16,28),coinMat);
     coin.rotation.x=Math.PI/2; // stand up like a coin
     g.add(coin);
@@ -57,7 +67,8 @@ function buildCollectibles(){
     // [2] Rim halo — thicker torus at coin edge for neon glow
     // Phase 7.1: halo intensity 1.5 → 1.9 for punchy doughnut-glow ring.
     const halo=new THREE.Mesh(new THREE.TorusGeometry(1.02,.10,8,36),
-      new THREE.MeshLambertMaterial({color:pal.halo,emissive:pal.halo,emissiveIntensity:1.9,transparent:true,opacity:.85}));
+      _shMat('collectibles/halo#col='+pal.halo+'#em='+pal.halo+'#ei=1.9#op=0.850#t=T#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:pal.halo,emissive:pal.halo,emissiveIntensity:1.9,transparent:true,opacity:.85})));
     halo.rotation.x=Math.PI/2;
     g.add(halo);
 
@@ -68,13 +79,15 @@ function buildCollectibles(){
     // updateCollectibles still targets children[3] — animation now
     // reads as a sparkle wobble around the coin instead of an orbit.
     const orbit=new THREE.Mesh(new THREE.TorusGeometry(1.55,.075,8,44),
-      new THREE.MeshLambertMaterial({color:pal.rim,emissive:pal.rim,emissiveIntensity:1.0,transparent:true,opacity:.55}));
+      _shMat('collectibles/orbit#col='+pal.rim+'#em='+pal.rim+'#ei=1.0#op=0.550#t=T#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:pal.rim,emissive:pal.rim,emissiveIntensity:1.0,transparent:true,opacity:.55})));
     orbit.rotation.x=Math.PI/2;
     g.add(orbit);
 
     // [4] Star face — glowing octahedron floating at front of coin
     const star=new THREE.Mesh(new THREE.OctahedronGeometry(.36,0),
-      new THREE.MeshBasicMaterial({color:pal.rim,transparent:true,opacity:.95}));
+      _shMat('collectibles/star#col='+pal.rim+'#op=0.950#t=T#s=0',
+        ()=> new THREE.MeshBasicMaterial({color:pal.rim,transparent:true,opacity:.95})));
     star.position.z=.13;
     g.add(star);
 
@@ -83,15 +96,19 @@ function buildCollectibles(){
     // onzichtbaar voor bloom en las als chiffon-overlay; emissive variant
     // punst een echte visible light shaft boven elke coin.
     const beam=new THREE.Mesh(new THREE.CylinderGeometry(.05,.42,14,8,1,true),
-      new THREE.MeshLambertMaterial({color:pal.light,emissive:pal.light,emissiveIntensity:1.6,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false}));
+      _shMat('collectibles/beam#col='+pal.light+'#em='+pal.light+'#ei=1.6#op=0.180#t=T#s=2#dw=D0',
+        ()=> new THREE.MeshLambertMaterial({color:pal.light,emissive:pal.light,emissiveIntensity:1.6,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false})));
     beam.position.y=6;g.add(beam);
 
     // [6] Ground marker ring — anchors the token visually
     // polygonOffset pulls the ring toward camera so it wins depth-test against
     // asphalt on low-precision depth buffers (iPhone/iPad Safari). Fixes
     // "pink portal rings clipping into asphalt" — Issue 3 V5.3 fix pass.
-    const groundRingMat=new THREE.MeshBasicMaterial({color:pal.halo,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false});
-    groundRingMat.polygonOffset=true;groundRingMat.polygonOffsetFactor=-3;groundRingMat.polygonOffsetUnits=-3;
+    const groundRingMat=_shMat('collectibles/groundring#col='+pal.halo+'#op=0.350#t=T#s=2#dw=D0#pf=-3/-3', function(){
+      const m=new THREE.MeshBasicMaterial({color:pal.halo,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false});
+      m.polygonOffset=true; m.polygonOffsetFactor=-3; m.polygonOffsetUnits=-3;
+      return m;
+    });
     const groundRing=new THREE.Mesh(new THREE.RingGeometry(.55,1.25,28),groundRingMat);
     groundRing.rotation.x=-Math.PI/2;
     groundRing.position.y=-pos.y+.025;
@@ -113,25 +130,32 @@ function buildCollectibles(){
 
     const g=new THREE.Group();g.position.copy(pos);
 
-    // [0] Core
+    // [0] Core — hergebruikt 'collectibles/core-white' key uit coin-loop
+    // (zelfde MeshBasicMaterial(0xffffff)) → één gedeelde instance over
+    // alle coin- en repair-cores.
     const core=new THREE.Mesh(new THREE.SphereGeometry(.18,8,8),
-      new THREE.MeshBasicMaterial({color:0xffffff}));
+      _shMat('collectibles/core-white#col=0xffffff',
+        ()=> new THREE.MeshBasicMaterial({color:0xffffff})));
     g.add(core);
 
     // [1] Hex-token base (6-sided cylinder standing like coin)
     const hex=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,.18,6),
-      new THREE.MeshLambertMaterial({color:0x00ee66,emissive:0x00aa33,emissiveIntensity:1.1}));
+      _shMat('collectibles/repair-hex#col=0x00ee66#em=0x00aa33#ei=1.1',
+        ()=> new THREE.MeshLambertMaterial({color:0x00ee66,emissive:0x00aa33,emissiveIntensity:1.1})));
     hex.rotation.x=Math.PI/2;
     g.add(hex);
 
     // [2] Rim halo
     const halo=new THREE.Mesh(new THREE.TorusGeometry(1.1,.09,8,24),
-      new THREE.MeshLambertMaterial({color:0x44ffaa,emissive:0x00ff77,emissiveIntensity:1.4,transparent:true,opacity:.85}));
+      _shMat('collectibles/repair-halo#col=0x44ffaa#em=0x00ff77#ei=1.4#op=0.850#t=T#s=0',
+        ()=> new THREE.MeshLambertMaterial({color:0x44ffaa,emissive:0x00ff77,emissiveIntensity:1.4,transparent:true,opacity:.85})));
     halo.rotation.x=Math.PI/2;
     g.add(halo);
 
-    // [3] Plus sign — bright emissive, on face
-    const plusMat=new THREE.MeshBasicMaterial({color:0xffffff});
+    // [3] Plus sign — bright emissive, on face. Same 0xffffff Basic as
+    // core; cache-keyed naar dezelfde instance.
+    const plusMat=_shMat('collectibles/core-white#col=0xffffff',
+      ()=> new THREE.MeshBasicMaterial({color:0xffffff}));
     const plusH=new THREE.Mesh(new THREE.BoxGeometry(.95,.28,.08),plusMat);
     plusH.position.z=.12;g.add(plusH);
     const plusV=new THREE.Mesh(new THREE.BoxGeometry(.28,.95,.08),plusMat);
@@ -141,12 +165,16 @@ function buildCollectibles(){
 
     // [5] Light beam
     const bm=new THREE.Mesh(new THREE.CylinderGeometry(.05,.38,14,8,1,true),
-      new THREE.MeshBasicMaterial({color:0x00ff66,transparent:true,opacity:.09,side:THREE.DoubleSide,depthWrite:false}));
+      _shMat('collectibles/repair-beam#col=0x00ff66#op=0.090#t=T#s=2#dw=D0',
+        ()=> new THREE.MeshBasicMaterial({color:0x00ff66,transparent:true,opacity:.09,side:THREE.DoubleSide,depthWrite:false})));
     bm.position.y=6;g.add(bm);
 
     // [6] Ground ring — polygonOffset prevents z-fight against asphalt (Issue 3)
-    const groundRingMatK=new THREE.MeshBasicMaterial({color:0x00ff66,transparent:true,opacity:.32,side:THREE.DoubleSide,depthWrite:false});
-    groundRingMatK.polygonOffset=true;groundRingMatK.polygonOffsetFactor=-3;groundRingMatK.polygonOffsetUnits=-3;
+    const groundRingMatK=_shMat('collectibles/repair-groundring#col=0x00ff66#op=0.320#t=T#s=2#dw=D0#pf=-3/-3', function(){
+      const m=new THREE.MeshBasicMaterial({color:0x00ff66,transparent:true,opacity:.32,side:THREE.DoubleSide,depthWrite:false});
+      m.polygonOffset=true; m.polygonOffsetFactor=-3; m.polygonOffsetUnits=-3;
+      return m;
+    });
     const groundRing=new THREE.Mesh(new THREE.RingGeometry(.6,1.4,24),groundRingMatK);
     groundRing.rotation.x=-Math.PI/2;
     groundRing.position.y=-pos.y+.025;
@@ -337,9 +365,10 @@ function buildSpectators(){
     const along=tg.clone();
     for(let bi=0;bi<16;bi++){
       const dx=(bi-7.5)*5;
-      // Pole
+      // Pole — shared 0x444444 Lambert (16 poles × 2 sides = 32 instances → 1).
       const pole=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,1.6,4),
-        new THREE.MeshLambertMaterial({color:0x444444}));
+        _shMat('collectibles/crowd-pole#col=0x444444',
+          ()=> new THREE.MeshLambertMaterial({color:0x444444})));
       pole.position.copy(stand.position);
       pole.position.y=4.6;
       pole.position.addScaledVector(along,dx);
