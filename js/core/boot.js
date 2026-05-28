@@ -116,7 +116,7 @@ function _wireFirstGestureAudio(){
 // ── Hoofdmenu / world-select / difficulty knoppen ────────────────────
 function _wireMenuButtons(){
   document.getElementById('btnStart').addEventListener('click',()=>{initAudio();startMenuMusic();goToWorldSelect();});
-  document.getElementById('btnRace').addEventListener('click',function(){if(window.perfMark)perfMark('goToRace:click');goToRace();});
+  document.getElementById('btnRace').addEventListener('click',function(){if(window.perfMark)perfMark('goToRace:click');if(window._perfAudit2026){try{window._heapAt&&_heapAt('goToRace.click');window._sceneStatsAt&&_sceneStatsAt('goToRace.click');window._swStateAt&&_swStateAt('goToRace.click');}catch(_){}}goToRace();});
   document.getElementById('btnBackTitle').addEventListener('click',()=>goToWorldSelect());
   _wireDevPanelButtons();
   _wireDevPanelSecretTap();
@@ -641,6 +641,7 @@ async function boot(){
     // wacht op eerste gesture. Achtergrond-buildScene draait verder onder
     // __bootScenePromise. menu:interactive markeert hier.
     if(window.perfMark){perfMark('menu:interactive');perfMeasure('boot.total','boot:start','menu:interactive');}
+    if(window._perfAudit2026){try{window._heapAt&&_heapAt('menu.interactive');window._sceneStatsAt&&_sceneStatsAt('menu.interactive');window._swStateAt&&_swStateAt('menu.interactive');}catch(_){}}
     // Background: world-script + buildScene. Errors surface in dbg + worden
     // door goToSelect/_wireMenuButtons opgevangen via de promise.
     if(window.perfMark)perfMark('boot:initialBuild:start');
@@ -668,19 +669,22 @@ async function boot(){
         if(window.dbg)dbg.error('boot',e,'buildScene crashed');
         else console.error('buildScene crashed:',e);
       }
+      // Prefetch eerder gestart (QW2 S-variant 2026-05-28): start na
+      // buildScene maar binnen achtergrond-IIFE, ~200-500ms eerder dan
+      // post-menu:interactive. Effectieve user-facing winst alleen
+      // wanneer user binnen ~1s op race klikt (rest hangt al op
+      // buildScene/precompile zelf). [LIVE confirmatie via FASE 1 9-run
+      // protocol — claim 500-2000ms in quickwin-plan blijft het
+      // verwachte boven-grens-effect over alle cache-states samen]
+      if(typeof window.prefetchAllWorlds==='function'){
+        window.prefetchAllWorlds(window.activeWorld);
+      }
       if(window.perfMark){perfMark('boot:initialBuild:end');perfMeasure('boot.initialBuild','boot:initialBuild:start','boot:initialBuild:end');}
     })();
     window.dbg&&dbg.log('boot','done');
     // Perf Phase A: signaalvlag voor headless test-runner. Pas zetten na
     // loop() zodat de runner zeker weet dat rAF al draait.
     window._bootDone = true;
-    // Idle-tijd prefetch van de resterende 10 wereld-scripts. Gebruiker
-    // is op TITLE/WORLD_SELECT — geen gameplay-CPU druk. Tegen de tijd dat
-    // ze een wereld kiezen is de meeste content al binnen. Zie
-    // js/core/world-loader.js.
-    if(typeof window.prefetchAllWorlds==='function'){
-      window.prefetchAllWorlds(window.activeWorld);
-    }
     // Service worker — cached zware vendor + wereld + asset bestanden zodat
     // het tweede bezoek vrijwel-instant boott. Registreren ná loop() zodat
     // de eerste-bezoek boot niet vertraagd wordt door SW install.

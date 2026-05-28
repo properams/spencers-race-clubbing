@@ -16,12 +16,24 @@
 
 'use strict';
 
-const SW_VERSION='src-v10-2026-05-22';
+const SW_VERSION='src-v11-2026-05-28';
 const CACHE_NAME='src-cache-'+SW_VERSION;
 
 // Pre-cache de absolute essentials. Rest wordt on-demand gecached via fetch
 // handler. Klein houden — deze lijst moet 100% beschikbaar zijn anders fail
 // the install.
+//
+// QW3 2026-05-28: pre-cache uitgebreid met dist-bundles (boot-critical
+// JS, samen <60KB) + manifest.json + de twee meest-relevante world
+// scripts (space = default world, guangzhou = zwaarste/grootste).
+// Tweede bezoek serveert deze items direct uit cache i.p.v. een
+// netwerk-roundtrip — meetbare versnelling op repeat-visits.
+//
+// Maintenance-note: shared-materials.bundle.js gebruikt een
+// querystring-versie (`?v=YYYY-MM-DDx`) zoals geladen in index.html.
+// SW behandelt querystring als andere URL, dus de exacte string moet
+// hier overeenkomen met index.html. Bij bumps in index.html óók
+// SW_VERSION hier bumpen, anders blijft de oude versie cache-hit.
 const PRECACHE_URLS=[
   '/',
   '/index.html',
@@ -30,6 +42,17 @@ const PRECACHE_URLS=[
   // start op de 1e tap. Pre-cache zorgt dat herhaalbezoeken offline werken
   // en de pre-fetch uit cache komt (≈0ms i.p.v. een netwerk-round-trip).
   '/assets/audio/music/menu/grid-run.mp3',
+  // dist bundles — boot-critical, samen <60KB.
+  '/dist/device.bundle.js',
+  '/dist/breadcrumb.bundle.js',
+  '/dist/perf.bundle.js',
+  '/dist/three-compat.bundle.js',
+  '/dist/quality-tier.bundle.js',
+  '/dist/shared-materials.bundle.js?v=2026-05-26b',
+  // manifest + default world + heaviest world.
+  '/assets/manifest.json',
+  '/js/worlds/space.js',
+  '/js/worlds/guangzhou.js',
 ];
 
 // URL-patronen voor cache-first. Wereld-scripts + vendor + assets zijn

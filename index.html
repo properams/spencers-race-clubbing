@@ -959,6 +959,11 @@
 <script defer src="dist/device.bundle.js"></script>
 <script defer src="dist/breadcrumb.bundle.js"></script>
 <script defer src="dist/perf.bundle.js"></script>
+<!-- Perf-audit-2026: diagnose-only instrumentatie, gated via ?audit=1 of
+     localStorage.src_audit='1'. Silent no-op in productie-pad. Activeert
+     daarnaast src_debug zodat debug.js's longtask-observer + race-perf-probe
+     ringbuffers ook vullen tijdens audit-runs. -->
+<script defer src="js/core/perf-audit-2026.js"></script>
 <script defer src="dist/three-compat.bundle.js"></script>
 <script defer src="dist/quality-tier.bundle.js"></script>
 <script defer src="dist/shared-materials.bundle.js?v=2026-05-26b"></script>

@@ -102,7 +102,17 @@
         if(window.requestIdleCallback){
           requestIdleCallback(next,{timeout:3000});
         }else{
-          setTimeout(next,800);
+          // Safari-fallback inter-item delay. Verlaagd 800 → 300ms
+          // (QW5 2026-05-28). Audit-bevinding 2026-05-28: geen
+          // code-rationale voor 800 in commit-history of comments;
+          // sequentiële vorm blijft (regel 86 comment), alleen het
+          // inter-item gat is kleiner. Veiligheid: loop-body
+          // (loadWorldScript → _injectScript) doet alleen async
+          // script-tag append met async=false, geen synchroon werk.
+          // Outer-kickoff (regel ~112, 2500ms) ongewijzigd; dat is
+          // one-shot startup-delay. [LIVE-iOS confirmatie via FASE 1
+          // mobile run dat netwerk-contention op slow-3G niet regrest]
+          setTimeout(next,300);
         }
       });
     };

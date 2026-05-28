@@ -343,6 +343,22 @@ function loop(){
         const _pa=(renderer.info.programs&&renderer.info.programs.length)||0;
         window.perfLog.push({name:'shaderPrograms.atFirstFrame',ms:_pa,t:performance.now(),world:window.activeWorld});
       }
+      if(window._perfAudit2026){
+        try{
+          window._heapAt&&_heapAt('firstRaceFrame');
+          window._sceneStatsAt&&_sceneStatsAt('firstRaceFrame');
+          window._swStateAt&&_swStateAt('firstRaceFrame');
+          // race+10s snapshot: GRACEFUL-DOWNGRADE level 1 triggert ~10s ná
+          // FIRST-RACE-FRAME (zie known-unknowns). Snapshot vangt heap/scene
+          // op dat moment om FPS-drop oorzaak te localiseren.
+          setTimeout(()=>{
+            try{
+              window._heapAt&&_heapAt('race+10s');
+              window._sceneStatsAt&&_sceneStatsAt('race+10s');
+            }catch(_){}
+          },10000);
+        }catch(_){}
+      }
     }
     // First-frame-after-GO measure: catches shader compile / texture upload
     // spike on the first race render with this world's full material set.

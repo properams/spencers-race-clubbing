@@ -1682,6 +1682,7 @@ async function _precompileSceneChunked(opts){
     try{ await renderer.compileAsync(scene,camera); }
     catch(e){ if(window.dbg)dbg.error('scene',e,'compileAsync failed'); }
     if(window.perfMark){perfMark('precompile:compileAsync:end');perfMeasure('build.precompile.compileAsync','precompile:compileAsync:start','precompile:compileAsync:end');}
+    if(window._perfAudit2026){try{window._sceneStatsAt&&_sceneStatsAt('precompile.compileAsync.end');}catch(_){}}
     return;
   }
 
@@ -1776,6 +1777,7 @@ async function _precompileSceneChunked(opts){
     }
   }
   if(window.perfMark){perfMark('precompile:chunked:end');perfMeasure('build.precompile.chunked','precompile:chunked:start','precompile:chunked:end');}
+  if(window._perfAudit2026){try{window._sceneStatsAt&&_sceneStatsAt('precompile.chunked.end');}catch(_){}}
   if(window.dbg){
     const _dur=performance.now()-_t0;
     const _progAfter=(renderer.info.programs&&renderer.info.programs.length)||0;
