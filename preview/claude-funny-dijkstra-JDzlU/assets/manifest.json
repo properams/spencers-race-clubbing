@@ -3,8 +3,8 @@
   "_format_version": 2,
   "worlds": {
     "volcano": {
-      "hdri": "assets/hdri/volcano_dusk_2k.hdr",
-      "hdri_mobile": "assets/hdri/volcano_dusk_1k.hdr",
+      "hdri": "",
+      "hdri_mobile": "",
       "ground": {
         "color": "assets/textures/volcano/lavarock_color.jpg",
         "normal": "assets/textures/volcano/lavarock_normal.jpg",
@@ -48,8 +48,8 @@
       }
     },
     "arctic": {
-      "hdri": "assets/hdri/arctic_overcast_2k.hdr",
-      "hdri_mobile": "assets/hdri/arctic_overcast_1k.hdr",
+      "hdri": "",
+      "hdri_mobile": "",
       "ground": {
         "color": "assets/textures/arctic/snowice_color.jpg",
         "normal": "assets/textures/arctic/snowice_normal.jpg",
