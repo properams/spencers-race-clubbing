@@ -1020,6 +1020,7 @@ function _selectPreviewCar(defId){
 
 async function rebuildWorld(newWorld){
   if(newWorld===activeWorld)return;
+  const _prevWorldForPerf=activeWorld; // loadperf: vastleggen vóór reassign
   if(window.perfMark)perfMark('transition:start');
   if(window.Breadcrumb)Breadcrumb.push('rebuildWorld',{from:activeWorld,to:newWorld});
   // Fase 2D: tier re-evaluatie op wereld-switch. Een eerdere race op een
@@ -1050,6 +1051,14 @@ async function rebuildWorld(newWorld){
     });
   }
   const _wasDark=isDark;
+  // loadperf (H-accumulatie): programs-count vóór de switch-build. Samen met
+  // de .after-snapshot toont dit of programs monotoon groeien over
+  // wereld-switches binnen één page-load (sandstorm→candy→deepsea). Groeit
+  // het niet terug na disposeScene, dan lekt de switch programs (kandidaat:
+  // _shared-gevlagde material-clones die _disposeMat overslaat). Pure meting.
+  if(window._loadPerf && window.renderer && window.renderer.info){
+    window._loadPerf('programs.switch.before',(window.renderer.info.programs&&window.renderer.info.programs.length)||0,{from:_prevWorldForPerf,to:newWorld});
+  }
   // buildScene() can throw on iOS under memory pressure (texture upload,
   // shader compile). Surface the error visibly instead of leaving the user
   // on a half-built scene with no feedback.
@@ -1059,6 +1068,12 @@ async function rebuildWorld(newWorld){
     else console.error('rebuildWorld buildScene crashed:', e);
     if(window.Notify) Notify.banner('⚠ Wereld kon niet laden — probeer opnieuw','#ff6644',3500);
     return;
+  }
+  // loadperf (H-accumulatie): programs-count ná de switch-build. Vergelijk
+  // met .before en met eerdere switches: monotone groei = accumulatie
+  // (app-brede fix), grote sprong alleen op deepsea/guangzhou = wereld-kost.
+  if(window._loadPerf && window.renderer && window.renderer.info){
+    window._loadPerf('programs.switch.after',(window.renderer.info.programs&&window.renderer.info.programs.length)||0,{from:_prevWorldForPerf,to:newWorld});
   }
   if(!_wasDark)toggleNight(); // if was day, flip back to day
   if(_weatherMode!=='clear')setWeather(_weatherMode);
