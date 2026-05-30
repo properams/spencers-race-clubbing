@@ -664,7 +664,11 @@ async function boot(){
           else console.error('loadWorldScript failed for initial world:',e);
         }
       }
-      try{ await buildScene(); }
+      // deferPrecompile: sla de ~6-11s shader-precompile over op het boot-pad.
+      // De speler heeft deze wereld nog niet bevestigd (carousel komt later);
+      // kiest hij een andere, dan was die precompile verspild. De compile
+      // landt warm in goToRace (achter LIGHTS OUT) of in rebuildWorld.
+      try{ await buildScene({deferPrecompile:true}); }
       catch(e){
         if(window.dbg)dbg.error('boot',e,'buildScene crashed');
         else console.error('buildScene crashed:',e);

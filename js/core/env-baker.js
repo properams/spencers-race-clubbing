@@ -113,6 +113,10 @@ function bakeSceneEnv(scn, position){
   // faces (8-30ms wasted). The PMREM env captures direct + sky lighting; the
   // missing self-shadows in the reflection are imperceptible.
   const r = window.renderer;
+  // loadperf: meet de cube-render + PMREM-filter los (wereld-onafhankelijke
+  // laadkost-hypothese H2). Resolutie = cube-face size uit _ensureCubeBaker.
+  const _lpT0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+  const _lpRes = (_envCubeRT && _envCubeRT.width) || 0;
   const prevShadowsEnabled = r.shadowMap.enabled;
   r.shadowMap.enabled = false;
   try {
@@ -145,6 +149,12 @@ function bakeSceneEnv(scn, position){
   } catch (e) {
     if(window.dbg) dbg.error('env-baker', e, 'PMREM fromCubemap failed');
     return null;
+  }
+  if(window._loadPerf && typeof performance !== 'undefined'){
+    window._loadPerf('pmrem.sceneEnv', performance.now() - _lpT0, {
+      res: _lpRes + '² cube',
+      world: (typeof activeWorld !== 'undefined') ? activeWorld : '?'
+    });
   }
   if(envMap && window.dbg){
     const w = (typeof activeWorld!=='undefined') ? activeWorld : '?';

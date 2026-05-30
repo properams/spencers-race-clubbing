@@ -30,6 +30,9 @@ function _perfHeap(eventName){
 
 async function goToSelect(){
   if(gameState!=='TITLE')return;
+  // loadperf: car-select-open boundary (klik op ENTER LIGHT). De delta tot
+  // carselect:interactive = de gevoelde "auto-kiezer opent traag"-tijd.
+  if(window.perfMark)perfMark('loadperf:carselect:open');
   // Title-first boot: buildScene draait op de achtergrond. Als de user
   // sneller op ENTER LIGHT tikt dan de scene-build kan finishen, wachten
   // we hier met de world-loading overlay zichtbaar voor visuele feedback.
@@ -68,6 +71,9 @@ async function goToSelect(){
   if(_firstCar)_firstCar.click();
   document.getElementById('sSelect').classList.remove('hidden');
   if(window.SrcLoader)window.SrcLoader.hideWorldLoader();
+  // loadperf: car-select-interactive boundary — grid + snapshot-bakery klaar,
+  // scherm zichtbaar. perfMeasure isoleert de open→interactive duur.
+  if(window.perfMark){perfMark('loadperf:carselect:interactive');if(window.perfMeasure)perfMeasure('loadperf.carselect.openToInteractive','loadperf:carselect:open','loadperf:carselect:interactive');}
   _perfHeap('goToSelect');
   if(window.Breadcrumb)Breadcrumb.push('goToSelect');
 }
@@ -404,6 +410,14 @@ async function goToRace(){
     // async. Fallback naar sync _precompileScene als helper niet beschikbaar
     // (oudere builds). Per-batch setStatus voor zichtbaar progress.
     if(window.perfMark)perfMark('goToRace:precompileChunked:start');
+    // loadperf: programs-count vóór deze precompile = "shader-sessie 2"
+    // (na makeAllCars — 9 cars met per-car gekloonde materialen die in
+    // buildScene-precompile nog niet bestonden). Verschil before→after is
+    // de tweede +N-sprong; samen met programs.buildScene.* het directe
+    // bewijs voor de "twee shader-sessies"-klacht (H1).
+    if(window._loadPerf && window.renderer && window.renderer.info){
+      window._loadPerf('programs.afterCars.before',(window.renderer.info.programs&&window.renderer.info.programs.length)||0,{world:window.activeWorld});
+    }
     if(typeof window._precompileSceneChunked==='function'){
       const _lbl=(i,N)=>setStatus('COMPILING SHADERS '+i+'/'+N);
       if(window.dbg) await dbg.measureAsync('perf','precompile.afterCars',
@@ -412,6 +426,9 @@ async function goToRace(){
     } else if(typeof window._precompileScene==='function'){
       if(window.dbg)dbg.measure('perf','precompile.afterCars',window._precompileScene);
       else window._precompileScene();
+    }
+    if(window._loadPerf && window.renderer && window.renderer.info){
+      window._loadPerf('programs.afterCars.after',(window.renderer.info.programs&&window.renderer.info.programs.length)||0,{world:window.activeWorld});
     }
     if(window.perfMark){perfMark('goToRace:precompileChunked:end');perfMeasure('goToRace.precompileChunked','goToRace:precompileChunked:start','goToRace:precompileChunked:end');}
     await _nextFrame();

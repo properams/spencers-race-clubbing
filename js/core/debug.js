@@ -215,6 +215,16 @@
     // Blijft doorlopen ná menu:interactive om post-boot nasleep te vangen.
     longTasks() { return _longTaskRing.slice(); },
     clearLongTasks() { _longTaskRing.length = 0; },
+
+    // ── loadperf: lifecycle-laadtimeline ────────────────────────────────
+    // Bouwt één geordende timeline uit window.perfLog (measures, heap-,
+    // programs- en loadperf.*-entries) + de fase-boundary performance.marks
+    // die géén perfLog-entry produceren (bare perfMark). Sorteert op tijd,
+    // berekent delta t.o.v. vorige rij. Werkt ook zonder dbg.enabled — de
+    // data wordt altijd verzameld (perfMark/perfLog zijn always-on). Bedoeld
+    // voor eigenaar-meting op echte hardware: enable dbg, doorloop de flow,
+    // Ctrl+Shift+E → LOAD TIMELINE → screenshot. Returnt de rij-array.
+    loadReport() { return _buildLoadTimeline(); },
   };
 
   // ── Performance audit ringbuffers + snapshot helper ──────────────────
@@ -395,8 +405,16 @@
       }
     });
     const btnClear = _mkBtn('🗑 CLEAR', () => { dbg.clearErrors(); _viewerRefresh(); });
+    const btnLoad = _mkBtn('📊 LOAD TIMELINE', () => {
+      title.textContent = '📊 LOAD TIMELINE';
+      if (_viewerList) _viewerList.innerHTML = _renderLoadTimelineHTML();
+    });
+    const btnErrors = _mkBtn('⚠ ERRORS', () => {
+      title.textContent = '⚠ DEBUG ERRORS';
+      _viewerRefresh();
+    });
     const btnClose = _mkBtn('✕ CLOSE', () => { _viewerEl.style.display = 'none'; });
-    head.appendChild(title); head.appendChild(btnCopy); head.appendChild(btnClear); head.appendChild(btnClose);
+    head.appendChild(title); head.appendChild(btnLoad); head.appendChild(btnErrors); head.appendChild(btnCopy); head.appendChild(btnClear); head.appendChild(btnClose);
     _viewerList = document.createElement('div');
     _viewerList.style.cssText = 'flex:1;overflow-y:auto;background:#0a0a0a;padding:12px;border-radius:4px;line-height:1.6';
     _viewerEl.appendChild(head); _viewerEl.appendChild(_viewerList);
@@ -547,6 +565,74 @@
   // window.perfLog kan uitlezen na een headless run. Push-cap op 500.
   window.perfLog = window.perfLog || [];
   window.perfMark = (label) => { try { performance.mark(label); } catch (e) {} };
+  // loadperf: push een named meting (ms + optionele extra-velden) naar
+  // perfLog. Near-zero kost, always-on (rijdt mee op de bestaande perfLog-
+  // ring). Gebruikt door env-baker/scene/navigation voor PMREM-duur en
+  // programs-count rond de twee precompile-grenzen. Console-echo alleen
+  // onder dbg-channel 'loadperf'.
+  window._loadPerf = (name, ms, extra) => {
+    try {
+      if (!window.perfLog) return;
+      const e = { name: 'loadperf.' + name, ms: (typeof ms === 'number' ? ms : 0), t: performance.now() };
+      if (extra) Object.assign(e, extra);
+      window.perfLog.push(e);
+      if (window.perfLog.length > 500) window.perfLog.shift();
+      if (window.dbg) dbg.log('loadperf', name + (typeof ms === 'number' ? ' = ' + ms.toFixed(1) + 'ms' : ''), extra || '');
+    } catch (_) {}
+  };
+
+  // Fase-boundary marks die géén perfLog-entry produceren (bare perfMark):
+  // alleen deze worden naast de perfLog-entries in de timeline opgenomen,
+  // zodat build:*/goToRace:* (die al als measure in perfLog staan) niet
+  // dubbel verschijnen.
+  const _PHASE_MARK_RE = /^(boot:start|menu:interactive|go:fired|go:firstFrame|loadperf:)/;
+  function _buildLoadTimeline() {
+    const rows = [];
+    try {
+      const marks = performance.getEntriesByType ? performance.getEntriesByType('mark') : [];
+      for (const m of marks) {
+        if (_PHASE_MARK_RE.test(m.name)) rows.push({ t: m.startTime, name: m.name, ms: null });
+      }
+    } catch (_) {}
+    const pl = window.perfLog || [];
+    for (const e of pl) {
+      const r = { t: e.t, name: e.name, ms: (typeof e.ms === 'number' ? e.ms : null) };
+      // extra-velden (res/path/programs/world/geometries/textures) meedragen.
+      for (const k of Object.keys(e)) { if (k !== 't' && k !== 'name' && k !== 'ms') r[k] = e[k]; }
+      rows.push(r);
+    }
+    rows.sort((a, b) => a.t - b.t);
+    let prev = null;
+    const out = rows.map(r => {
+      const delta = prev != null ? (r.t - prev) : 0;
+      prev = r.t;
+      const o = { t: +r.t.toFixed(1), dMs: +delta.toFixed(1), name: r.name, dur: (r.ms != null ? +r.ms.toFixed(1) : '') };
+      for (const k of Object.keys(r)) { if (k !== 't' && k !== 'name' && k !== 'ms') o[k] = r[k]; }
+      return o;
+    });
+    try { console.table(out); } catch (_) { console.log(out); }
+    return out;
+  }
+  function _renderLoadTimelineHTML() {
+    const out = _buildLoadTimeline();
+    if (!out.length) {
+      return '<div style="color:#666;font-style:italic;padding:20px;text-align:center">Geen loadperf-data. Doorloop boot → car-select → race en open opnieuw.</div>';
+    }
+    const head = '<div style="display:flex;gap:8px;color:#66ccff;border-bottom:1px solid #234;padding:4px 0;font-weight:bold">' +
+      '<span style="width:64px">t (ms)</span><span style="width:64px">+Δms</span><span style="flex:1">phase / event</span><span style="width:80px">dur ms</span><span style="flex:1">extra</span></div>';
+    const body = out.map(r => {
+      const extra = Object.keys(r).filter(k => k !== 't' && k !== 'dMs' && k !== 'name' && k !== 'dur')
+        .map(k => k + ':' + r[k]).join('  ');
+      const hot = (typeof r.dur === 'number' && r.dur > 16) ? 'color:#ffaa66' : 'color:#cfe';
+      return '<div style="display:flex;gap:8px;padding:2px 0;border-bottom:1px solid #1a1a1a">' +
+        '<span style="width:64px;color:#888">' + r.t + '</span>' +
+        '<span style="width:64px;color:#7a9">' + r.dMs + '</span>' +
+        '<span style="flex:1;' + hot + '">' + _esc(r.name) + '</span>' +
+        '<span style="width:80px;color:#ffaa66">' + (r.dur === '' ? '' : r.dur) + '</span>' +
+        '<span style="flex:1;color:#889">' + _esc(extra) + '</span></div>';
+    }).join('');
+    return '<div style="font-size:11px">' + head + body + '</div>';
+  }
   window.perfMeasure = (name, startLabel, endLabel) => {
     try {
       performance.measure(name, startLabel, endLabel);

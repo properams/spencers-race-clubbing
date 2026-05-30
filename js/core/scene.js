@@ -336,6 +336,9 @@ function _buildProceduralEnvMap(){
   tex.mapping=THREE.EquirectangularReflectionMapping;
   tex.needsUpdate=true;
   let envMap=null;
+  // loadperf: procedurele fallback-env PMREM-duur (alloc + compile + filter,
+  // generator wordt direct gedisposed). res = equirect bron-afmeting.
+  const _lpT0=(typeof performance!=='undefined')?performance.now():0;
   try{
     const pmrem=new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
@@ -344,6 +347,9 @@ function _buildProceduralEnvMap(){
   }catch(e){
     if(window.dbg) dbg.error('scene',e,'procedural envMap build failed');
     else console.error('procedural envMap build failed',e);
+  }
+  if(envMap && window._loadPerf && typeof performance!=='undefined'){
+    window._loadPerf('pmrem.procedural', performance.now()-_lpT0, {res:W+'x'+H});
   }
   tex.dispose();
   if(envMap){
@@ -395,6 +401,10 @@ function _buildWorldEnvFromSky(skytex){
   equirect.mapping=THREE.EquirectangularReflectionMapping;
   equirect.needsUpdate=true;
   let envMap=null;
+  // loadperf: PMREM-equirect duur (incl. eenmalige shader-compile bij de
+  // eerste call van de page-lifetime). Resolutie = bron-canvas afmeting.
+  const _lpT0=(typeof performance!=='undefined')?performance.now():0;
+  const _lpFirst=!_sceneEqPmrem;
   try{
     if(!_sceneEqPmrem){
       _sceneEqPmrem = new THREE.PMREMGenerator(renderer);
@@ -412,6 +422,13 @@ function _buildWorldEnvFromSky(skytex){
     else console.error('world envMap build failed',e);
   }
   equirect.dispose();
+  if(envMap && window._loadPerf && typeof performance!=='undefined'){
+    const _img=skytex.image;
+    window._loadPerf('pmrem.worldSky', performance.now()-_lpT0, {
+      res:((_img&&_img.width)||'?')+'x'+((_img&&_img.height)||'?'),
+      firstCompile:_lpFirst, world:activeWorld
+    });
+  }
   if(envMap && window.dbg){
     dbg.log('scene','world envMap built — '+activeWorld+' skybox → PMREM cube');
   }
@@ -981,8 +998,17 @@ function makeSandstormNightSkyTex(){
 function _yieldBuild(){ return new Promise(r=>setTimeout(r,0)); }
 if(typeof window!=='undefined') window._yieldBuild=_yieldBuild;
 
-async function buildScene(){
-  window.dbg&&dbg.log('scene','buildScene start — world='+activeWorld);
+async function buildScene(opts){
+  opts = opts || {};
+  // opts.deferPrecompile: sla de zware _precompileSceneChunked over. Alleen
+  // gezet door de boot-build (boot.js), die een wereld bouwt die de speler
+  // nog niet bevestigd heeft — kiest hij een andere wereld in de carousel,
+  // dan is die precompile (~6-11s gemeten) volledig verspild. De compile
+  // landt alsnog warm: keeper-flow via goToRace's _precompileSceneChunked +
+  // _warmRenderMultiPose achter de LIGHTS OUT-overlay; switcher-flow via de
+  // rebuildWorld-buildScene (zonder flag). De éénmalige warm-render hieronder
+  // blijft staan zodat het eerste TITLE-frame z'n zichtbare meshes compileert.
+  window.dbg&&dbg.log('scene','buildScene start — world='+activeWorld+(opts.deferPrecompile?' (deferPrecompile)':''));
   if(window.Breadcrumb)Breadcrumb.push('buildScene',{world:activeWorld});
   // Perf Phase A: shader-program count voor en na buildScene.
   const _perfProgBefore=(renderer&&renderer.info&&renderer.info.programs&&renderer.info.programs.length)||0;
@@ -1485,16 +1511,32 @@ async function buildScene(){
   // upload kost wordt opgevangen door de postfx warm-render hieronder
   // (PHASE-C fix), die langs het echte race-render-pad gaat zodat de
   // juiste shader-permutaties en postfx-pipeline gewarmd worden.
-  if(window.perfMark)perfMark('build:precompile:start');
-  // Cold-start fix: chunked variant met rAF-yields. boot LOADING-screen
-  // (SrcLoader) blijft staan tot buildScene resolved, dus deze await
-  // verlengt zichtbaar de spinner i.p.v. de main thread blokkeert.
-  // Per-batch SrcLoader.setLabel voor 'LOADING SHADERS i/N' feedback.
-  await _precompileSceneChunked({
-    batchSize: 8,
-    labelFn: (i, N) => { if(window.SrcLoader && typeof SrcLoader.setLabel==='function') SrcLoader.setLabel('LOADING SHADERS '+i+'/'+N); }
-  });
-  if(window.perfMark){perfMark('build:precompile:end');perfMeasure('build.precompile','build:precompile:start','build:precompile:end');}
+  // deferPrecompile (boot-build): sla de zware precompile over. De compile
+  // verschuift naar het race-entry-pad (keeper) of wordt nooit betaald
+  // (switcher kiest andere wereld). loadperf.programs.buildScene.* +
+  // build.precompile blijven binnen de guard — vuren ze niet, dan klopt de
+  // timeline (er was immers geen precompile op dit pad).
+  if(!opts.deferPrecompile){
+    if(window.perfMark)perfMark('build:precompile:start');
+    // loadperf: programs-count vóór deze precompile = "shader-sessie 1"
+    // (buildScene, vóór cars bestaan). Tweede sprong volgt in goToRace na
+    // makeAllCars. Twee zichtbare +N-sprongen = bewijs van de twee sessies.
+    if(window._loadPerf && renderer && renderer.info){
+      window._loadPerf('programs.buildScene.before',(renderer.info.programs&&renderer.info.programs.length)||0,{world:activeWorld});
+    }
+    // Cold-start fix: chunked variant met rAF-yields. boot LOADING-screen
+    // (SrcLoader) blijft staan tot buildScene resolved, dus deze await
+    // verlengt zichtbaar de spinner i.p.v. de main thread blokkeert.
+    // Per-batch SrcLoader.setLabel voor 'LOADING SHADERS i/N' feedback.
+    await _precompileSceneChunked({
+      batchSize: 8,
+      labelFn: (i, N) => { if(window.SrcLoader && typeof SrcLoader.setLabel==='function') SrcLoader.setLabel('LOADING SHADERS '+i+'/'+N); }
+    });
+    if(window._loadPerf && renderer && renderer.info){
+      window._loadPerf('programs.buildScene.after',(renderer.info.programs&&renderer.info.programs.length)||0,{world:activeWorld});
+    }
+    if(window.perfMark){perfMark('build:precompile:end');perfMeasure('build.precompile','build:precompile:start','build:precompile:end');}
+  }
   // Title warm-render: _precompileScene() roept alleen renderer.compile() aan,
   // wat shader-source uploadt + async compileert. Driver-link + texture-upload
   // + 1e shadow-pass gebeuren pas op het 1e echte renderer.render(). Op TITLE
