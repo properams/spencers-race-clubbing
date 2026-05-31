@@ -1,0 +1,355 @@
+/* worlds.css — Holographic Iridescent world overview.
+   Clean per-world horizon gradient, slim info bar, no per-world particle
+   animations. Designed to match the "WORLDS · 9 SPECTRA" reference.
+   Per-world colors live as inline gradient declarations on
+   `.worldBigCard[data-world="…"] .worldCardSwatch`. The accent color
+   (--world-accent / --world-glow) drives the selected-card glow and the
+   Enter-CTA. */
+
+#sWorld{
+  background:
+    radial-gradient(50% 40% at 50% 30%,rgba(212,168,255,.10),transparent 60%),
+    radial-gradient(60% 50% at 70% 80%,rgba(168,212,255,.08),transparent 60%),
+    linear-gradient(135deg,#08080e 0%,#1a0e28 50%,#08080e 100%);
+  flex-direction:column;gap:0;padding:0;overflow:hidden;
+  /* MUST keep .screen's position:fixed + inset:0. Overriding to relative
+     made #sWorld collapse to content-height, so the gradient bg only
+     covered the header+cards row and the 3D canvas bled through below. */
+  justify-content:flex-start
+}
+
+/* careerPanel exists for daily-challenge + XP wiring; hide it inside the
+   world overview screen. Stays in the DOM so achievements.js and
+   progression.js keep updating its inner state without errors. */
+#careerPanel.cpHiddenInWorld{display:none!important}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+.worldSelHeader{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  width:100%;
+  padding:clamp(10px,2.2vh,32px) clamp(20px,3vw,44px) clamp(6px,1vh,20px);
+  z-index:2;flex-shrink:0;gap:24px
+}
+.worldSelHeaderLeft{display:flex;flex-direction:column;gap:6px;min-width:0}
+.worldSelHeaderRight{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.worldSelHeaderLeft .holoEyebrow{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.32em;
+  color:rgba(184,176,208,.78);text-transform:uppercase
+}
+.worldSelTitle{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(34px,min(6.5vw,9vh),88px);
+  letter-spacing:-2px;color:#f8f8ff;line-height:.95;margin:0;
+  text-shadow:-2px 0 rgba(255,58,138,.4),2px 0 rgba(0,224,255,.4),0 0 1px #f8f8ff
+}
+.worldSelBack{flex-shrink:0}
+
+/* Cup-pills row (Rookie / Pro / Master / Legend). Each pill renders the
+   cup name + earned/max stars. They re-use the .holoTab styling but with
+   a thin rounded border so they read as distinct pills (matches the
+   reference where every pill has its own outline). */
+.worldCupRow{display:inline-flex;gap:10px;align-items:center}
+.worldCupPill{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:rgba(184,176,208,.85);
+  background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:999px;padding:7px 14px;cursor:pointer;line-height:1;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:border-color .15s,color .15s,background .15s,box-shadow .15s
+}
+.worldCupPill:hover{color:#f8f8ff;border-color:rgba(212,168,255,.45)!important}
+.worldCupPill.holoTabActive{
+  color:#f8f8ff;background:rgba(212,168,255,.10);
+  border-color:rgba(212,168,255,.55)!important;
+  box-shadow:0 0 12px rgba(212,168,255,.25)
+}
+.worldCupPill .holoTabCount{
+  font-family:var(--font-mono);font-size:10px;color:rgba(184,176,208,.78);
+  letter-spacing:.1em
+}
+.worldCupPill.holoTabActive .holoTabCount{color:#d4a8ff}
+
+/* ── Grid ─────────────────────────────────────────────────────────────── */
+.worldGrid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  grid-template-rows:repeat(3,1fr);
+  gap:clamp(8px,1.4vh,18px);
+  padding:clamp(4px,1vh,8px) clamp(20px,3vw,44px) clamp(14px,2vh,22px);
+  flex:1;min-height:0;z-index:2;width:100%;
+  max-width:1640px;margin:0 auto;align-content:stretch;overflow:visible;box-sizing:border-box
+}
+
+/* ── World card ───────────────────────────────────────────────────────── */
+.worldBigCard{
+  position:relative;border-radius:16px;cursor:pointer;
+  overflow:visible;background:rgba(8,8,14,.55);
+  border:1px solid rgba(255,255,255,.06);
+  transition:transform .25s cubic-bezier(.34,1.3,.64,1),
+             border-color .25s,box-shadow .25s;
+  display:flex;flex-direction:column;min-height:0;min-width:0;
+  --world-accent:#d4a8ff;--world-glow:rgba(212,168,255,.45)
+}
+.worldBigCard:hover{
+  transform:translateY(-3px);
+  border-color:color-mix(in srgb,var(--world-accent) 55%,transparent);
+  box-shadow:0 0 18px var(--world-glow),0 12px 28px rgba(0,0,0,.5)
+}
+
+/* Top horizon swatch — fills the full card; the info bar sits over it
+   at the bottom with an opaque dark background, so the swatch only shows
+   in the upper area. Per-world background-image set via data-attr below. */
+.worldCardSwatch{
+  position:absolute;inset:0;border-radius:inherit;
+  background-image:var(--world-bg-grad,linear-gradient(160deg,#0b0820,#1a0a3a 60%,#5b1bbf 130%));
+  overflow:hidden;z-index:0
+}
+/* Subtle horizon scan-line — thin bright streak across the swatch
+   horizon. Static, no animation, matches the reference. */
+.worldCardSwatch::after{
+  content:'';position:absolute;left:0;right:0;top:54%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--world-accent) 50%,transparent);
+  opacity:.55;pointer-events:none
+}
+
+/* Info bar — anchored to bottom of card, opaque dark with the world
+   info (eyebrow, name, time, dots). Padding-top is small so the swatch
+   above still shows ~55% of the card. */
+.worldCardInfo{
+  position:absolute;left:0;right:0;bottom:0;
+  background:linear-gradient(180deg,rgba(8,8,14,0) 0%,rgba(8,8,14,.92) 24%,rgba(8,8,14,.97) 100%);
+  padding:clamp(24px,4vh,38px) 16px 12px;border-radius:0 0 16px 16px;z-index:2;
+  min-height:46%;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;
+  pointer-events:none
+}
+
+.worldCardNum{
+  position:absolute;top:12px;left:14px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.28em;
+  color:rgba(248,248,255,.78);text-transform:uppercase;z-index:3;line-height:1;
+  text-shadow:0 1px 4px rgba(0,0,0,.55)
+}
+.worldCardName{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(15px,1.5vw,22px);letter-spacing:-.2px;line-height:1.1;
+  color:#f8f8ff;margin:0;text-shadow:0 1px 4px rgba(0,0,0,.6)
+}
+.worldCardTime{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;
+  color:var(--world-accent);
+  text-shadow:0 0 8px color-mix(in srgb,var(--world-accent) 55%,transparent)
+}
+.worldCardTime.isNew{color:#ff66dd;text-shadow:0 0 10px rgba(255,102,221,.55)}
+.worldCardDots{
+  position:absolute;right:14px;bottom:12px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;
+  color:rgba(184,176,208,.85);z-index:3;line-height:1
+}
+
+/* Selected card — pink/accent border + glow + iridescent strip beneath.
+   The strip is a holographic gradient bar that extends slightly below
+   the card, anchored via ::after. Border is in the world's accent color
+   so each world keeps its identity, but the strip is the same iridescent
+   gradient on every selected card (matches the reference). */
+.worldBigCard.wBigSel{
+  border-color:var(--world-accent);
+  box-shadow:
+    0 0 0 1px var(--world-accent),
+    0 0 28px var(--world-glow),
+    0 18px 48px rgba(0,0,0,.55)
+}
+.worldBigCard.wBigSel::after{
+  content:'';position:absolute;left:-2px;right:-2px;bottom:-16px;height:22px;
+  border-radius:0 0 18px 18px;
+  background:linear-gradient(90deg,
+    #ff66cc 0%,
+    #c89cff 22%,
+    #88c0ff 45%,
+    #88e0d8 65%,
+    #ffe4a8 88%,
+    #ffb088 100%);
+  filter:blur(.5px);opacity:.95;pointer-events:none;z-index:1;
+  box-shadow:0 8px 28px rgba(255,140,220,.35)
+}
+
+/* Locked card — dim swatch + lock icon overlay. The lock overlay uses
+   a centered glyph; the unlock-hint is rendered on hover via a fade-in. */
+.worldBigCard.isLocked{cursor:not-allowed}
+.worldBigCard.isLocked .worldCardSwatch{filter:grayscale(.7) brightness(.5)}
+.worldBigCard.isLocked .worldCardName,
+.worldBigCard.isLocked .worldCardTime,
+.worldBigCard.isLocked .worldCardDots,
+.worldBigCard.isLocked .worldCardNum{opacity:.5}
+.worldCardLocked{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+  background:radial-gradient(ellipse at center,rgba(20,8,32,.78) 0%,rgba(0,0,0,.85) 70%);
+  z-index:5;border-radius:inherit;pointer-events:none;text-align:center;padding:14px
+}
+.worldCardLocked .wclIcon{
+  font-size:clamp(28px,3vw,40px);
+  filter:drop-shadow(0 0 10px rgba(255,200,80,.5))
+}
+.worldCardLocked .wclHint{
+  font-family:var(--font-mono);font-size:10px;font-weight:700;
+  letter-spacing:.18em;color:#ffcc66;
+  text-shadow:0 0 8px rgba(255,180,80,.45);max-width:90%;line-height:1.35;
+  text-transform:uppercase
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.worldSelFooter{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;
+  padding:clamp(8px,1.5vh,18px) clamp(20px,3vw,44px) clamp(10px,2vh,28px);
+  z-index:2;flex-shrink:0;gap:24px
+}
+.worldSelFooterLeft{
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;
+  color:rgba(184,176,208,.85);text-transform:uppercase
+}
+.wsfSpectrum{color:rgba(184,176,208,.85)}
+.wsfDot{color:#d4a8ff;font-size:10px;opacity:.8}
+.wsfCoins{color:#f8f8ff;font-weight:600;letter-spacing:.18em}
+
+.worldSelEnter{
+  -webkit-appearance:none;appearance:none;cursor:pointer;
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:var(--font-display);font-weight:600;
+  font-size:14px;letter-spacing:.12em;
+  color:#f8f8ff;
+  background:rgba(255,255,255,.04);
+  border:1px solid color-mix(in srgb,var(--world-accent,#d4a8ff) 60%,transparent);
+  border-radius:999px;padding:11px 22px;
+  box-shadow:0 0 18px color-mix(in srgb,var(--world-glow,rgba(212,168,255,.45)) 65%,transparent),
+             inset 0 0 12px color-mix(in srgb,var(--world-glow,rgba(212,168,255,.45)) 30%,transparent);
+  transition:transform .15s,box-shadow .2s,border-color .2s,background .2s
+}
+.worldSelEnter:hover{
+  transform:translateY(-1px);
+  background:rgba(255,255,255,.07);
+  border-color:var(--world-accent,#d4a8ff)
+}
+.worldSelEnter:active{transform:translateY(0)}
+.worldSelEnter[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.worldSelEnter .wseDiamond{
+  font-size:13px;color:var(--world-accent,#d4a8ff);
+  text-shadow:0 0 8px var(--world-glow,rgba(212,168,255,.6))
+}
+
+/* ── Per-world horizon gradients (160deg, 3-stop iridescent) ───────────── */
+.worldBigCard[data-world="space"]            {--world-accent:#a86bff;--world-glow:rgba(168,107,255,.50);--world-bg-grad:linear-gradient(160deg,rgb(11,8,32) 0%,rgb(26,10,58) 60%,rgb(91,27,191) 130%)}
+.worldBigCard[data-world="deepsea"]          {--world-accent:#3dc8ff;--world-glow:rgba(61,200,255,.45);--world-bg-grad:linear-gradient(160deg,rgb(1,16,28) 0%,rgb(2,26,44) 60%,rgb(13,125,163) 130%)}
+.worldBigCard[data-world="candy"]            {--world-accent:#ff8cc8;--world-glow:rgba(255,140,200,.50);--world-bg-grad:linear-gradient(160deg,rgb(108,26,71) 0%,rgb(255,77,141) 60%,rgb(255,177,212) 130%)}
+.worldBigCard[data-world="volcano"]          {--world-accent:#ff5a28;--world-glow:rgba(255,74,28,.50);--world-bg-grad:linear-gradient(160deg,rgb(58,12,4) 0%,rgb(26,8,8) 60%,rgb(255,74,28) 130%)}
+.worldBigCard[data-world="arctic"]           {--world-accent:#9fe8ff;--world-glow:rgba(159,232,255,.45);--world-bg-grad:linear-gradient(160deg,rgb(2,10,20) 0%,rgb(6,24,42) 60%,rgb(159,232,255) 130%)}
+.worldBigCard[data-world="sandstorm"]        {--world-accent:#e8a04a;--world-glow:rgba(232,160,74,.45);--world-bg-grad:linear-gradient(160deg,rgb(26,13,5) 0%,rgb(61,36,16) 60%,rgb(232,160,74) 130%)}
+.worldBigCard[data-world="pier47"]           {--world-accent:#ffb04a;--world-glow:rgba(255,176,74,.45);--world-bg-grad:linear-gradient(160deg,rgb(2,6,8) 0%,rgb(10,18,24) 60%,rgb(255,176,74) 130%)}
+.worldBigCard[data-world="guangzhou"]        {--world-accent:#00e2ff;--world-glow:rgba(0,226,255,.45);--world-bg-grad:linear-gradient(160deg,rgb(2,2,8) 0%,rgb(10,10,20) 60%,rgb(0,226,255) 130%)}
+
+/* ── Loading overlay (shown during rebuildWorldAsync's synchronous build).
+   Kept from previous design — referenced by select.js / boot.js. */
+#worldLoadingOverlay{
+  position:fixed;inset:0;background:rgba(8,8,14,.85);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  z-index:var(--z-critical,9999);
+  font-family:var(--font-mono);color:#f8f8ff;
+  letter-spacing:4px;font-size:13px;
+  pointer-events:auto;text-transform:uppercase
+}
+#worldLoadingOverlay.wloHidden{display:none}
+.wloLabel{filter:drop-shadow(0 0 10px rgba(212,168,255,.45))}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+/* Desktop large: cap grid width, keep 4×3 fit-to-viewport */
+@media(min-width:1201px) and (max-width:1599px){
+  .worldGrid{grid-template-columns:repeat(4,1fr);max-width:1320px}
+}
+/* Tablet/small laptop landscape: 3 cols × 4 rows, still fit-to-viewport */
+@media(min-width:769px) and (max-width:1200px){
+  .worldGrid{
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(4,1fr);
+    max-width:1100px
+  }
+}
+/* Short viewports (e.g. landscape phone): shrink title further */
+@media (max-height:560px){
+  .worldSelTitle{font-size:clamp(26px,6vh,44px);letter-spacing:-1px}
+  .worldSelHeader{padding-top:8px;padding-bottom:4px}
+  .worldSelFooter{padding-top:6px;padding-bottom:8px}
+}
+/* Mobile portrait: 2 cols. Fixed-height card with explicit absolute zones —
+   swatch banner on top with eyebrow + dots overlaid, dark info bar below
+   with name + time stacked. Keeps every label in its own zone so they can
+   never end up on the same line. */
+@media(max-width:768px){
+  .worldSelHeader{padding:14px 16px 8px;flex-direction:column;gap:10px}
+  .worldSelHeaderRight{justify-content:flex-start;width:100%}
+  .worldSelTitle{font-size:clamp(34px,9vw,52px);letter-spacing:-2px}
+  .worldCupRow{
+    flex-wrap:wrap;gap:6px;
+    background:transparent;border:0;padding:0;
+    width:fit-content;max-width:100%
+  }
+  .worldCupPill{font-size:10px;padding:5px 10px;letter-spacing:.14em}
+  .worldGrid{
+    grid-template-columns:repeat(2,1fr);
+    grid-template-rows:none;
+    gap:10px;padding:6px 12px 12px;max-width:100%;
+    overflow-y:auto;align-content:start
+  }
+  .worldBigCard{
+    aspect-ratio:auto;
+    height:104px;
+    border-radius:12px;
+    overflow:visible;
+    display:block;
+    position:relative
+  }
+  .worldCardSwatch{
+    position:absolute;
+    top:0;left:0;right:0;bottom:auto;
+    height:48px;
+    border-radius:12px 12px 0 0;
+    order:initial;flex:initial
+  }
+  .worldCardSwatch::after{display:none}
+  .worldCardNum{
+    position:absolute;
+    top:6px;left:10px;bottom:auto;
+    padding:0;order:initial;
+    font-size:9px;letter-spacing:.22em;
+    z-index:3
+  }
+  .worldCardDots{
+    position:absolute;
+    top:6px;right:10px;bottom:auto;left:auto;
+    font-size:10px;letter-spacing:.14em;
+    z-index:3
+  }
+  .worldCardInfo{
+    position:absolute;
+    top:48px;left:0;right:0;bottom:0;
+    background:rgba(8,8,14,.92);
+    padding:6px 10px 8px;
+    border-radius:0 0 12px 12px;
+    min-height:0;
+    display:flex;flex-direction:column;justify-content:center;gap:2px;
+    order:initial
+  }
+  .worldCardName{font-size:14px;letter-spacing:0;line-height:1.15}
+  .worldCardTime{font-size:10px;line-height:1.2}
+  .worldBigCard.wBigSel::after{bottom:-8px;height:10px}
+  .worldSelFooter{padding:10px 14px 18px;gap:10px}
+  .worldSelFooterLeft{font-size:10px;letter-spacing:.16em}
+  .worldSelEnter{font-size:12px;padding:9px 16px}
+  .worldCardLocked .wclIcon{font-size:24px}
+  .worldCardLocked .wclHint{font-size:9px}
+}
+
+/* Reduced motion: nothing here animates per-frame; transitions are fine
+   to leave on. The selection strip stays static. */
