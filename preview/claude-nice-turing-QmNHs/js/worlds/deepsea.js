@@ -489,50 +489,95 @@ function buildCoralReefs(){
   // Reef clusters scattered off-track — halved on mobile
   // Fase 2 density boost: 35→52 desktop (×1.5), 18→23 mobile (×1.3 — FPS-safe).
   const CC = _M ? 23 : 52;
+
+  // R6 (2026-05-31): voorheen 234 losse Mesh (52 clusters × 3-6 branches),
+  // elk een eigen draw-call → trage precompile + framerate-hap op auto-tier.
+  // Nu InstancedMesh per (type × kleur). De geometrie is per type genormaliseerd
+  // op unit-maat; per-branch radius/hoogte-variatie gaat via _dummy.scale, dus
+  // visueel identiek aan de losse-mesh-versie. type=ci%4 + col=ci%8 → in de
+  // praktijk een handvol IM. Patroon volgt _buildDeepseaCloseBand + P12.
+  //
+  // Unit-geometrie-templates per type, op unit-maat genormaliseerd. Elke IM
+  // krijgt z'n EIGEN kloon (scene.js:206-213: InstancedMesh-geo niet delen,
+  // want disposeScene dispose't per mesh). De templates zelf gaan nooit de
+  // scene in en worden aan het eind gedisposed.
+  // Cylinder/Tube hoogte 1 → schaal via _dummy.scale.y; Circle/Sphere radius 1.
+  const _tplGeo = {
+    0: new THREE.CylinderGeometry(.12/2.0, .22/2.0, 1, 5),   // branch — base unit Ø, h=1
+    1: new THREE.CircleGeometry(1, 8),                        // fan disc — r=1
+    2: new THREE.SphereGeometry(1, 7, 5),                     // bulb — r=1
+    3: new THREE.CylinderGeometry(.18/2.0, .24/2.0, 1, 6)     // tube — base unit Ø, h=1
+  };
+  // Cylinder/tube schaal-radius: de unit-geo gebruikt halve oorspronkelijke
+  // radii zodat we x/z met 2.0 schalen om terug op de originele .12-.24 te komen.
+  const _cylRadScale = 2.0;
+
+  // _dsMat-defs per type (kleur wordt per IM ingevuld). Identiek aan origineel.
+  const _matDef = {
+    0: (col)=>_dsMat({color:col,emissive:col,emissiveIntensity:.12},{metalness:0.0,roughness:0.50},'aqua-wet'),
+    1: (col)=>_dsMat({color:col,emissive:col,emissiveIntensity:.10,side:THREE.DoubleSide,transparent:true,opacity:.85},{metalness:0.0,roughness:0.50},'aqua-wet'),
+    2: (col)=>_dsMat({color:col,emissive:col,emissiveIntensity:.08},{metalness:0.0,roughness:0.50},'aqua-wet'),
+    3: (col)=>_dsMat({color:col,emissive:col,emissiveIntensity:.15},{metalness:0.0,roughness:0.50},'aqua-wet')
+  };
+
+  // Lazy IM per (type,kleur). Key = type*100+colIdx. Ruim alloceren (CC*6),
+  // count na afloop terugzetten (sandstorm-stijl, sandstorm.js:295). Elke IM
+  // kloont z'n type-template zodat geen twee IM's één geometry delen.
+  const _ims = {};
+  const _dummy = new THREE.Object3D();
+  const _MAX_PER = CC * 6;
+  function _imFor(type, colIdx, col){
+    const key = type*100 + colIdx;
+    let im = _ims[key];
+    if(!im){
+      im = new THREE.InstancedMesh(_tplGeo[type].clone(), _matDef[type](col), _MAX_PER);
+      im.count = 0;
+      im.userData = im.userData || {};
+      im.userData._coralIM = true;
+      _ims[key] = im;
+    }
+    return im;
+  }
+
   for(let ci=0;ci<CC;ci++){
     const t=(ci/CC+Math.random()*.012)%1;
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
     const nr=new THREE.Vector3(-tg.z,0,tg.x);
     const side=(ci%2===0?1:-1)*(BARRIER_OFF+18+Math.random()*24);
     const cx=p.x+nr.x*side+(Math.random()-.5)*8,cz=p.z+nr.z*side+(Math.random()-.5)*8;
-    const col=coralColors[ci%coralColors.length];
+    const colIdx=ci%coralColors.length;
+    const col=coralColors[colIdx];
     const branches=3+Math.floor(Math.random()*4);
+    const type=ci%4;
+    const im=_imFor(type, colIdx, col);
     for(let b=0;b<branches;b++){
-      // Coral type alternates
-      const type=ci%4;
       if(type===0){
         // Branch coral — thin cylinders
         const h=1.8+Math.random()*2.4;
-        const seg=new THREE.Mesh(new THREE.CylinderGeometry(.12,.22,h,5),
-          _dsMat({color:col,emissive:col,emissiveIntensity:.12},{metalness:0.0,roughness:0.50},'aqua-wet'));
-        seg.position.set(cx+(Math.random()-.5)*3,(h/2),cz+(Math.random()-.5)*3);
-        seg.rotation.set((Math.random()-.5)*.4,Math.random()*Math.PI*2,(Math.random()-.5)*.4);
-        scene.add(seg);
+        _dummy.position.set(cx+(Math.random()-.5)*3,(h/2),cz+(Math.random()-.5)*3);
+        _dummy.rotation.set((Math.random()-.5)*.4,Math.random()*Math.PI*2,(Math.random()-.5)*.4);
+        _dummy.scale.set(_cylRadScale,h,_cylRadScale);
       }else if(type===1){
         // Fan coral — flat disc
         const r=1.2+Math.random()*1.8;
-        const fan=new THREE.Mesh(new THREE.CircleGeometry(r,8),
-          _dsMat({color:col,emissive:col,emissiveIntensity:.10,side:THREE.DoubleSide,transparent:true,opacity:.85},{metalness:0.0,roughness:0.50},'aqua-wet'));
-        fan.position.set(cx+(Math.random()-.5)*2,r*.6+Math.random()*1.2,cz+(Math.random()-.5)*2);
-        fan.rotation.set(Math.PI/2+( Math.random()-.5)*.6,Math.random()*Math.PI*2,0);
-        scene.add(fan);
+        _dummy.position.set(cx+(Math.random()-.5)*2,r*.6+Math.random()*1.2,cz+(Math.random()-.5)*2);
+        _dummy.rotation.set(Math.PI/2+( Math.random()-.5)*.6,Math.random()*Math.PI*2,0);
+        _dummy.scale.set(r,r,r);
       }else if(type===2){
         // Brain/bulb coral
         const r=.7+Math.random()*1.1;
-        const bulb=new THREE.Mesh(new THREE.SphereGeometry(r,7,5),
-          _dsMat({color:col,emissive:col,emissiveIntensity:.08},{metalness:0.0,roughness:0.50},'aqua-wet'));
-        bulb.scale.y=.55+Math.random()*.3;
-        bulb.position.set(cx+(Math.random()-.5)*2.5,r*.5,cz+(Math.random()-.5)*2.5);
-        scene.add(bulb);
+        _dummy.position.set(cx+(Math.random()-.5)*2.5,r*.5,cz+(Math.random()-.5)*2.5);
+        _dummy.rotation.set(0,0,0);
+        _dummy.scale.set(r,r*(.55+Math.random()*.3),r);
       }else{
         // Tube coral — tall thin cylinder
         const h=2.2+Math.random()*3;
-        const tube=new THREE.Mesh(new THREE.CylinderGeometry(.18,.24,h,6),
-          _dsMat({color:col,emissive:col,emissiveIntensity:.15},{metalness:0.0,roughness:0.50},'aqua-wet'));
-        tube.position.set(cx+(Math.random()-.5)*2.5,h/2,cz+(Math.random()-.5)*2.5);
-        tube.rotation.set((Math.random()-.5)*.3,Math.random()*Math.PI*2,(Math.random()-.5)*.3);
-        scene.add(tube);
+        _dummy.position.set(cx+(Math.random()-.5)*2.5,h/2,cz+(Math.random()-.5)*2.5);
+        _dummy.rotation.set((Math.random()-.5)*.3,Math.random()*Math.PI*2,(Math.random()-.5)*.3);
+        _dummy.scale.set(_cylRadScale,h,_cylRadScale);
       }
+      _dummy.updateMatrix();
+      im.setMatrixAt(im.count++, _dummy.matrix);
     }
     // Small glow light at big coral clusters — wider stride on mobile to drop PointLight count.
     // 2026-05-15 desktop stride 6→12 as part of Deep Sea light-cap (was ~6 lights here,
@@ -541,6 +586,14 @@ function buildCoralReefs(){
       const pl=new THREE.PointLight(col,.8,16);pl.position.set(cx,.8,cz);scene.add(pl);
     }
   }
+  // Commit IM's: needsUpdate + scene.add. Elke IM heeft een eigen geo-kloon.
+  for(const key in _ims){
+    const im=_ims[key];
+    im.instanceMatrix.needsUpdate=true;
+    scene.add(im);
+  }
+  // Templates gaan nooit de scene in — disposen (de IM's gebruiken klonen).
+  for(const ty in _tplGeo){ _tplGeo[ty].dispose(); }
 }
 
 
@@ -1004,27 +1057,43 @@ function buildDistantSilhouettes(){
   const count = _M ? 3 : 6;
   const RADIUS = 650;
   const silMat = new THREE.MeshBasicMaterial({color:0x081420, fog:true});
+  // R6 (2026-05-31): 6 losse Mesh → 2 InstancedMesh (whale-sphere + kelp-tower).
+  // Unit-geo's; per-instance maat/positie via _dummy.scale. Whale: stretched
+  // sphere (scale 1.2/0.5/3.2). Tower: unit-hoogte-cylinder, hoogte via scale.y.
+  // count = aantal van elk type (i%2): bij count=6 → 3 whales + 3 towers;
+  // count=3 → 2 whales + 1 tower.
+  const _nWhale = Math.ceil(count/2);
+  const _nTower = Math.floor(count/2);
+  const whaleIM = new THREE.InstancedMesh(new THREE.SphereGeometry(7,8,6), silMat, Math.max(1,_nWhale));
+  const towerIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.8,1.4,1,6), silMat, Math.max(1,_nTower));
+  whaleIM.count = 0; towerIM.count = 0;
+  whaleIM.userData._noLodCull = true; towerIM.userData._noLodCull = true;
+  const _dummy = new THREE.Object3D();
   for(let i=0;i<count;i++){
     const ang = (i/count) * Math.PI*2 + (Math.random()-.5)*0.4;
     const sx = Math.cos(ang) * (RADIUS + (Math.random()-.5)*80);
     const sz = Math.sin(ang) * (RADIUS + (Math.random()-.5)*80);
     if(i % 2 === 0){
       // Whale-shape silhouet: stretched sphere
-      const wBody = new THREE.Mesh(new THREE.SphereGeometry(7,8,6), silMat);
-      wBody.scale.set(1.2, 0.5, 3.2);
-      wBody.position.set(sx, 22 + Math.random()*18, sz);
-      wBody.rotation.y = ang + Math.PI/2;
-      wBody.userData._noLodCull = true;
-      scene.add(wBody);
+      _dummy.position.set(sx, 22 + Math.random()*18, sz);
+      _dummy.rotation.set(0, ang + Math.PI/2, 0);
+      _dummy.scale.set(1.2, 0.5, 3.2);
+      _dummy.updateMatrix();
+      whaleIM.setMatrixAt(whaleIM.count++, _dummy.matrix);
     } else {
-      // Kelp-tower silhouet: tall thin cylinder
+      // Kelp-tower silhouet: tall thin cylinder (unit-hoogte → scale.y=towerH)
       const towerH = 18 + Math.random()*10;
-      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.4, towerH, 6), silMat);
-      tower.position.set(sx, towerH/2, sz);
-      tower.userData._noLodCull = true;
-      scene.add(tower);
+      _dummy.position.set(sx, towerH/2, sz);
+      _dummy.rotation.set(0, 0, 0);
+      _dummy.scale.set(1, towerH, 1);
+      _dummy.updateMatrix();
+      towerIM.setMatrixAt(towerIM.count++, _dummy.matrix);
     }
   }
+  if(whaleIM.count>0){ whaleIM.instanceMatrix.needsUpdate=true; scene.add(whaleIM); }
+  else whaleIM.geometry.dispose();
+  if(towerIM.count>0){ towerIM.instanceMatrix.needsUpdate=true; scene.add(towerIM); }
+  else towerIM.geometry.dispose();
 }
 
 
