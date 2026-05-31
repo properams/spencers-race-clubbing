@@ -1779,9 +1779,18 @@ async function _precompileSceneChunked(opts){
     return;
   }
   // Cold path — eerste batch heeft programs gelinkt → er is echt werk.
-  // Originele per-mesh rAF-yield-loop draait vanaf i=0; de eerste batch
-  // raakt nu de cache (no-op) maar de yields blijven, ~133ms extra op
-  // cold (acceptabel, behoudt per-mesh diagnose-instrumentatie).
+  // Per-frame tijdsbudget (R1, 2026-05-30): de oude variant yieldde NA ELKE
+  // mesh, wat op deepsea (~2336 mesh-nodes) ~2336 geforceerde frame-grenzen
+  // gaf → 38,9s precompile (gemeten), terwijl de échte compile-arbeid maar
+  // 24 nieuwe programs is. We compileren nu meerdere meshes per frame tot
+  // _FRAME_BUDGET_MS verstreken is, dán één rAF-yield. Een extreem zware
+  // mesh overschrijdt het budget in z'n eentje en krijgt daarna alsnog een
+  // yield — dus geen "Page Unresponsive" longtask. Three's WebGLPrograms-
+  // cache maakt herhaalde compile-calls op gelinkte materials no-op, dus de
+  // correctheid (alle nodige shaders gelinkt vóór first frame) is identiek;
+  // alleen de yield-frequentie daalt van per-mesh naar per-budget-blok.
+  const _FRAME_BUDGET_MS = 10;
+  let _frameStart = performance.now();
   for(let i=0;i<meshes.length;i++){
     const _m = meshes[i];
     const _mt = window.dbg ? performance.now() : 0;
@@ -1807,15 +1816,21 @@ async function _precompileSceneChunked(opts){
       }
     }
     // labelFn-throttle: één UI-update per `batchSize` meshes, niet per
-    // mesh — 200+ innerHTML-writes is te veel DOM-overhead.
+    // mesh — 200+ innerHTML-writes is te veel DOM-overhead. Teller-formule
+    // (batchIdx/N) ongewijzigd zodat "COMPILING SHADERS X/N" identiek loopt.
     if(labelFn && ((i+1)%batchSize===0 || i===meshes.length-1)){
       const batchIdx = Math.min(N, Math.ceil((i+1)/batchSize));
       try{ labelFn(batchIdx, N); }catch(_){}
     }
-    // rAF-yield NA ELKE MESH (de eigenlijke fix). Geeft Chrome elke mesh
-    // de gelegenheid input + compositor af te handelen.
-    if(typeof requestAnimationFrame==='function'){
-      await new Promise(r => requestAnimationFrame(()=>r()));
+    // Per-frame budget-yield: alleen yielden wanneer dit frame al
+    // _FRAME_BUDGET_MS heeft gecompileerd (of bij de laatste mesh hoeft
+    // het niet meer). Geeft Chrome periodiek input + compositor zonder per
+    // mesh een hele frame-tijd te verspillen.
+    if(i < meshes.length-1 && (performance.now() - _frameStart) >= _FRAME_BUDGET_MS){
+      if(typeof requestAnimationFrame==='function'){
+        await new Promise(r => requestAnimationFrame(()=>r()));
+      }
+      _frameStart = performance.now();
     }
   }
   if(window.perfMark){perfMark('precompile:chunked:end');perfMeasure('build.precompile.chunked','precompile:chunked:start','precompile:chunked:end');}
