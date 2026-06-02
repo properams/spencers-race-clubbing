@@ -1629,6 +1629,37 @@ async function buildScene(opts){
     window._seamSamplerDone=false;
   }
   if(window.perfMark){perfMark('build:total:end');perfMeasure('build.total','build:total:start','build:total:end');}
+  // ── Intro-freeze diagnose (2026-06): consolidated phase breakdown ──────
+  // The per-phase build.* measures already land in window.perfLog (and the
+  // LOAD TIMELINE) via perfMeasure above. This block re-reads them for THIS
+  // build in execution order and emits one compact summary on the dedicated
+  // 'intro-perf' channel so the owner doesn't have to assemble it from the
+  // full timeline. It also folds in ProcTextures getImageData readback cost
+  // (the willReadFrequently hypothesis) and pushes that to perfLog via
+  // _loadPerf so it shows in LOAD TIMELINE on mobile (where there's no
+  // console). Pure measurement, no behaviour change; the dbg.log calls
+  // no-op entirely when debug is off, and the readback push is near-zero.
+  try{
+    let _rb={calls:0,ms:0};
+    if(window.ProcTextures && typeof ProcTextures.readbackStats==='function') _rb=ProcTextures.readbackStats();
+    if(window._loadPerf) window._loadPerf('procReadback.getImageData',_rb.ms,{calls:_rb.calls,world:activeWorld});
+    if(window.dbg && dbg.enabled && window.perfLog){
+      const _phases=['build.disposeScene','build.track','build.world','build.gameplayObjects',
+                     'build.night','build.assetBridge','build.envBake','build.precompile',
+                     'build.warmTextures','build.warmRender'];
+      // Last occurrence of each measure name = this build's value.
+      const _ms={};
+      for(let i=window.perfLog.length-1;i>=0;i--){
+        const e=window.perfLog[i];
+        if(typeof e.ms==='number' && _ms[e.name]===undefined && (_phases.indexOf(e.name)>=0 || e.name==='build.total')) _ms[e.name]=e.ms;
+      }
+      const _fmt=n=>(typeof _ms[n]==='number'?_ms[n].toFixed(1)+'ms':'—');
+      dbg.log('intro-perf','buildScene phase breakdown — world='+activeWorld+(opts.deferPrecompile?' (deferPrecompile, precompile skipped)':''));
+      _phases.forEach(p=>dbg.log('intro-perf','  '+p.replace('build.','').padEnd(16)+_fmt(p)));
+      dbg.log('intro-perf','  '+'proc-getImageData'.padEnd(16)+_rb.calls+' calls / '+_rb.ms.toFixed(1)+'ms (cumulative)');
+      dbg.log('intro-perf','  '+'── TOTAL'.padEnd(16)+_fmt('build.total'));
+    }
+  }catch(_){/* never block build on instrumentation */}
   // Cold-start diagnose: meet de tijd tussen buildScene-eind en de eerste
   // rAF-callback ná build. Deze gap isoleert kosten die NIET in de build
   // zelf zitten maar bij het eerste echte render-frame opduiken: shader-link

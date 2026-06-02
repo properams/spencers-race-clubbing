@@ -220,7 +220,21 @@ export function _initQualityTier(isMobile){
     t = (isMobile && pinned !== 'low') ? 'low' : pinned;
     window._qManualDowngrade = true;
     if(window.dbg) dbg.log('quality-tier', 'pinned via localStorage = ' + pinned + ' → resolved ' + t);
+  } else if(pinned === null){
+    // First-run / no stored preference: default to LOW on every device type
+    // (product decision 2026-06 — start everyone on the safe tier rather
+    // than auto-detecting up to high/mid on desktop). The user can opt up
+    // to a higher tier or to 'auto' via the pause-overlay quality buttons,
+    // which persists the choice. NOT a manual downgrade: the LOW default
+    // must also stick across races (see _reEvaluateTierForNewRace) until
+    // the user makes an explicit choice. null is "no stored preference" —
+    // an actually-stored pin is never overwritten here.
+    t = 'low';
+    window._qManualDowngrade = false;
+    if(window.dbg) dbg.log('quality-tier', 'no stored pin → default LOW (all devices)');
   } else {
+    // pinned === 'auto' (or any unexpected legacy value): honour hardware
+    // auto-detection — t keeps the _pickInitialTier result computed above.
     window._qManualDowngrade = false;
   }
   window._qTier = t;
@@ -403,6 +417,15 @@ export function _reEvaluateTierForNewRace(){
   // Skip if the player manually pinned a tier (future feature — currently
   // there's no UI, but the hook is here so adding one doesn't undo work).
   if(window._qManualDowngrade) return;
+  // No stored preference → the boot default is LOW (product decision
+  // 2026-06) and must stick across races. Only an explicit 'auto' pin opts
+  // back into per-race hardware re-detection; explicit high/mid/low pins set
+  // _qManualDowngrade and already returned above. Without this guard a
+  // null-pin user would silently get auto-detected back up to high/mid at
+  // the first race start, undoing the LOW default.
+  let pinned = null;
+  try { pinned = localStorage.getItem('srcQualityPin'); } catch(_) {}
+  if(pinned === null) return;
   const fresh = _pickInitialTier(!!window._isMobile);
   if(fresh === window._qTier) return;
   if(window.dbg) dbg.log('quality-tier', 'race-start re-evaluate ' + window._qTier + ' → ' + fresh);

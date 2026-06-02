@@ -25,6 +25,25 @@
   // Three.js compat: r160 SRGBColorSpace; older builds export differently.
   const _SRGB = (typeof THREE!=='undefined' && THREE.SRGBColorSpace) ? THREE.SRGBColorSpace : null;
 
+  // ── Readback instrumentation (intro-freeze diagnose, 2026-06) ──────────
+  // Count + time every getImageData() pixel-readback this module performs.
+  // Pure measurement, no behaviour change: a getImageData on a 2d context
+  // created without willReadFrequently can force a GPU→CPU copy and is one
+  // of the hypothesised contributors to the post-LCP main-thread stall.
+  // scene.js reads these stats at the end of buildScene and pushes them to
+  // perfLog (LOAD TIMELINE) + the 'intro-perf' channel so the owner can see
+  // exactly how much readback the boot/intro path actually pays (expected:
+  // ~0 for the space boot world, which uses none of these generators).
+  // Read live via window.ProcTextures.readbackStats().
+  const _readbackStats = { calls: 0, ms: 0 };
+  function _readImageData(ctx, x, y, w, h){
+    const _t0 = performance.now();
+    const id = ctx.getImageData(x, y, w, h);
+    _readbackStats.calls++;
+    _readbackStats.ms += performance.now() - _t0;
+    return id;
+  }
+
   // ── LRU cache + key-builder ────────────────────────────────────────────
 
   // key-builder: deterministic serialization with sorted keys (recursive)
@@ -133,7 +152,7 @@
     const g=c.getContext('2d');
     // Base + grain noise
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
-    const id=g.getImageData(0,0,S,S),d=id.data;
+    const id=_readImageData(g,0,0,S,S),d=id.data;
     for(let i=0;i<d.length;i+=4){
       const n=Math.random()*40-20|0;
       d[i]  =Math.max(0,Math.min(255,d[i]+n));
@@ -210,7 +229,7 @@
       g.closePath(); g.fill();
     }
     // Pixel grain
-    const id=g.getImageData(0,0,S,S),d=id.data;
+    const id=_readImageData(g,0,0,S,S),d=id.data;
     for(let i=0;i<d.length;i+=4){
       const n=Math.random()*30-15|0;
       d[i]  =Math.max(0,Math.min(255,d[i]+n));
@@ -254,7 +273,7 @@
     const g=c.getContext('2d');
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Pixel noise (warm sand)
-    const id=g.getImageData(0,0,S,S),d=id.data;
+    const id=_readImageData(g,0,0,S,S),d=id.data;
     for(let i=0;i<d.length;i+=4){
       const n=Math.random()*45-22|0;
       d[i]  =Math.max(0,Math.min(255,d[i]+n));
@@ -398,7 +417,7 @@
       g.fillRect(0,i*stripeH,S,Math.ceil(stripeH));
     }
     // Subtle weave-noise overlay
-    const id=g.getImageData(0,0,S,S),d=id.data;
+    const id=_readImageData(g,0,0,S,S),d=id.data;
     for(let i=0;i<d.length;i+=4){
       const n=(Math.random()-0.5)*30|0;
       d[i]=Math.max(0,Math.min(255,d[i]+n));
@@ -427,7 +446,7 @@
     const g=c.getContext('2d');
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Grain underlay so glyphs don't sit on a flat base
-    const id=g.getImageData(0,0,S,S),d=id.data;
+    const id=_readImageData(g,0,0,S,S),d=id.data;
     for(let i=0;i<d.length;i+=4){
       const n=Math.random()*22-11|0;
       d[i]=Math.max(0,Math.min(255,d[i]+n));
@@ -585,7 +604,7 @@
     const g=c.getContext('2d');
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Pixel-noise base (cool blue shift)
-    const id=g.getImageData(0,0,S,S),d=id.data;
+    const id=_readImageData(g,0,0,S,S),d=id.data;
     for(let i=0;i<d.length;i+=4){
       const n=Math.random()*40-20|0;
       d[i]  =Math.max(0,Math.min(255,d[i]  +(n*0.6|0)));
@@ -645,7 +664,7 @@
     const g=c.getContext('2d');
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Soft pastel noise — minder ruig dan sand/stone (suiker is fijn)
-    const id=g.getImageData(0,0,S,S),d=id.data;
+    const id=_readImageData(g,0,0,S,S),d=id.data;
     for(let i=0;i<d.length;i+=4){
       const n=Math.random()*16-8|0;
       d[i]  =Math.max(0,Math.min(255,d[i]  +n));
@@ -731,7 +750,7 @@
     }
     const w = srcCanvas.width, h = srcCanvas.height;
     const sctx = srcCanvas.getContext('2d');
-    const src = sctx.getImageData(0, 0, w, h).data;
+    const src = _readImageData(sctx, 0, 0, w, h).data;
     const out = _canvas(w, h);
     const octx = out.getContext('2d');
     const dst = octx.createImageData(w, h);
@@ -768,10 +787,16 @@
     return tex;
   }
 
+  // Readback instrumentation accessors (intro-freeze diagnose). Snapshot
+  // returns a copy so callers can't mutate the live counters; reset lets a
+  // measurement window be bounded (e.g. "stats during buildScene only").
+  function readbackStats(){ return { calls: _readbackStats.calls, ms: _readbackStats.ms }; }
+  function resetReadbackStats(){ _readbackStats.calls = 0; _readbackStats.ms = 0; }
+
   window.ProcTextures = {
     weatheredStone, rockStrata, sandSurface, palmLeaf,
     stripedFabric, pseudoGlyphs, bark, bakedAO,
     iceSurface, frostingGlaze, deriveNormalMap,
-    disposeAll, _debug
+    disposeAll, _debug, readbackStats, resetReadbackStats
   };
 })();

@@ -17,6 +17,19 @@
 
 'use strict';
 
+// ── Kill-switch: intro-freeze blinde fix (2026-06) ───────────────────
+// true  → de chunked shader-precompile draait OP het bootpad (gespreid,
+//         yieldend op _FRAME_BUDGET_MS=10) zodat de shader-link niet
+//         synchroon in de éénmalige warm-render (scene.js) landt en de
+//         intro niet ~14s "bevriest" maar progressief laadt.
+// false → exact master-gedrag: precompile deferred naar het race-entry-
+//         pad (goToRace) / rebuildWorld; warm-render linkt zoals nu.
+// Eén regel om terug te draaien — geen git-revert nodig. Hypothese-
+// gebaseerd (niet meet-bevestigd); de 'intro-perf'-instrumentatie blijft
+// staan zodat de meting de keuze achteraf bevestigt of falsifieert.
+// Zie docs/diagnostics/intro-freeze-2026-06-01.md.
+const _INTRO_PRECOMPILE_ON_BOOT = true;
+
 // ── Perf Phase A test-mode (URL ?perfauto=1) ─────────────────────────
 // Activeert dbg-channels op localStorage (idempotent) en exposeert een
 // kleine programmatic-API zodat tools/perf-run.mjs de game zonder canvas-
@@ -668,7 +681,11 @@ async function boot(){
       // De speler heeft deze wereld nog niet bevestigd (carousel komt later);
       // kiest hij een andere, dan was die precompile verspild. De compile
       // landt warm in goToRace (achter LIGHTS OUT) of in rebuildWorld.
-      try{ await buildScene({deferPrecompile:true}); }
+      // Blinde-fix kill-switch (zie _INTRO_PRECOMPILE_ON_BOOT bovenaan): op
+      // true draait de precompile WEL hier (gespreid/yieldend) i.p.v. de
+      // shader-link synchroon in de warm-render te laten landen. Tradeoff:
+      // verspilde precompile als de speler in de carousel van wereld wisselt.
+      try{ await buildScene({deferPrecompile: !_INTRO_PRECOMPILE_ON_BOOT}); }
       catch(e){
         if(window.dbg)dbg.error('boot',e,'buildScene crashed');
         else console.error('buildScene crashed:',e);
