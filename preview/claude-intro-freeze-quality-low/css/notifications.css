@@ -1,0 +1,277 @@
+/* notifications.css — styling voor de Notify-facade.
+   Drie zones (zie js/ui/notifications.js + NOTIFICATIONS_PLAN.md):
+     #ntfA  — top-right status flash
+     #ntfB  — top-center subtle lap announce
+     #ntfC  — top-right achievement/unlock stack
+     #ntfOOB — out-of-band central banner (alleen tijdens FINISH/COUNTDOWN) */
+
+/* ─── Zone A: status (top, single slot — floats LEFT of #hudPauseBtn so it
+   doesn't stack onto the right-column rhythm (pause → mute → titan → leader). ─── */
+#ntfA{
+  position:fixed;
+  top:18px;
+  right:74px;
+  width:min(260px, calc(100vw - 92px));
+  z-index:var(--z-toast);
+  pointer-events:none;
+  font-family:var(--font-mono);
+}
+.ntfStatus{
+  /* --hud-bg-strong (rgba(8,12,18,.72)) houdt 'm visueel in de HUD-familie.
+     Border-color wordt per-event gezet vanuit JS (event-color + alpha). */
+  background:var(--hud-bg-strong);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:8px 14px;
+  font-size:13px;
+  letter-spacing:2px;
+  font-weight:500;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  opacity:0;
+  transform:translateX(20px);
+  transition:opacity .28s ease, transform .28s cubic-bezier(.34,1.3,.64,1);
+  text-shadow:0 1px 4px rgba(0,0,0,.7);
+  backdrop-filter:blur(8px) saturate(140%);
+  -webkit-backdrop-filter:blur(8px) saturate(140%);
+  white-space:nowrap;
+  overflow:hidden;
+}
+.ntfStatus.ntfShow{ opacity:1; transform:translateX(0); }
+.ntfStatus .ntfIcon{ font-size:16px; flex-shrink:0; }
+.ntfStatus .ntfTxt{ overflow:hidden; text-overflow:ellipsis; }
+
+/* ─── Zone B: lap announce (top-center, subtle) ─── */
+#ntfB{
+  position:fixed;
+  top:40px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:var(--z-toast);
+  pointer-events:none;
+  font-family:var(--font-mono);
+}
+.ntfLap{
+  font-size:12px;
+  font-weight:500;
+  color:var(--text-mid);
+  letter-spacing:4px;
+  text-shadow:0 1px 6px rgba(0,0,0,.85);
+  opacity:0;
+  transform:translateY(-6px);
+  transition:opacity .28s, transform .28s;
+  white-space:nowrap;
+}
+.ntfLap.ntfShow{ opacity:.9; transform:translateY(0); }
+
+/* ─── Zone C: achievement / unlock stack (top-right, vertical).
+   Sits BELOW the FORMATION card. Leader is capped via max-height in hud.css so
+   its bottom can never push past Zone C's top:340. ─── */
+#ntfC{
+  position:fixed;
+  top:340px;
+  right:var(--hud-col-right);
+  width:min(220px, 26vw);
+  z-index:var(--z-toast);
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  font-family:var(--font-mono);
+}
+.ntfToast{
+  background:var(--hud-bg);
+  border:1px solid var(--hud-border);
+  border-left:3px solid var(--tier-color, var(--hud-border));
+  border-radius:14px;
+  padding:10px 14px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  opacity:0;
+  transform:translateX(24px);
+  transition:opacity .35s ease, transform .35s cubic-bezier(.34,1.3,.64,1);
+  backdrop-filter:blur(16px) saturate(140%);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);
+}
+/* Tier-kleur tokens — sturen border-left, icon-tile en label-kleur aan.
+   Bronze = persistent-ish makkelijk, Silver = skill, Gold = milestone,
+   Platinum = rare/skill-only (PURPLE RIBBON, EYE OF THE STORM, MIRAGE,
+   LEVEL UP). */
+.ntfToast[data-tier="bronze"]   { --tier-color:#c08457; }
+.ntfToast[data-tier="silver"]   { --tier-color:#c8d0d8; }
+.ntfToast[data-tier="gold"]     { --tier-color:var(--gold,#ffd000); }
+.ntfToast[data-tier="platinum"] { --tier-color:#9ad4ff; }
+.ntfToast.ntfShow{ opacity:1; transform:translateX(0); }
+.ntfToastIcon{
+  width:36px;
+  height:36px;
+  border:1px solid var(--tier-color, var(--line));
+  border-radius:8px;
+  background:rgba(0,0,0,.35);
+  display:grid;
+  place-items:center;
+  color:var(--tier-color, var(--text));
+  flex-shrink:0;
+  font-size:20px; /* fallback voor emoji-glyph (unlock 🔓) */
+}
+.ntfToastIcon svg{
+  width:18px;
+  height:18px;
+  stroke:currentColor;
+  fill:none;
+  stroke-width:1.6;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  display:block;
+}
+.ntfToastBody{ min-width:0; flex:1; }
+.ntfToastLabel{ font-size:8px; letter-spacing:3px; color:var(--tier-color, var(--text-dim)); text-transform:uppercase; }
+.ntfToastLabel::before{ content:"\25C7  "; opacity:.85; }
+.ntfToastTitle{
+  font-size:12px;
+  color:var(--text);
+  letter-spacing:2px;
+  margin-top:2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.ntfToastDesc{
+  font-size:9px;
+  color:var(--text-dim);
+  margin-top:2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+/* B4 — compact in-race format. Mid-race achievements should not
+   pull the eye away from the track. Narrower width, tighter padding,
+   smaller text, milder shadow. Full-format restored when gameState
+   leaves RACE (FINISH/POST), so the celebration on the post-race
+   summary remains dramatic. */
+.ntfToast.ntfRace{
+  padding:6px 10px;
+  gap:9px;
+  width:auto;
+  max-width:230px;
+  background:var(--hud-bg);
+}
+.ntfToast.ntfRace .ntfToastIcon{ width:26px; height:26px; font-size:14px; border-radius:6px; }
+.ntfToast.ntfRace .ntfToastIcon svg{ width:14px; height:14px; }
+.ntfToast.ntfRace .ntfToastLabel{ font-size:7px; letter-spacing:2px; }
+.ntfToast.ntfRace .ntfToastTitle{ font-size:11px; letter-spacing:1.5px; }
+.ntfToast.ntfRace .ntfToastDesc{ font-size:8px; }
+
+/* ─── Out-of-band central banner (FINISH/COUNTDOWN-pause/PAUSED) ─── */
+#ntfOOB{
+  position:fixed;
+  top:12%;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:var(--z-modal);
+  pointer-events:none;
+  font-family:var(--font-display);
+}
+.ntfOOBInner{
+  font-size:clamp(16px,2.4vw,24px);
+  font-weight:700;
+  letter-spacing:3px;
+  padding:10px 22px;
+  border:2px solid var(--line-strong);
+  border-radius:999px;
+  background:var(--surface);
+  color:var(--text);
+  text-shadow:-2px 0 rgba(255,58,138,.4),2px 0 rgba(0,224,255,.4),0 0 1px var(--text);
+  opacity:0;
+  transform:scale(.95);
+  transition:opacity .35s, transform .4s cubic-bezier(.34,1.3,.64,1);
+  white-space:nowrap;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.ntfOOBInner.ntfShow{ opacity:1; transform:scale(1); }
+
+/* ─── Mobile: krimp + houd uit centrale racing zone + uit touch-control zone.
+       Zone A: top-right, onder pause-button (top:16px+44px=60→64px+safe-area).
+       Zone B: top-center subtler.
+       Zone C: top-right onder Zone A; bottom blijft ver boven de gas/nitro/steer
+               touch-knoppen (gas zit op bottom:30px, hoogte 96px → ~126px,
+               nitro stapelt erboven tot ~274px). Met top:120px en max stack-3
+               toasts à ~70px hebben we 3*70+2*6=222px verticaal nodig — dat past
+               binnen y=120 → y≈342, ruim boven nitro-knop op kleine schermen
+               waar viewportHeight typisch 700-900 px is. */
+@media (max-width:600px),(pointer:coarse) and (max-width:900px){
+  #ntfA{
+    top:calc(18px + env(safe-area-inset-top,0px))!important;
+    right:calc(70px + env(safe-area-inset-right,0px))!important;
+    width:min(220px,56vw)!important;
+  }
+  .ntfStatus{
+    font-size:11px!important;
+    padding:6px 10px!important;
+    letter-spacing:1.5px!important;
+  }
+  .ntfStatus .ntfIcon{ font-size:13px!important; }
+  #ntfB{
+    top:calc(36px + env(safe-area-inset-top,0px))!important;
+  }
+  .ntfLap{
+    font-size:10px!important;
+    letter-spacing:3px!important;
+  }
+  #ntfC{
+    top:calc(220px + env(safe-area-inset-top,0px))!important;
+    right:calc(14px + env(safe-area-inset-right,0px))!important;
+    width:min(240px,60vw)!important;
+    gap:6px!important;
+  }
+  .ntfToast{ padding:7px 10px!important; gap:10px!important; }
+  .ntfToastIcon{ width:30px!important; height:30px!important; font-size:16px!important; }
+  .ntfToastIcon svg{ width:16px!important; height:16px!important; }
+  .ntfToastTitle{ font-size:11px!important; letter-spacing:1px!important; }
+  .ntfToastDesc{ font-size:8px!important; }
+  /* Strip backdrop-filter op mobiel — meetbare compositor-cost (~1-2 ms per
+     blur-pass × 3 toasts in de stack). Iets opaker fallback compenseert
+     voor het verlies aan blur-saturatie. Patroon volgt .tcBtn in hud.css
+     waar backdrop-filter ook expliciet voor mobile wordt uitgeschakeld. */
+  .ntfStatus,.ntfToast{
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .ntfStatus{ background:rgba(8,8,14,.92)!important; }
+  .ntfToast{ background:rgba(8,8,14,.94)!important; }
+}
+
+/* FINISH-state: achievement-toasts schuiven van top-right naar bottom-center
+   zodat ze niet bovenop score/leaderboard van #sFinish vallen. Ruimte boven
+   de sticky #finBtns-balk gereserveerd via bottom-offset + safe-area. */
+body.state-finish #ntfC{
+  top:auto!important;
+  right:auto!important;
+  left:50%!important;
+  bottom:calc(96px + env(safe-area-inset-bottom,0px))!important;
+  transform:translateX(-50%);
+  width:min(320px,82vw)!important;
+  align-items:center;
+}
+body.state-finish .ntfToast{ transform:translate(0,20px); }
+body.state-finish .ntfToast.ntfShow{ transform:translate(0,0); }
+
+/* Landscape phones: krap verticaal — verklein gap en max items via padding. */
+@media (max-height:500px) and (orientation:landscape){
+  #ntfC{
+    top:calc(110px + env(safe-area-inset-top,0px))!important;
+    gap:4px!important;
+  }
+  .ntfToast{ padding:5px 9px!important; }
+  .ntfToastDesc{ display:none!important; }
+}
+
+/* Tablets — iets ruimer dan phones maar nog niet desktop. */
+@media (min-width:769px) and (max-width:1200px){
+  #ntfA{ width:240px!important; }
+  #ntfC{ width:260px!important; }
+}
