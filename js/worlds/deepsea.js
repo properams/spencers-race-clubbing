@@ -669,12 +669,21 @@ function buildShipwreck(){
   // Scattered gold coins — fase 1B: solid-volume naar _dsMat met aqua-metal,
   // emissive capped op 0.4 (geen additive blending op deze meshes).
   const coinMat=_dsMat({color:0xffd700,emissive:0x886600,emissiveIntensity:.4},{metalness:0.55,roughness:0.40},'aqua-metal');
+  // QW-3 (audit P-08): de 8 identieke decoratieve coins als één InstancedMesh
+  // i.p.v. 8 losse meshes (−8 draw calls, schoonste P12-case). Coins zijn
+  // statisch (geen per-frame animatie) en puur decoratief (geen collectible/
+  // hit-detectie), dus instancing is veilig. Eigen geometrie-instance: scene.js
+  // deelt InstancedMesh-geo niet (disposeScene disposed 'm per spawn).
+  const _coinIM=new THREE.InstancedMesh(new THREE.CylinderGeometry(.25,.25,.08,8),coinMat,8);
+  const _coinDummy=new THREE.Object3D();
   for(let c=0;c<8;c++){
-    const coin=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,.08,8),coinMat);
-    coin.position.set(-58+(Math.random()-.5)*4,-.14+(Math.random()*.3),-27+(Math.random()-.5)*3);
-    coin.rotation.set(Math.random()*.5,Math.random()*Math.PI*2,Math.random()*.5);
-    scene.add(coin);
+    _coinDummy.position.set(-58+(Math.random()-.5)*4,-.14+(Math.random()*.3),-27+(Math.random()-.5)*3);
+    _coinDummy.rotation.set(Math.random()*.5,Math.random()*Math.PI*2,Math.random()*.5);
+    _coinDummy.updateMatrix();
+    _coinIM.setMatrixAt(c,_coinDummy.matrix);
   }
+  _coinIM.instanceMatrix.needsUpdate=true;
+  scene.add(_coinIM);
   // Rope/chain
   for(let r=0;r<5;r++){
     const rope=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,1.8,4),darkMat);

@@ -1016,6 +1016,23 @@ async function buildScene(opts){
   if(window.perfMark)perfMark('build:disposeScene:start');
   disposeScene();
   if(window.perfMark){perfMark('build:disposeScene:end');perfMeasure('build.disposeScene','build:disposeScene:start','build:disposeScene:end');}
+  // QW-1 (audit M-01/M-02): geef ALLE per-world night/day sky-caches vrij bij
+  // elke build, niet alleen op het race-reset-pad. De carrousel-menu-rebuild
+  // (select.js rebuildWorld → buildScene) gaat niet via _resetRaceState(), dus
+  // zonder dit lekte de skybox-CanvasTexture + PMREM-env van de vorige wereld
+  // per wissel (heap groeide monotoon). disposeScene() hierboven heeft de live
+  // scene al geleegd; de cache van de huidige wereld her-bakt lazy via de
+  // toggleNight()-call verderop in deze build. Idempotent + guarded → dubbel-
+  // dispose (race-reset roept sommige ook aan) is onschadelijk; de helpers
+  // nullen hun refs. Niet de gedeelde day/night-bake-RT-volgorde aanraken (M-03).
+  if(typeof _disposeSandstormSkyCache==='function')_disposeSandstormSkyCache();
+  if(typeof _disposeVolcanoSkyCache==='function')_disposeVolcanoSkyCache();
+  if(typeof _disposeArcticSkyCache==='function')_disposeArcticSkyCache();
+  if(typeof _disposeCandySkyCache==='function')_disposeCandySkyCache();
+  if(typeof _disposeGrandPrixSkyCache==='function')_disposeGrandPrixSkyCache();
+  if(typeof _disposePier47SkyCache==='function')_disposePier47SkyCache();
+  if(typeof _disposeGuangzhouSkyCache==='function')_disposeGuangzhouSkyCache();
+  if(typeof _disposeVolcanoCinematicSkyCache==='function')_disposeVolcanoCinematicSkyCache();
   // Asset-cache eviction (Phase 2 Fix B.3): scene is leeg na disposeScene,
   // dus geen actieve refs naar non-current world textures/models. Dispose
   // alles dat niet bij de actieve world hoort om cumulatieve VRAM-leak

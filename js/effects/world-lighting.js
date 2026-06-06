@@ -279,11 +279,12 @@ const WORLD_LIGHTING = {
   // in night.js:387-412). Night-sky procedureel via
   // makeGrandPrixNightSkyTex (PMREM-bake). Day-waarden via
   // _applyGrandPrixDayLighting() (scene.js:74-87).
-  // Note: grandprix is geen live-selectable wereld (staat niet in
-  // data/prices.json of data/tracks.json). Het is de baseline-palette
-  // voor de else-branch. Zie sectie K in plan voor follow-up vraag
-  // (rename naar _fallback of als live-wereld toevoegen).
-  grandprix: {
+  // _fallback = neutrale baseline-lighting (voorheen 'grandprix', een
+  // verwijderde wereld). GEEN speelbare wereld — staat niet in
+  // data/prices.json of data/tracks.json. Wordt als referentie gelezen door
+  // weather-lighting.js. De lighting-fallback voor onbekende werelden is
+  // WORLD_LIGHTING.default (literale kopie hieronder), niet deze key.
+  _fallback: {
     night: {
       fog:         { density: 0.0022 },                // night.js:397
       sun:         { intensity: 0.22 },                // night.js:398
@@ -304,12 +305,12 @@ const WORLD_LIGHTING = {
     },
   },
 
-  // default = literale duplicaat van grandprix (mirrors night.js
+  // default = literale duplicaat van _fallback (mirrors night.js
   // else-branch voor onbekende activeWorld). Aparte entry zodat
   // fase 2's applyWorldLighting een eenvoudige lookup
   // WORLD_LIGHTING[world] kan doen zonder ?? fallback per call-site.
   // Drift-risico: minimaal (beide records worden in dezelfde commit
-  // gewijzigd; het is altijd kopie van grandprix).
+  // gewijzigd; het is altijd kopie van _fallback).
   default: {
     night: {
       fog:         { density: 0.0022 },

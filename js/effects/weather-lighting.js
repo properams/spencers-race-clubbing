@@ -10,7 +10,7 @@
 // PMREM-baked sky-cache (volcano/candy/sandstorm/pier47/guangzhou) — anders
 // breekt het cache + PMREM-env-werk van fase 3b/3c.
 //
-// Multipliers gederiveerd van grandprix.day-baseline in WORLD_LIGHTING
+// Multipliers gederiveerd van _fallback.day-baseline in WORLD_LIGHTING
 // (sun=1.65, amb=0.50, hemi=0.36, fog.density=0.0021). Voor GP-fallback
 // reproduceert applyWorldLighting+applyWeatherLighting bit-identiek de
 // huidige weather.js GP-absoluten (zie baseline-check onderaan).
@@ -134,7 +134,7 @@ if(typeof window !== 'undefined'){
 }
 
 // ── Baseline check (fase 4a self-validation) ─────────────────────────
-// Bevestigt dat WEATHER_MOD × WORLD_LIGHTING.grandprix.day-base de oude
+// Bevestigt dat WEATHER_MOD × WORLD_LIGHTING._fallback.day-base de oude
 // weather.js GP-fallback-absoluten reproduceert. Doel: garanderen dat de
 // GP-fallback bit-identiek blijft na fase 4b's setWeather-refactor. Drift
 // op sandstorm/pier47 is gewenst (fix van GP-clobber-bug) — die wordt
@@ -160,9 +160,10 @@ if(typeof window !== 'undefined'){
       console.warn('WEATHER_MOD baseline check: WORLD_LIGHTING niet geladen, skip');
       return;
     }
-    const gp = window.WORLD_LIGHTING.grandprix && window.WORLD_LIGHTING.grandprix.day;
-    if(!gp || !gp.sun || !gp.amb || !gp.hemi || !gp.fog){
-      console.warn('WEATHER_MOD baseline check: grandprix.day base incomplete, skip');
+    // fb = neutrale fallback-baseline (voorheen 'grandprix', verwijderde wereld).
+    const fb = window.WORLD_LIGHTING._fallback && window.WORLD_LIGHTING._fallback.day;
+    if(!fb || !fb.sun || !fb.amb || !fb.hemi || !fb.fog){
+      console.warn('WEATHER_MOD baseline check: _fallback.day base incomplete, skip');
       return;
     }
     // Expected = huidige weather.js GP-fallback-absoluten (regels 130-172).
@@ -180,10 +181,10 @@ if(typeof window !== 'undefined'){
       const e = EXP[mode], m = WEATHER_MOD[mode];
       if(!m){ console.warn('WEATHER_MOD baseline: missing mode '+mode); fail += 5; return; }
       const calc = {
-        sun:        gp.sun.intensity  * (m.sun  && m.sun.mul  !== undefined ? m.sun.mul  : 1),
-        amb:        gp.amb.intensity  * (m.amb  && m.amb.mul  !== undefined ? m.amb.mul  : 1),
-        hemi:       gp.hemi.intensity * (m.hemi && m.hemi.mul !== undefined ? m.hemi.mul : 1),
-        fogDensity: gp.fog.density    + (m.fog  && m.fog.addDensity         !== undefined ? m.fog.addDensity : 0),
+        sun:        fb.sun.intensity  * (m.sun  && m.sun.mul  !== undefined ? m.sun.mul  : 1),
+        amb:        fb.amb.intensity  * (m.amb  && m.amb.mul  !== undefined ? m.amb.mul  : 1),
+        hemi:       fb.hemi.intensity * (m.hemi && m.hemi.mul !== undefined ? m.hemi.mul : 1),
+        fogDensity: fb.fog.density    + (m.fog  && m.fog.addDensity         !== undefined ? m.fog.addDensity : 0),
         fogColor:   (m.fog && m.fog.color !== undefined) ? m.fog.color : null,
       };
       ['sun','amb','hemi','fogDensity'].forEach(function(k){
@@ -203,7 +204,7 @@ if(typeof window !== 'undefined'){
     const _tag = fail === 0 ? 'OK' : 'FAIL';
     console.log('[' + _tag + '] WEATHER_MOD baseline check: '+match+'/'+(match+fail)+' velden match (5 modes × 5 velden)');
   }
-  // Defer tot scene built (zodat WORLD_LIGHTING + grandprix-base zeker
+  // Defer tot scene built (zodat WORLD_LIGHTING + _fallback-base zeker
   // geladen zijn). Bij ontbreken __bootScenePromise: fallback op
   // DOMContentLoaded + microtask.
   if(window.__bootScenePromise && typeof window.__bootScenePromise.then === 'function'){

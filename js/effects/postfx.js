@@ -232,49 +232,28 @@ function initPostFX(){
   _applyFxPreference();
 }
 
-// Day/night bloom tuning — at night we use a slightly lower threshold so
-// neon/emissive props bloom more dramatically; by day we keep bloom subtle
-// so highlights don't blow out the sky. Per-world multipliers below let
-// pastel/dense-emissive worlds (Candy) get less bleed without
-// dimming the intentional neon aesthetic.
+// Day/night bloom tuning lives in js/core/world-visuals.js (bloomMul,
+// bloomThresholdDay, bloomThresholdDark per world). At night a slightly lower
+// threshold lets neon/emissive props bloom more dramatically; by day a higher
+// threshold keeps highlights from blowing out the sky.
 //
-// Game-breed tone-down: previously dark strength was 0.78 / day 0.66 with
-// thresholds 0.74 / 0.80. That bloomed mid-tones across most worlds and,
-// combined with additive speed-trail particles, drew car-shaped ghost
-// echoes behind every car at speed. The new values keep emissive props
-// bright but stop mid-tones (asphalt, sand, candy, snow) bleeding.
+// QW-5 (audit A-07): de oude per-wereld _BLOOM_WORLD_MUL /
+// _BLOOM_WORLD_THRESHOLD_DARK tabellen zijn verwijderd. getWorldVisuals dekt
+// alle 8 actieve werelden, dus die tabellen waren dode duplicatie die alleen
+// nog als vangnet diende. Alleen de neutrale defaults (mul 1.0, dark 0.82,
+// day 0.86) blijven over als fallback voor een onbekende wereld.
 let _bloomWorldStrengthMul = 1.0;
-const _BLOOM_WORLD_MUL = {
-  candy:    0.95,   // pretpark-vibe: lampen + emissive-snoep moeten knallen tegen donker
-  arctic:   0.70,   // bright snow ground reflects bloom
-  volcano:  1.00,   // lava emissives are the show
-  space:    1.00,   // deliberate cosmic bloom
-  deepsea:  0.85,   // bioluminescence subtle
-  sandstorm:0.55,   // bright sun + sand reflectie — temper bloom flood
-  pier47:   1.05,   // CINEMATIC — bloom-burst on lamps/koplampen against dark scene
-  guangzhou:           1.10   // CINEMATIC — neon magenta/cyan emissives at max pop against near-black wet asphalt
-};
-// Per-world threshold override: defaults are dark=0.82 / day=0.86. Bumping
-// the threshold raises the brightness above which a pixel blooms, so most
-// scene mid-tones stay sharp. Cinematic worlds keep a slightly lower
-// threshold so their intended bright neon still pops.
-const _BLOOM_WORLD_THRESHOLD_DARK = {
-  volcano:  0.78,
-  pier47:   0.78,
-  guangzhou: 0.78
-};
 // Tracked alongside _bloomWorldStrengthMul: avoids a global `activeWorld`
 // read inside setBloomDayNight() so a future caller can't desync the
 // strength multiplier from the threshold lookup.
 let _bloomWorldKey = '';
 function setBloomDayNight(dark){
   if(!_postfx.ready) return;
-  // PBR-upgrade Brok 2: bloom-thresholds en -multiplier komen voortaan uit
-  // world-visuals; de oude _BLOOM_WORLD_MUL / _BLOOM_WORLD_THRESHOLD_DARK
-  // tables blijven als fallback voor onbekende werelden.
+  // PBR-upgrade Brok 2: bloom-thresholds en -multiplier komen uit world-visuals;
+  // onbekende werelden vallen terug op neutrale defaults (dark 0.82 / day 0.86).
   const _v = (typeof window.getWorldVisuals === 'function')
     ? window.getWorldVisuals(_bloomWorldKey) : null;
-  const thrDark = _v ? _v.bloomThresholdDark : (_BLOOM_WORLD_THRESHOLD_DARK[_bloomWorldKey] || 0.82);
+  const thrDark = _v ? _v.bloomThresholdDark : 0.82;
   const thrDay  = _v ? _v.bloomThresholdDay  : 0.86;
   if(dark){
     _postfx.threshold = thrDark;
@@ -288,10 +267,10 @@ function setBloomDayNight(dark){
 }
 function setBloomWorld(world){
   _bloomWorldKey = world || '';
-  // PBR-upgrade Brok 2: bloomMul uit world-visuals (fallback op oude table).
+  // PBR-upgrade Brok 2: bloomMul uit world-visuals (neutrale fallback 1.0).
   const _v = (typeof window.getWorldVisuals === 'function')
     ? window.getWorldVisuals(world) : null;
-  _bloomWorldStrengthMul = _v ? _v.bloomMul : (_BLOOM_WORLD_MUL[world] || 1.0);
+  _bloomWorldStrengthMul = _v ? _v.bloomMul : 1.0;
   // Re-apply current day/night to pick up the new multiplier.
   if(_postfx.ready) setBloomDayNight(typeof isDark!=='undefined' && isDark);
 }

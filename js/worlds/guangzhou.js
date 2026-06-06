@@ -68,6 +68,17 @@ let _gzHighwayData = [];        // V5 Phase C: per-instance {tBase, lateral, dir
 let _gzFrameTick = 0;
 let _gzWindowFlickerOffset = 0;
 
+// QW-2 (audit P-03): gehoiste scratch-vectors voor de per-frame traffic-loops in
+// updateGuangzhouWorld. Voorheen riepen die trackCurve.getPoint/getTangent zonder
+// optionalTarget aan → een nieuwe Vector3 per call (~tientallen/frame in de
+// zwaarste wereld). De ground- en highway-loop draaien sequentieel (geen
+// interleave) dus één paar volstaat. NB: getTangent doet intern nog een
+// central-difference (2 tijdelijke getPoint-allocs); die blijven — het target
+// hier scheelt de result-alloc + de losse getPoint-alloc, met bit-identieke
+// output (de tangent-berekening verandert niet).
+const _gzPt = new THREE.Vector3();
+const _gzTg = new THREE.Vector3();
+
 function _gzGetLightTex(){
   if(_gzLightTex) return _gzLightTex;
   const c = document.createElement('canvas');
@@ -3721,8 +3732,8 @@ function updateGuangzhouWorld(dt){
       // Advance t along the curve based on direction. Wrap into [0,1].
       let t = (td.tBase + tNow * td.speed * td.dir) % 1;
       if(t < 0) t += 1;
-      const pt = trackCurve.getPoint(t);
-      const tg = trackCurve.getTangent(t).normalize();
+      const pt = trackCurve.getPoint(t, _gzPt);
+      const tg = trackCurve.getTangent(t, _gzTg).normalize();
       const nrX = -tg.z;
       const nrZ =  tg.x;
       dummy.position.set(pt.x + nrX * td.lateral, 0.4, pt.z + nrZ * td.lateral);
@@ -3745,8 +3756,8 @@ function updateGuangzhouWorld(dt){
       const hd = _gzHighwayData[i];
       let t = (hd.tBase + tNow2 * hd.speed * hd.dir) % 1;
       if(t < 0) t += 1;
-      const pt = trackCurve.getPoint(t);
-      const tg = trackCurve.getTangent(t).normalize();
+      const pt = trackCurve.getPoint(t, _gzPt);
+      const tg = trackCurve.getTangent(t, _gzTg).normalize();
       const nrX = -tg.z;
       const nrZ =  tg.x;
       const bx = pt.x + nrX * hd.lateral;
