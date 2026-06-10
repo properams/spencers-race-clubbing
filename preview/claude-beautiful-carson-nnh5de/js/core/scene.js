@@ -1037,7 +1037,10 @@ async function buildScene(opts){
   if(typeof _disposeGrandPrixSkyCache==='function')_disposeGrandPrixSkyCache();
   if(typeof _disposePier47SkyCache==='function')_disposePier47SkyCache();
   if(typeof _disposeGuangzhouSkyCache==='function')_disposeGuangzhouSkyCache();
-  if(typeof _disposeVolcanoCinematicSkyCache==='function')_disposeVolcanoCinematicSkyCache();
+  // _disposeVolcanoCinematicSkyCache is hier verwijderd (2026-06-10): de
+  // functie las nooit-gedeclareerde _vc*-vars van de verwijderde
+  // volcano-cinematic wereld → ReferenceError op élke build sinds QW-1
+  // deze enumeratie toevoegde. Zie night.js voor de volledige note.
   // QW-1 dispose-blok apart meten (2026-06 load-diagnose): dit geeft per
   // build de PMREM-RT's + sky-CanvasTextures van alle werelden vrij en was
   // tot nu onzichtbaar tussen build.disposeScene en build.track.

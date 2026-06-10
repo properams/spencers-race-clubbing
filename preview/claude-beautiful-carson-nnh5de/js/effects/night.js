@@ -435,17 +435,13 @@ function _disposePier47SkyCache(){
 }
 if(typeof window!=='undefined')window._disposePier47SkyCache=_disposePier47SkyCache;
 
-// Release the Volcano Cinematic sky-cache. Mirrors the Pier 47 pattern.
-// Defined for completeness; not yet wired into a dispose hook (sessie 1
-// world has no disposeVolcanoCinematicExtras path). Cache is small —
-// leak across one world-switch is negligible.
-function _disposeVolcanoCinematicSkyCache(){
-  if(_vcNightBg){try{_vcNightBg.dispose();}catch(_){} _vcNightBg=null;}
-  if(_vcNightEnv){try{_vcNightEnv.dispose();}catch(_){} _vcNightEnv=null;}
-  if(_vcDayBg){try{_vcDayBg.dispose();}catch(_){} _vcDayBg=null;}
-  if(_vcDayEnv){try{_vcDayEnv.dispose();}catch(_){} _vcDayEnv=null;}
-}
-if(typeof window!=='undefined')window._disposeVolcanoCinematicSkyCache=_disposeVolcanoCinematicSkyCache;
+// NB: de vroegere _disposeVolcanoCinematicSkyCache is verwijderd (2026-06-10).
+// Hij was "for completeness" geschreven voor de later verwijderde
+// volcano-cinematic wereld, maar de _vc*-variabelen die hij las zijn nooit
+// gedeclareerd — elke aanroep gooide ReferenceError. PR #84's QW-1 voegde
+// die aanroep toe in buildScene's sky-cache-dispose-blok, wat élke build
+// liet crashen. Les: een typeof-guard op de functie bewijst niets over de
+// body; bij world-removal ook de night.js-companions meenemen (P16).
 
 // Release the Guangzhou sky-cache (day + night skybox + PMREM env). Mirrors
 // the Pier 47 / Volcano Cinematic pattern. Defined here so future wiring to
