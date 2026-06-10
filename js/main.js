@@ -276,5 +276,11 @@ clock=new THREE.Clock();
 // ══ BOOT ════════════════════════════════════
 // boot() + helpers → js/core/boot.js. Aanroep blijft hier zodat alle
 // top-level globals in dit bestand eerst geinitialiseerd zijn.
-if(window.perfMark)perfMark('boot:start');
+// Bare performance.mark, NIET via window.perfMark: die helper komt uit
+// debug.bundle.js dat pas lazy ín boot() laadt (dev-flag), dus de guard was
+// hier altijd false en het boot:start-mark bestond in geen enkele mode —
+// waardoor boot.toFirstPaint/boot.total/wallclock.urlToFirstFrame stil
+// faalden (code-quality review 2026-06-10). Instrumentatie-fix, geen
+// gedragswijziging.
+try{performance.mark('boot:start');}catch(_){}
 boot();

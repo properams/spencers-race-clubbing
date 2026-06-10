@@ -1012,6 +1012,10 @@ async function buildScene(opts){
   if(window.Breadcrumb)Breadcrumb.push('buildScene',{world:activeWorld});
   // Perf Phase A: shader-program count voor en na buildScene.
   const _perfProgBefore=(renderer&&renderer.info&&renderer.info.programs&&renderer.info.programs.length)||0;
+  // Eigen build-start-timestamp voor de worldLoad.summary onderaan: scant
+  // perfLog binnen dít venster i.p.v. blind de laatste entries te pakken
+  // (stale-match-risico bij rebuilds — code-quality review 2026-06-10).
+  const _wlBuildT0=performance.now();
   if(window.perfMark)perfMark('build:total:start');
   if(window.perfMark)perfMark('build:disposeScene:start');
   disposeScene();
@@ -1025,6 +1029,7 @@ async function buildScene(opts){
   // toggleNight()-call verderop in deze build. Idempotent + guarded → dubbel-
   // dispose (race-reset roept sommige ook aan) is onschadelijk; de helpers
   // nullen hun refs. Niet de gedeelde day/night-bake-RT-volgorde aanraken (M-03).
+  if(window.perfMark)perfMark('build:skyCacheDispose:start');
   if(typeof _disposeSandstormSkyCache==='function')_disposeSandstormSkyCache();
   if(typeof _disposeVolcanoSkyCache==='function')_disposeVolcanoSkyCache();
   if(typeof _disposeArcticSkyCache==='function')_disposeArcticSkyCache();
@@ -1033,6 +1038,10 @@ async function buildScene(opts){
   if(typeof _disposePier47SkyCache==='function')_disposePier47SkyCache();
   if(typeof _disposeGuangzhouSkyCache==='function')_disposeGuangzhouSkyCache();
   if(typeof _disposeVolcanoCinematicSkyCache==='function')_disposeVolcanoCinematicSkyCache();
+  // QW-1 dispose-blok apart meten (2026-06 load-diagnose): dit geeft per
+  // build de PMREM-RT's + sky-CanvasTextures van alle werelden vrij en was
+  // tot nu onzichtbaar tussen build.disposeScene en build.track.
+  if(window.perfMark){perfMark('build:skyCacheDispose:end');perfMeasure('build.skyCacheDispose','build:skyCacheDispose:start','build:skyCacheDispose:end');}
   // Asset-cache eviction (Phase 2 Fix B.3): scene is leeg na disposeScene,
   // dus geen actieve refs naar non-current world textures/models. Dispose
   // alles dat niet bij de actieve world hoort om cumulatieve VRAM-leak
@@ -1675,6 +1684,53 @@ async function buildScene(opts){
       _phases.forEach(p=>dbg.log('intro-perf','  '+p.replace('build.','').padEnd(16)+_fmt(p)));
       dbg.log('intro-perf','  '+'proc-getImageData'.padEnd(16)+_rb.calls+' calls / '+_rb.ms.toFixed(1)+'ms (cumulative)');
       dbg.log('intro-perf','  '+'── TOTAL'.padEnd(16)+_fmt('build.total'));
+    }
+  }catch(_){/* never block build on instrumentation */}
+  // ── world-load summary (2026-06 load-diagnose): één regel per build met
+  // totaal + langste sub-blok + evict/preload-kosten, afleesbaar op mobile
+  // via LOAD TIMELINE. Bewust BUITEN de dbg.enabled-guard hierboven (de
+  // intro-perf breakdown is console-only). NB "always-on" betekent hier:
+  // zodra debug.bundle.js geladen is (dev-flag) — zonder die bundle bestaat
+  // _loadPerf/perfLog niet en no-opt dit blok, net als alle perfMark-sites.
+  // Het venster is _wlBuildT0→nu (eigen timestamp, geen perfLog-scan voor
+  // build.total) zodat stale entries van een vórige build nooit matchen.
+  try{
+    if(window.perfLog && window._loadPerf){
+      const _wlNow=performance.now();
+      const _wlTotalMs=_wlNow-_wlBuildT0;
+      let _evict=null,_preload=null;
+      for(let i=window.perfLog.length-1;i>=0;i--){
+        const e=window.perfLog[i];
+        // evict draait altijd bínnen deze build (scene.js hierboven) —
+        // entries van vóór _wlBuildT0 zijn per definitie van een vorige
+        // wissel (bij evicted=0 wordt niets gepusht).
+        if(_evict===null && e.name==='loadperf.assets.evict' && e.t>=_wlBuildT0) _evict=e;
+        // preload vuurt legitiem vóór de build (world-select prefetch);
+        // 60s-venster voorkomt dat een minuten-oude preload van dezelfde
+        // wereld als kost van déze rebuild wordt gerapporteerd.
+        else if(_preload===null && e.name==='assets.preloadWorld.total' && e.world===activeWorld && e.t>=_wlBuildT0-60000) _preload=e;
+        if(_evict&&_preload) break;
+        if(e.t<_wlBuildT0-60000) break;
+      }
+      let _longest=null;
+      if(window._perfSpans){
+        // Langste sub-blok binnen het venster van déze build (span-ring
+        // bevat alle perfMeasure- en _perfSpan-spans, incl. world-helpers).
+        for(const s of window._perfSpans){
+          if(s.t0>=_wlBuildT0 && s.t1<=_wlNow && s.label!=='build.total'
+             && (!_longest || (s.t1-s.t0)>(_longest.t1-_longest.t0))) _longest=s;
+        }
+      }
+      window._loadPerf('worldLoad.summary', _wlTotalMs, {
+        world:activeWorld,
+        longest:_longest?_longest.label:null,
+        longestMs:_longest?+(_longest.t1-_longest.t0).toFixed(1):null,
+        evictMs:_evict?+_evict.ms.toFixed(1):null,
+        preloadMs:_preload?+_preload.ms.toFixed(1):null,
+      });
+      if(window.dbg)dbg.log('world-load','summary — world='+activeWorld
+        +' total='+_wlTotalMs.toFixed(1)+'ms'
+        +' longest='+(_longest?_longest.label+' '+(_longest.t1-_longest.t0).toFixed(1)+'ms':'—'));
     }
   }catch(_){/* never block build on instrumentation */}
   // Cold-start diagnose: meet de tijd tussen buildScene-eind en de eerste

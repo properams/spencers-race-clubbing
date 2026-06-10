@@ -1501,12 +1501,20 @@ function buildSandstormEnvironment(){
     if(typeof _rainIntensity!=='undefined')_rainIntensity=0;
     if(rainCanvas)rainCanvas.style.display='none';
   }
+  // Sub-blok-metingen (2026-06 load-diagnose): mechanische wrap van de
+  // top-level build-helpers via window._perfSpan (debug.js). Spans >=5ms
+  // landen als build.world.sandstorm.<helper> in perfLog (zelfde naam-
+  // conventie als space/guangzhou); álle spans gaan naar de span-ring voor
+  // longtask-attributie. Defensieve fallback conform window.perfMark-patroon.
+  const _S=(l,fn)=>window._perfSpan?window._perfSpan('build.world.sandstorm.'+l,fn):fn();
   // ── Ground (sand canvas, anisotropy/repeat matches default-world style)
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
-    _ssMat({color:0xd4a55a,map:_sandGroundTex()},{metalness:0.0,roughness:0.92},'desert-matte'));
-  g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
-  g.userData._isProcGround=true;
-  scene.add(g);
+  _S('ground',()=>{
+    const g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
+      _ssMat({color:0xd4a55a,map:_sandGroundTex()},{metalness:0.0,roughness:0.92},'desert-matte'));
+    g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
+    g.userData._isProcGround=true;
+    scene.add(g);
+  });
   // ── Lighting (warm sunset — v2 retune per visual-fix-v2 pilot)
   // Goal: cinematic golden-hour. Low-angle warm sun for long shadows on
   // cliffs + dramatic rim-light, peach hemisphere for warm shadow-side
@@ -1518,13 +1526,13 @@ function buildSandstormEnvironment(){
   // Apply via the shared helper so night.js's day-restore can call the
   // exact same code path — single source of truth for sandstorm day
   // lighting (was duplicated, code-reuse review v4 dedup).
-  _applySandstormDayLighting();
+  _S('dayLighting',_applySandstormDayLighting);
   // Sand-haze fill light (warm, modest range — pulses subtly in update)
   _sandstormSandSwept=new THREE.PointLight(0xffe4a8,1.4,500);
   _sandstormSandSwept.position.set(0,8,0);scene.add(_sandstormSandSwept);
   // ── Wind-blown ambient sand-fleck pool (always-on, lap-1+).
   // The lap-progressive STORM particles live in sandstorm-storm.js (Phase 4).
-  {
+  _S('flecks',()=>{
     const FN=_mobCount(180);
     const geo=new THREE.BufferGeometry();
     const pos=new Float32Array(FN*3),col=new Float32Array(FN*3);
@@ -1543,7 +1551,7 @@ function buildSandstormEnvironment(){
       sizeAttenuation:true,blending:THREE.AdditiveBlending,depthWrite:false
     }));
     scene.add(_sandstormFlecks);_sandstormFlecksGeo=geo;
-  }
+  });
   // ── World props (Phase 3 visual upgrade) ────────────────
   // Two depth-tiered horizon layers:
   //   1. Shared silhouette layers from track/environment.js (cylinder rings
@@ -1552,23 +1560,23 @@ function buildSandstormEnvironment(){
   //      mesa props at 150/250/400u bands with atmospheric perspective.
   // The two are NOT duplicates — silhouette is wrap-around horizon haze,
   // mesas are individual scatter-props that read as Monument-Valley buttes.
-  _ssBuildBackgroundMesas();
-  _ssBuildCanyonCliffs();
-  _ssBuildSandDunes();
-  _ssBuildSphinxMonument();
-  _ssBuildTempleRuins();
-  _ssBuildObelisks();
-  _ssBuildPalmTrees();
-  _ssBuildCamels();
-  _ssBuildPyramids();
-  _ssBuildBedouinTents();
+  _S('backgroundMesas',_ssBuildBackgroundMesas);
+  _S('canyonCliffs',_ssBuildCanyonCliffs);
+  _S('sandDunes',_ssBuildSandDunes);
+  _S('sphinxMonument',_ssBuildSphinxMonument);
+  _S('templeRuins',_ssBuildTempleRuins);
+  _S('obelisks',_ssBuildObelisks);
+  _S('palmTrees',_ssBuildPalmTrees);
+  _S('camels',_ssBuildCamels);
+  _S('pyramids',_ssBuildPyramids);
+  _S('bedouinTents',_ssBuildBedouinTents);
   // Phase-4 §4.2: 6 prop-type roadside detail spawner. Replaces the
   // standalone _ssBuildScarabSigns (folded in as one of the 6 types).
-  _ssBuildRoadsideDetail();
+  _S('roadsideDetail',_ssBuildRoadsideDetail);
   // ── Hazard hook (Phase 4 supplies the implementation)
-  if(typeof buildSandstormStorm==='function')buildSandstormStorm();
+  if(typeof buildSandstormStorm==='function')_S('storm',buildSandstormStorm);
   // ── Barriers + start line (shared environment helpers).
-  buildBarriers();buildStartLine();
+  _S('barriers',()=>{buildBarriers();buildStartLine();});
   // ── Player + AI headlight refs
   plHeadL=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);
   plHeadR=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);
@@ -1590,9 +1598,9 @@ function buildSandstormEnvironment(){
     stars.instanceMatrix.needsUpdate=true;scene.add(stars);
   }
   // GLTF roadside props skipped — sandstorm has no GLTF manifest.
-  _ssBuildCloseBand();      // Phase 12A
-  _ssBuildBuriedObjects();  // Phase 11D
-  _ssBuildSandDrifts();     // Phase 11D
+  _S('closeBand',_ssBuildCloseBand);          // Phase 12A
+  _S('buriedObjects',_ssBuildBuriedObjects);  // Phase 11D
+  _S('sandDrifts',_ssBuildSandDrifts);        // Phase 11D
   // Schedule the first dust-devil to a wall-clock time well after race-start
   // so it can't fire on the first race frame. The module-init value of 8 was
   // already in the past at world-build, which made `t>=_ssNextDevil` true on

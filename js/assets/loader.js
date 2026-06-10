@@ -137,6 +137,7 @@
       try { _pmremGen = new THREE.PMREMGenerator(window.renderer); _pmremGen.compileEquirectangularShader(); }
       catch (e) { _warn('pmrem init failed', String(e)); _hdriCache.set(path, null); return null; }
     }
+    const _tRgbe = performance.now();
     const tex = await new Promise(resolve => {
       try {
         const ldr = new THREE.RGBELoader();
@@ -151,6 +152,12 @@
       } catch (e) { _warn('rgbe throw', String(e)); resolve(null); }
     });
     if (!tex){ _hdriCache.set(path, null); return null; }
+    // Split rgbe (fetch + Float32-decode, niet verder te scheiden zonder
+    // RGBELoader-internals te patchen) vs pmrem (sync GPU-convolutie) —
+    // de twee zwaarste main-thread-kandidaten in de asset-keten. Eén entry,
+    // alleen op het koude pad (cache-hit returnt hierboven al).
+    const _rgbeMs = performance.now() - _tRgbe;
+    const _tPmrem = performance.now();
     let envMap = null;
     try {
       envMap = _pmremGen.fromEquirectangular(tex).texture;
@@ -162,6 +169,9 @@
       envMap.userData.sourcePath = path;
     } catch (e) { _warn('pmrem fromEquirect failed', String(e)); }
     finally { try{ tex.dispose(); }catch(_){} }
+    if (window._loadPerf) window._loadPerf('assets.hdri.split', _rgbeMs + (performance.now() - _tPmrem), {
+      rgbeMs: +_rgbeMs.toFixed(1), pmremMs: +(performance.now() - _tPmrem).toFixed(1), path,
+    });
     _hdriCache.set(path, envMap);
     _log('hdri ready', { path, horizonColor: envMap && envMap.userData.horizonColor });
     return envMap;
@@ -351,6 +361,20 @@
   const loadGLTF = loadModel;
 
   // ── Per-world preload ───────────────────────────────────────────────
+  // Wall-time per asset-task (2026-06 load-diagnose). De taken hieronder
+  // draaien parallel via Promise.all — wall-times overlappen, dus sommen
+  // zijn misleidend; max/top3 wijzen wél de traagste asset aan (de vraag
+  // "wélk model/welke texture domineert assets.models" was tot nu blind).
+  function _timeTask(p, label, arr){
+    const t0 = performance.now();
+    return p.then(r => { arr.push({ path: label, ms: performance.now() - t0 }); return r; });
+  }
+  function _topTimes(arr){
+    const s = arr.slice().sort((a,b)=>b.ms-a.ms).slice(0,3)
+      .map(x => ({ path: x.path, ms: +x.ms.toFixed(1) }));
+    return { maxMs: s.length ? s[0].ms : 0, maxPath: s.length ? s[0].path : null, top3: s };
+  }
+
   async function preloadWorld(worldId){
     if (!worldId) return { kind:'none' };
     if (_worldPreloaded.has(worldId)) return { kind:'cached' };
@@ -368,6 +392,8 @@
     // layers. Audio is a separate preloadWorldAudio path (samples.js).
     const _modelTasks = [];
     const _textureTasks = [];
+    const _modelTimes = [];
+    const _texTimes = [];
     if (w.hdri){
       // Isoleer HDRI fetch+decode+PMREM van de overige models zodat de
       // cold-start dump laat zien hoeveel van assets.models in werkelijkheid
@@ -378,27 +404,35 @@
         return r;
       }));
     }
-    if (w.ground) _textureTasks.push(loadGroundSet(worldId));
+    if (w.ground) _textureTasks.push(_timeTask(loadGroundSet(worldId), 'ground:'+worldId, _texTimes));
     if (w.props){
       // Each prop slot may be a string (single variant) or an array
       // (multiple variants for natural per-cluster variety).
       for (const k in w.props){
         const v = w.props[k];
-        if (Array.isArray(v)) v.forEach(p => { if (p) _modelTasks.push(loadGLTF(p)); });
-        else if (v) _modelTasks.push(loadGLTF(v));
+        if (Array.isArray(v)) v.forEach(p => { if (p) _modelTasks.push(_timeTask(loadGLTF(p), p, _modelTimes)); });
+        else if (v) _modelTasks.push(_timeTask(loadGLTF(v), v, _modelTimes));
       }
     }
     if (w.skybox_layers){
-      for (const k in w.skybox_layers) _textureTasks.push(loadTexture(w.skybox_layers[k], { colorSpace:'srgb' }));
+      for (const k in w.skybox_layers) _textureTasks.push(_timeTask(loadTexture(w.skybox_layers[k], { colorSpace:'srgb' }), w.skybox_layers[k], _texTimes));
     }
 
     const _tModelStart = performance.now();
     const _modelP = Promise.all(_modelTasks).then(()=>{
-      if (window.perfLog) window.perfLog.push({ name:'assets.models', ms: performance.now()-_tModelStart, t: performance.now(), world: worldId, count: _modelTasks.length });
+      if (window.perfLog){
+        const e = { name:'assets.models', ms: performance.now()-_tModelStart, t: performance.now(), world: worldId, count: _modelTasks.length };
+        Object.assign(e, _topTimes(_modelTimes));
+        window.perfLog.push(e);
+      }
     });
     const _tTexStart = performance.now();
     const _texP = Promise.all(_textureTasks).then(()=>{
-      if (window.perfLog) window.perfLog.push({ name:'assets.textures', ms: performance.now()-_tTexStart, t: performance.now(), world: worldId, count: _textureTasks.length });
+      if (window.perfLog){
+        const e = { name:'assets.textures', ms: performance.now()-_tTexStart, t: performance.now(), world: worldId, count: _textureTasks.length };
+        Object.assign(e, _topTimes(_texTimes));
+        window.perfLog.push(e);
+      }
     });
     await Promise.all([_modelP, _texP]);
     if (window.perfLog) window.perfLog.push({ name:'assets.preloadWorld.total', ms: performance.now()-_t0, t: performance.now(), world: worldId });
@@ -537,6 +571,7 @@
   }
   function evictAllExcept(worldId){
     if (!_manifestLoaded || !_manifest || !_manifest.worlds) return { evicted: 0 };
+    const _tEvict = performance.now();
     const keep = _collectKeepPaths(worldId);
     let evicted = 0;
     for (const [path, t] of _textureCache){
@@ -552,6 +587,9 @@
     for (const wId of Array.from(_worldPreloaded)){
       if (wId !== worldId) _worldPreloaded.delete(wId);
     }
+    // Sync dispose-loop op het world-switch-pad; tot nu een blinde vlek
+    // tussen build.disposeScene en build.track (2026-06 load-diagnose).
+    if (evicted && window._loadPerf) window._loadPerf('assets.evict', performance.now()-_tEvict, { evicted, world: worldId });
     if (evicted && window.dbg) dbg.log('assets','evictAllExcept('+worldId+') — '+evicted+' assets disposed');
     return { evicted };
   }

@@ -543,6 +543,23 @@ async function boot(){
     await _loadScriptLazy('dist/debug.bundle.js');
     await _loadScriptLazy('dist/race-perf-probe.bundle.js');
   }
+  // Pre-boot gap (2026-06 load-diagnose): boot:start staat in main.js — het
+  // láátste deferred script — dus startTime ervan = HTML-parse + fetch/parse
+  // van alle ~100 classic scripts + vendor. Tot nu was die periode alleen
+  // impliciet zichtbaar. Moet NÁ de _loadScriptLazy-call hierboven staan:
+  // _loadPerf bestaat pas zodra debug.bundle.js geladen is (dev-flag) —
+  // zonder dev-flag bestaat de hele perf-timeline niet en no-opt dit blok,
+  // net als alle andere perfMark/perfMeasure-call-sites.
+  try{
+    if(window._loadPerf && performance.getEntriesByName){
+      const _bs=performance.getEntriesByName('boot:start')[0];
+      const _nav=(performance.getEntriesByType&&performance.getEntriesByType('navigation')[0])||null;
+      if(_bs) window._loadPerf('boot.preBootGap', _bs.startTime, {
+        domInteractive:_nav?+_nav.domInteractive.toFixed(1):null,
+        domContentLoaded:_nav?+_nav.domContentLoadedEventEnd.toFixed(1):null,
+      });
+    }
+  }catch(_){/* instrumentatie mag boot nooit blokkeren */}
   // SW disabled for file:// compat.
   // Load game data (cars/tracks/prices) before scene init.
   if(window.perfMark)perfMark('boot:gameData:start');
