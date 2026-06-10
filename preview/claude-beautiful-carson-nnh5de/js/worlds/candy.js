@@ -134,44 +134,50 @@ function buildCandyEnvironment(){
     if(typeof _rainIntensity!=='undefined')_rainIntensity=0;
     if(rainCanvas)rainCanvas.style.display='none';
   }
-  _applyCandyDayLighting();
-  buildCandyGround();
-  buildCandySky();
-  buildLollipopTrees();
-  buildCandyCanes();
-  buildChocolateRiver();
-  buildGumDropMountains();
-  buildCakeBuilding();
-  buildCandyGate();
-  _buildCandyCarnivalLights();    // Verlaten-pretpark V1 — cinematic lamp-poles + cones
-  _buildCandyCarnivalMist();      // Verlaten-pretpark V1 — ground fog + blinking markers
-  _buildCandyCarnivalLandmarks(); // V3 prop-herontwerp Laag 1 — silhouet-attracties (reuzenrad/tenten/boog)
-  buildSprinkleParticles();
-  buildFloatingCandyBits();
-  buildCottonCandyClouds();
-  buildRainbowTrackStripes();
-  buildCandyBarriers();
-  buildIceCreamCones();
-  buildCookieSpectators();
-  _buildCandyCloseBand();         // Phase 12A — foreground "whoosh" laag
-  _buildCandyMidRing();           // Phase 11A — mid-ground prop ring
-  _buildCandyMidVariety();        // Phase 12B — geometry variation in mid-band
-  _buildCandyDonutHoops();        // Phase 12D — floating donut-hoops over track
-  _buildCandyLollipopGroupLights(); // Phase 13B — practical cluster-lights
-  _buildCandyStacks();            // Phase 15 Step 3 — merged-geo candy stacks
-  _buildCandyWrappers();          // Phase 15 Step 4 — wrapped candies (4 IMs)
-  _buildPeppermintScatter();      // Mockup pass — peppermint disks on grass
-  _buildCandyHorizonSpecks();     // V3 prop-herontwerp Laag 3 — diepte-scatter richting horizon
-  _buildCandyHorizonBigs();       // Taak 3 — grote horizon-silhouetten tegen donkere zenith
+  // Sub-blok-metingen (2026-06 load-diagnose): mechanische wrap van de
+  // top-level build-helpers via window._perfSpan (debug.js). Spans >=5ms
+  // landen als build.world.candy.<helper> in perfLog (zelfde naamconventie
+  // als space/guangzhou); álle spans gaan naar de span-ring voor longtask-
+  // attributie. Defensieve fallback conform het window.perfMark-patroon.
+  const _C=(l,fn)=>window._perfSpan?window._perfSpan('build.world.candy.'+l,fn):fn();
+  _C('dayLighting',_applyCandyDayLighting);
+  _C('ground',buildCandyGround);
+  _C('sky',buildCandySky);
+  _C('lollipopTrees',buildLollipopTrees);
+  _C('candyCanes',buildCandyCanes);
+  _C('chocolateRiver',buildChocolateRiver);
+  _C('gumDropMountains',buildGumDropMountains);
+  _C('cakeBuilding',buildCakeBuilding);
+  _C('candyGate',buildCandyGate);
+  _C('carnivalLights',_buildCandyCarnivalLights);    // Verlaten-pretpark V1 — cinematic lamp-poles + cones
+  _C('carnivalMist',_buildCandyCarnivalMist);        // Verlaten-pretpark V1 — ground fog + blinking markers
+  _C('carnivalLandmarks',_buildCandyCarnivalLandmarks); // V3 prop-herontwerp Laag 1 — silhouet-attracties (reuzenrad/tenten/boog)
+  _C('sprinkleParticles',buildSprinkleParticles);
+  _C('floatingCandyBits',buildFloatingCandyBits);
+  _C('cottonCandyClouds',buildCottonCandyClouds);
+  _C('rainbowTrackStripes',buildRainbowTrackStripes);
+  _C('barriers',buildCandyBarriers);
+  _C('iceCreamCones',buildIceCreamCones);
+  _C('cookieSpectators',buildCookieSpectators);
+  _C('closeBand',_buildCandyCloseBand);         // Phase 12A — foreground "whoosh" laag
+  _C('midRing',_buildCandyMidRing);             // Phase 11A — mid-ground prop ring
+  _C('midVariety',_buildCandyMidVariety);       // Phase 12B — geometry variation in mid-band
+  _C('donutHoops',_buildCandyDonutHoops);       // Phase 12D — floating donut-hoops over track
+  _C('lollipopGroupLights',_buildCandyLollipopGroupLights); // Phase 13B — practical cluster-lights
+  _C('candyStacks',_buildCandyStacks);          // Phase 15 Step 3 — merged-geo candy stacks
+  _C('candyWrappers',_buildCandyWrappers);      // Phase 15 Step 4 — wrapped candies (4 IMs)
+  _C('peppermintScatter',_buildPeppermintScatter); // Mockup pass — peppermint disks on grass
+  _C('horizonSpecks',_buildCandyHorizonSpecks); // V3 prop-herontwerp Laag 3 — diepte-scatter richting horizon
+  _C('horizonBigs',_buildCandyHorizonBigs);     // Taak 3 — grote horizon-silhouetten tegen donkere zenith
   // Chocolate-fountain bridge signature moment — drips lap 2, melts lap 3.
-  if(typeof buildCandyChocoBridge==='function')buildCandyChocoBridge();
+  if(typeof buildCandyChocoBridge==='function')_C('chocoBridge',buildCandyChocoBridge);
   // GLTF candy props — opt-in extra detail next to procedural ice-cream
   // cones / lollipops / gummy bears. No-op when cache is empty.
   if(window.spawnRoadsideProps){
-    window.spawnRoadsideProps('candy',{
+    _C('roadsideProps',()=>window.spawnRoadsideProps('candy',{
       propKeys:['candy_lollipop','candy_cane','gumdrop'],
       count:8, sizeHint:1.8, clusterSize:2,
-    });
+    }));
   }
 }
 

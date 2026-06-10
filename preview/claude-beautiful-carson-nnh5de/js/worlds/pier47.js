@@ -1272,42 +1272,50 @@ function buildPier47Environment(){
     if(typeof _rainIntensity!=='undefined')_rainIntensity=0.6;
     if(rainCanvas){rainCanvas.style.display='block';rainCanvas.style.opacity='0.6';}
   }
+  // Sub-blok-metingen (2026-06 load-diagnose): mechanische wrap van de
+  // top-level build-helpers via window._perfSpan (debug.js). Spans >=5ms
+  // landen als build.world.pier47.<helper> in perfLog (zelfde naamconventie
+  // als space/guangzhou); álle spans gaan naar de span-ring voor longtask-
+  // attributie. Defensieve fallback conform het window.perfMark-patroon.
+  const _P=(l,fn)=>window._perfSpan?window._perfSpan('build.world.pier47.'+l,fn):fn();
   // Ground — flat dark-concrete kade. 2400² to fill the world; matches the
   // sandstorm/arctic pattern. y=-0.15 sits below the y=0.005 track ribbon.
-  const g=new THREE.Mesh(
-    new THREE.PlaneGeometry(2400,2400),
-    _p47Mat({color:0x2a2a30,map:_pier47GroundTex()},{metalness:0.0,roughness:0.40},'harbor-wet')
-  );
-  g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
-  g.userData._isProcGround=true; // hookable by asset-bridge if PBR concrete loaded later
-  scene.add(g);
+  _P('ground',()=>{
+    const g=new THREE.Mesh(
+      new THREE.PlaneGeometry(2400,2400),
+      _p47Mat({color:0x2a2a30,map:_pier47GroundTex()},{metalness:0.0,roughness:0.40},'harbor-wet')
+    );
+    g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
+    g.userData._isProcGround=true; // hookable by asset-bridge if PBR concrete loaded later
+    scene.add(g);
+  });
   // Day lighting — single source of truth via the helper.
-  _applyPier47DayLighting();
+  _P('dayLighting',_applyPier47DayLighting);
   // Barriers + start line (shared environment helpers).
-  buildBarriers();buildStartLine();
+  _P('barriers',()=>{buildBarriers();buildStartLine();});
   // Sodium-lamp poles along the kade — cinematic upgrade. Each pole now
   // has a volumetric light cone, ground pool, and halo billboard via the
   // shared cinematic.js helpers, replacing the sessie-2 minimal version.
   // Variation: 2-3 lamps "broken" (no light), 2-3 subtly tilted ("oude").
-  _p47BuildCinematicLamps();
+  _P('cinematicLamps',_p47BuildCinematicLamps);
   // Industrial props (sessie 2 commit 2):
   //   • Containers — sectors 1 + 2 (Container Run + The Yard)
   //   • Warehouse — sector 3 / 4 corner (loods at WP9 90° right)
   //   • Cranes — sector 5 (kade edge, outer side)
-  _p47BuildContainers();
-  _p47BuildWarehouse();
-  _p47BuildCranes();
-  _p47BuildOphaalbrug();
+  _P('containers',_p47BuildContainers);
+  _P('warehouse',_p47BuildWarehouse);
+  _P('cranes',_p47BuildCranes);
+  _P('ophaalbrug',_p47BuildOphaalbrug);
   // Dock-clutter: vaten, pallets, kabelhaspels, bollards, pipes + 4 beacons.
   // Alles InstancedMesh per type → 5 nieuwe draw-calls totaal (+ pipes als
   // shared-material statics). Geen nieuwe PointLights — beacons zijn
   // halo-only zodat de coin/repair intensity-toggle-fix niet wordt onderuit
   // gehaald door extra dynamic-light-count.
-  _p47BuildDockClutter();
+  _P('dockClutter',_p47BuildDockClutter);
   // Cinematic distant accents — far horizon markers + city-glow hint.
   // Both via shared cinematic.js helpers; pulses driven by updateCinematic.
-  _p47BuildDistantMarkers();
-  _p47BuildCityGlow();
+  _P('distantMarkers',_p47BuildDistantMarkers);
+  _P('cityGlow',_p47BuildCityGlow);
   // Cinematic motion: register subtle speed-scaled camera shake. Cleared
   // automatically on world-switch via resetCinematicState().
   if (typeof enableCinematicCameraShake === 'function'){
@@ -1324,7 +1332,7 @@ function buildPier47Environment(){
   // Sessie 3 atmosphere: drizzle-particle pool gives depth-tested rain
   // streaks in 3D (the canvas rain is a flat overlay; combining both
   // reads as actual volumetric motregen).
-  _p47BuildDrizzle();
+  _P('drizzle',_p47BuildDrizzle);
   // Cinematic foundation: low ground fog (js/effects/cinematic.js).
   // Donkerpaars met subtiele warme tint die de amber lamp-pools
   // straks complementeert. Slow scroll suggereert lichte harbour-wind.
@@ -1393,12 +1401,12 @@ function buildPier47Environment(){
       _p47FogPatches.push(sprite);
     }
   }
-  _buildPier47CloseBand();        // Phase 12A
-  _buildPier47MidRing();          // Phase 11A
-  _buildPier47MidVariety();       // Phase 12B
-  _buildPier47AtmosphereLayer();  // Phase 11C
-  _buildPier47FarSilhouette();    // Phase 12C
-  _buildPier47Crane2();           // Phase 12D
+  _P('closeBand',_buildPier47CloseBand);              // Phase 12A
+  _P('midRing',_buildPier47MidRing);                  // Phase 11A
+  _P('midVariety',_buildPier47MidVariety);            // Phase 12B
+  _P('atmosphereLayer',_buildPier47AtmosphereLayer);  // Phase 11C
+  _P('farSilhouette',_buildPier47FarSilhouette);      // Phase 12C
+  _P('crane2',_buildPier47Crane2);                    // Phase 12D
 }
 
 // Phase 12D — signature: 2e harbor crane gantry sweeping over track
