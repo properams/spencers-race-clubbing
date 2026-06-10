@@ -351,6 +351,10 @@
             name: entry.name || 'self',
             attribution: att ? (att.name || att.containerType || 'unknown') : null,
             nearestMark: _findRecentMark(entry.startTime),
+            // Binnenste span die de longtask-start omsluit (span-ring,
+            // 2026-06): nauwkeuriger dan nearestMark. null = longtask
+            // buiten elke gemeten fase — zelf diagnostisch (GC-kandidaat).
+            span: _findSpanAt(entry.startTime),
             gameState: window.gameState,
             activeWorld: window.activeWorld,
           };
@@ -358,7 +362,7 @@
           if (_longTaskRing.length > LONGTASK_RING_MAX) _longTaskRing.shift();
           if (shouldLog('coldstart')) {
             console.warn('[' + ts() + '][coldstart][longtask] ' + rec.dur +
-              'ms near ' + (rec.nearestMark || '(no mark)'), rec);
+              'ms in ' + (rec.span || rec.nearestMark || '(no span)'), rec);
           }
         }
       });
@@ -581,6 +585,51 @@
     } catch (_) {}
   };
 
+  // ── Span-ring (2026-06 load-diagnose): fase-attributie voor longtasks ──
+  // Aparte ring naast perfLog met {label,t0,t1} van elke afgeronde measure
+  // of _perfSpan-wrap. De longtask-observer zoekt hierin de BINNENSTE span
+  // die de longtask-starttijd omsluit. Dat repareert de nearestMark-
+  // beperking: perfLog-entries landen pas op measure-éinde, dus een longtask
+  // tijdens een lang blok kreeg voorheen het vórige blok toegeschreven.
+  // Always-on; ring is bewust los van perfLog zodat sub-blok-detail het
+  // 500-entry budget daar niet opvreet.
+  const _perfSpans = [];
+  const PERF_SPAN_RING_MAX = 150;
+  window._perfSpans = _perfSpans;
+  window._perfSpanMinMs = (typeof window._perfSpanMinMs === 'number') ? window._perfSpanMinMs : 5;
+  function _pushSpan(label, t0, t1) {
+    _perfSpans.push({ label, t0, t1 });
+    if (_perfSpans.length > PERF_SPAN_RING_MAX) _perfSpans.shift();
+  }
+  function _findSpanAt(t) {
+    try {
+      let best = null;
+      for (let i = _perfSpans.length - 1; i >= 0; i--) {
+        const s = _perfSpans[i];
+        if (s.t0 <= t && t <= s.t1 && (best === null || (s.t1 - s.t0) < (best.t1 - best.t0))) best = s;
+      }
+      return best ? best.label : null;
+    } catch (_) { return null; }
+  }
+  // Sync wall-time wrapper voor sub-blok-metingen (world-builders). Pusht
+  // altijd naar de span-ring; naar perfLog alleen >= _perfSpanMinMs (default
+  // 5ms, runtime-tunable) zodat ~25 near-zero candy-helpers de ring niet
+  // vol-spammen. Géén performance.mark: de browser-markbuffer wordt nooit
+  // gecleared en de LOAD TIMELINE filtert bare marks toch weg.
+  window._perfSpan = function (label, fn) {
+    const t0 = performance.now();
+    try { return fn(); }
+    finally {
+      const t1 = performance.now();
+      _pushSpan(label, t0, t1);
+      if (t1 - t0 >= window._perfSpanMinMs && window.perfLog) {
+        window.perfLog.push({ name: label, ms: t1 - t0, t: t1 });
+        if (window.perfLog.length > 500) window.perfLog.shift();
+        if (window.dbg) dbg.log('perf', label + ': ' + (t1 - t0).toFixed(1) + 'ms');
+      }
+    }
+  };
+
   // Fase-boundary marks die géén perfLog-entry produceren (bare perfMark):
   // alleen deze worden naast de perfLog-entries in de timeline opgenomen,
   // zodat build:*/goToRace:* (die al als measure in perfLog staan) niet
@@ -641,6 +690,9 @@
       if (last) {
         window.perfLog.push({ name, ms: last.duration, t: performance.now() });
         if (window.perfLog.length > 500) window.perfLog.shift();
+        // Span-ring meeschrijven: alle bestaande build.*/goToRace.*-measures
+        // krijgen hiermee longtask-attributie zonder call-sites aan te raken.
+        _pushSpan(name, last.startTime, last.startTime + last.duration);
         if (window.dbg) dbg.log('perf', `${name}: ${last.duration.toFixed(1)}ms`);
       }
       return last ? last.duration : null;

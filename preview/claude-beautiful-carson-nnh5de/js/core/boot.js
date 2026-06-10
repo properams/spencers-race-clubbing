@@ -517,6 +517,22 @@ async function boot(){
   if(window.perfMark){
     requestAnimationFrame(()=>{ try{ perfMark('first-paint'); perfMeasure('boot.toFirstPaint','boot:start','first-paint'); }catch(_){} });
   }
+  // Pre-boot gap (2026-06 load-diagnose): boot:start staat in main.js — het
+  // láátste deferred script — dus startTime ervan = HTML-parse + fetch/parse
+  // van alle ~100 classic scripts + vendor. Tot nu was die periode alleen
+  // impliciet zichtbaar (timeline begon pas bij boot:start). Eén always-on
+  // regel; per-script detail komt uit de resource-timeline onder ?audit=1
+  // (perf-audit-2026.js) en wordt hier bewust niet gedupliceerd.
+  try{
+    if(window._loadPerf && performance.getEntriesByName){
+      const _bs=performance.getEntriesByName('boot:start')[0];
+      const _nav=(performance.getEntriesByType&&performance.getEntriesByType('navigation')[0])||null;
+      if(_bs) window._loadPerf('boot.preBootGap', _bs.startTime, {
+        domInteractive:_nav?+_nav.domInteractive.toFixed(1):null,
+        domContentLoaded:_nav?+_nav.domContentLoadedEventEnd.toFixed(1):null,
+      });
+    }
+  }catch(_){/* instrumentatie mag boot nooit blokkeren */}
   const _loadEl=document.getElementById('loadingScreen');
   // Hook the smooth-loader engine to the circular SVG inside #loadingScreen.
   // setTarget is monotonic and decoupled from the actual loading work — the
