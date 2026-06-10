@@ -591,8 +591,11 @@
   // die de longtask-starttijd omsluit. Dat repareert de nearestMark-
   // beperking: perfLog-entries landen pas op measure-éinde, dus een longtask
   // tijdens een lang blok kreeg voorheen het vórige blok toegeschreven.
-  // Always-on; ring is bewust los van perfLog zodat sub-blok-detail het
-  // 500-entry budget daar niet opvreet.
+  // "Always-on" binnen dit bestand — maar dit bestand zelf laadt als
+  // dist/debug.bundle.js alléén onder ?dev=1 / src_dev='1' (boot.js lazy-
+  // load), dus zonder dev-flag bestaat de hele perf-laag niet. De ring is
+  // bewust los van perfLog zodat sub-blok-detail het 500-entry budget daar
+  // niet opvreet.
   const _perfSpans = [];
   const PERF_SPAN_RING_MAX = 150;
   window._perfSpans = _perfSpans;

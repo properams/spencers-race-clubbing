@@ -1012,6 +1012,10 @@ async function buildScene(opts){
   if(window.Breadcrumb)Breadcrumb.push('buildScene',{world:activeWorld});
   // Perf Phase A: shader-program count voor en na buildScene.
   const _perfProgBefore=(renderer&&renderer.info&&renderer.info.programs&&renderer.info.programs.length)||0;
+  // Eigen build-start-timestamp voor de worldLoad.summary onderaan: scant
+  // perfLog binnen dít venster i.p.v. blind de laatste entries te pakken
+  // (stale-match-risico bij rebuilds — code-quality review 2026-06-10).
+  const _wlBuildT0=performance.now();
   if(window.perfMark)perfMark('build:total:start');
   if(window.perfMark)perfMark('build:disposeScene:start');
   disposeScene();
@@ -1682,32 +1686,42 @@ async function buildScene(opts){
       dbg.log('intro-perf','  '+'── TOTAL'.padEnd(16)+_fmt('build.total'));
     }
   }catch(_){/* never block build on instrumentation */}
-  // ── world-load summary (2026-06 load-diagnose): één always-on regel per
-  // build met totaal + langste sub-blok + evict/preload-kosten, afleesbaar
-  // op mobile via LOAD TIMELINE. Bewust BUITEN de dbg.enabled-guard
-  // hierboven: de intro-perf breakdown is console-only, deze entry moet ook
-  // zonder debug-flags in perfLog landen (zelfde contract als _loadPerf).
+  // ── world-load summary (2026-06 load-diagnose): één regel per build met
+  // totaal + langste sub-blok + evict/preload-kosten, afleesbaar op mobile
+  // via LOAD TIMELINE. Bewust BUITEN de dbg.enabled-guard hierboven (de
+  // intro-perf breakdown is console-only). NB "always-on" betekent hier:
+  // zodra debug.bundle.js geladen is (dev-flag) — zonder die bundle bestaat
+  // _loadPerf/perfLog niet en no-opt dit blok, net als alle perfMark-sites.
+  // Het venster is _wlBuildT0→nu (eigen timestamp, geen perfLog-scan voor
+  // build.total) zodat stale entries van een vórige build nooit matchen.
   try{
     if(window.perfLog && window._loadPerf){
-      let _total=null,_evict=null,_preload=null;
+      const _wlNow=performance.now();
+      const _wlTotalMs=_wlNow-_wlBuildT0;
+      let _evict=null,_preload=null;
       for(let i=window.perfLog.length-1;i>=0;i--){
         const e=window.perfLog[i];
-        if(_total===null && e.name==='build.total') _total=e;
-        else if(_evict===null && e.name==='loadperf.assets.evict') _evict=e;
-        else if(_preload===null && e.name==='assets.preloadWorld.total' && e.world===activeWorld) _preload=e;
-        if(_total&&_evict&&_preload) break;
+        // evict draait altijd bínnen deze build (scene.js hierboven) —
+        // entries van vóór _wlBuildT0 zijn per definitie van een vorige
+        // wissel (bij evicted=0 wordt niets gepusht).
+        if(_evict===null && e.name==='loadperf.assets.evict' && e.t>=_wlBuildT0) _evict=e;
+        // preload vuurt legitiem vóór de build (world-select prefetch);
+        // 60s-venster voorkomt dat een minuten-oude preload van dezelfde
+        // wereld als kost van déze rebuild wordt gerapporteerd.
+        else if(_preload===null && e.name==='assets.preloadWorld.total' && e.world===activeWorld && e.t>=_wlBuildT0-60000) _preload=e;
+        if(_evict&&_preload) break;
+        if(e.t<_wlBuildT0-60000) break;
       }
       let _longest=null;
-      if(_total && window._perfSpans){
+      if(window._perfSpans){
         // Langste sub-blok binnen het venster van déze build (span-ring
         // bevat alle perfMeasure- en _perfSpan-spans, incl. world-helpers).
-        const _bEnd=_total.t,_bStart=_total.t-_total.ms;
         for(const s of window._perfSpans){
-          if(s.t0>=_bStart && s.t1<=_bEnd && s.label!=='build.total'
+          if(s.t0>=_wlBuildT0 && s.t1<=_wlNow && s.label!=='build.total'
              && (!_longest || (s.t1-s.t0)>(_longest.t1-_longest.t0))) _longest=s;
         }
       }
-      window._loadPerf('worldLoad.summary', _total?_total.ms:0, {
+      window._loadPerf('worldLoad.summary', _wlTotalMs, {
         world:activeWorld,
         longest:_longest?_longest.label:null,
         longestMs:_longest?+(_longest.t1-_longest.t0).toFixed(1):null,
@@ -1715,7 +1729,7 @@ async function buildScene(opts){
         preloadMs:_preload?+_preload.ms.toFixed(1):null,
       });
       if(window.dbg)dbg.log('world-load','summary — world='+activeWorld
-        +' total='+(_total?_total.ms.toFixed(1)+'ms':'—')
+        +' total='+_wlTotalMs.toFixed(1)+'ms'
         +' longest='+(_longest?_longest.label+' '+(_longest.t1-_longest.t0).toFixed(1)+'ms':'—'));
     }
   }catch(_){/* never block build on instrumentation */}
