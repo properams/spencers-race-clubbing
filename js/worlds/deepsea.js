@@ -220,27 +220,32 @@ async function buildDeepSeaEnvironment(){
   // spike gave a "page unresponsive" feel. _yieldBuild is awaitable in any
   // scene.js context (scene.js:1377 already does `await buildDeepSeaEnvironment()`).
   const Y=(typeof _yieldBuild==='function')?_yieldBuild:()=>Promise.resolve();
-  buildSeaFloor();
-  buildCoralReefs();
+  // Sub-spans per sync helper (candy-patroon, 2026-07 consolidatie-audit):
+  // longtasks binnen deze builder attribueren nu naar een genoemde span
+  // i.p.v. het build.world-totaal. De await Y()-yields blijven ongewrapt.
+  const _D=(l,fn)=>window._perfSpan?window._perfSpan('build.world.deepsea.'+l,fn):fn();
+  _D('seaFloor',buildSeaFloor);
+  _D('coralReefs',buildCoralReefs);
   await Y();
-  buildKelp();
-  buildShipwreck();
-  buildSubmarineStation();
-  buildSeaGate();
-  buildBioluminescentTrackEdges();
+  _D('kelp',buildKelp);
+  _D('shipwreck',buildShipwreck);
+  _D('submarineStation',buildSubmarineStation);
+  _D('seaGate',buildSeaGate);
+  _D('bioEdges',buildBioluminescentTrackEdges);
   await Y();
-  buildJellyfish();
-  buildSeaCreatures();
+  _D('jellyfish',buildJellyfish);
+  _D('seaCreatures',buildSeaCreatures);
   await Y();
-  buildDeepSeaBubbles();
-  buildDeepSeaLightRays();
-  buildDeepSeaPlankton();
-  buildDeepSeaHeadlampGlow();
-  buildDistantSilhouettes();
-  buildDeepSeaNightObjects();
+  _D('bubbles',buildDeepSeaBubbles);
+  _D('lightRays',buildDeepSeaLightRays);
+  _D('plankton',buildDeepSeaPlankton);
+  _D('headlampGlow',buildDeepSeaHeadlampGlow);
+  _D('distantSilhouettes',buildDistantSilhouettes);
+  _D('nightObjects',buildDeepSeaNightObjects);
   await Y();
   // GLTF roadside props (coral chunks / wreck boxes). No-op if cache is
   // empty; deepsea's procedural kelp + jellyfish setup is unaffected.
+  _D('roadsideProps',()=>{
   if(window.spawnRoadsideProps){
     window.spawnRoadsideProps('deepsea',{
       propKeys:['coral_small','coral_medium','wreck_box'],
@@ -256,12 +261,13 @@ async function buildDeepSeaEnvironment(){
       offsetMin: BARRIER_OFF + 6, offsetMax: BARRIER_OFF + 18,
     });
   }
+  });
   await Y();
-  _buildDeepseaCloseBand();  // Phase 12A
-  _buildDeepseaMidRing();    // Phase 11A
-  _buildDeepseaMidVariety(); // Phase 12B
-  _buildDeepseaFogFade();    // Phase 11C
-  _buildDeepseaWhaleArch();  // Phase 12D
+  _D('closeBand',_buildDeepseaCloseBand);  // Phase 12A
+  _D('midRing',_buildDeepseaMidRing);    // Phase 11A
+  _D('midVariety',_buildDeepseaMidVariety); // Phase 12B
+  _D('fogFade',_buildDeepseaFogFade);    // Phase 11C
+  _D('whaleArch',_buildDeepseaWhaleArch);  // Phase 12D
 }
 
 // Phase 12D — signature: whale-skeleton arch over track at t=0.45.

@@ -244,6 +244,7 @@
       now: performance.now(),
       gameState: window.gameState,
       activeWorld: window.activeWorld,
+      qTier: window._qTier || null,
     };
     if (performance.memory) {
       snap.heapMB = +(performance.memory.usedJSHeapSize / 1048576).toFixed(2);
