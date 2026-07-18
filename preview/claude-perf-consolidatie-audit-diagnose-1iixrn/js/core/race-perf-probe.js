@@ -113,6 +113,91 @@
     return (typeof window._currentSector === 'number') ? window._currentSector : 0;
   }
 
+  // ── Frame profiler (2026-07 consolidatie-audit) ───────────────────────────
+  // Per-wereld runtime-profiel over ÁLLE race-frames — het gat dat de
+  // stutter-ring (alleen >50ms) en de Ctrl+Shift+P-overlay (live, vluchtig)
+  // niet dekken: worst-frame, écht 1%-low, draw-calls/triangles en de
+  // quality-tier die de cijfers produceerde. Segment = (wereld, raceId);
+  // sluit op race:init, world-change of dump. Frame-pad: één Float32Array-
+  // write + running scalars, nul allocaties; sorteren gebeurt uitsluitend
+  // op segment-grens of bij dump (≤10800 floats, ~1-2ms).
+  const FP_RING    = 10800;  // ~3 min @ 60fps; daarboven ringWrapped:true
+  const FP_SEG_MAX = 24;     // bewaarde gesloten segmenten (oudste eruit)
+  const _fpDeltas  = new Float32Array(FP_RING);
+  const _fpSegments = [];
+  let _fpSeg = null;
+  let _fpRaceId = 0;
+
+  function _fpOpen(){
+    _fpSeg = {
+      world: window.activeWorld || '',
+      raceId: _fpRaceId,
+      tierStart: window._qTier || null,
+      tierPinned: !!window._qManualDowngrade,
+      t0: performance.now(),
+      count: 0, sumMs: 0, worstMs: 0,
+      over33: 0, over50: 0,
+      drawSum: 0, drawMax: 0, triSum: 0, triMax: 0
+    };
+  }
+
+  function _fpSummarize(s){
+    const n = s.count;
+    const m = Math.min(n, FP_RING);
+    // Kopie + sort alleen op segment-grens/dump — nooit in het frame-pad.
+    const arr = Array.prototype.slice.call(_fpDeltas, 0, m);
+    arr.sort((a, b) => a - b);
+    const q = p => +arr[Math.min(m - 1, Math.floor(m * p))].toFixed(2);
+    const lowN = Math.max(1, Math.floor(m * 0.01));
+    let lowSum = 0;
+    for (let i = m - lowN; i < m; i++) lowSum += arr[i];
+    const onePctLowAvg = lowSum / lowN;
+    const avg = s.sumMs / n;
+    return {
+      world: s.world, raceId: s.raceId,
+      tierStart: s.tierStart, tierEnd: window._qTier || null, tierPinned: s.tierPinned,
+      frames: n, wallMs: +(performance.now() - s.t0).toFixed(0), ringWrapped: n > FP_RING,
+      avgMs: +avg.toFixed(2), avgFps: +(1000 / avg).toFixed(1),
+      medianMs: q(0.5), p95Ms: q(0.95), p99Ms: q(0.99),
+      onePctLowAvgMs: +onePctLowAvg.toFixed(2), onePctLowFps: +(1000 / onePctLowAvg).toFixed(1),
+      worstMs: +s.worstMs.toFixed(2),
+      over33: s.over33, over50: s.over50,
+      drawCallsAvg: Math.round(s.drawSum / n), drawCallsMax: s.drawMax,
+      trianglesAvg: Math.round(s.triSum / n), trianglesMax: s.triMax,
+      // Caveat (bewust niet "gefixt": autoReset aanraken = gedragswijziging):
+      // renderer.info telt de láátste render-pass van het frame — onder
+      // postFX/mirror is dat de composite- resp. mirror-pass.
+      dpr: window.devicePixelRatio || 1, mobile: !!window._isMobile,
+      t0: +s.t0.toFixed(1), t1: +performance.now().toFixed(1)
+    };
+  }
+
+  function _fpClose(reason){
+    const s = _fpSeg;
+    _fpSeg = null;
+    if (!s || !s.count) return;
+    const sum = _fpSummarize(s);
+    sum.closedBy = reason;
+    _fpSegments.push(sum);
+    if (_fpSegments.length > FP_SEG_MAX) _fpSegments.shift();
+  }
+
+  function _fpFrame(deltaMs){
+    if (window.gameState !== 'RACE') return;
+    if (_fpSeg === null){ _fpOpen(); }
+    else if (_fpSeg.world !== (window.activeWorld || '')){ _fpClose('world-change'); _fpOpen(); }
+    const s = _fpSeg;
+    _fpDeltas[s.count % FP_RING] = deltaMs;
+    s.count++;
+    s.sumMs += deltaMs;
+    if (deltaMs > s.worstMs) s.worstMs = deltaMs;
+    if (deltaMs > 33.34) s.over33++;
+    if (deltaMs > 50) s.over50++;
+    const dc = _rendererCalls(), tr = _rendererTris();
+    s.drawSum += dc; if (dc > s.drawMax) s.drawMax = dc;
+    s.triSum += tr; if (tr > s.triMax) s.triMax = tr;
+  }
+
   // ── Subsystem-attribution helper ──────────────────────────────────────────
   // Given the per-frame subsystem times object, return the name of the
   // dominant subsystem and its ms.
@@ -155,6 +240,7 @@
   function frameEnd(deltaMs, sub){
     if (!_rpp.enabled) return;
     _frameSeq++;
+    _fpFrame(deltaMs);
     const now = performance.now();
     const dt  = +deltaMs.toFixed(2);
 
@@ -219,6 +305,7 @@
   // ── mark: race milestone marker (called from countdown/lap/hazard/etc) ───
   function mark(name, extras){
     if (!_rpp.enabled) return;
+    if (name === 'race:init'){ _fpClose('race-init'); _fpRaceId++; }
     if (name === 'race:init')   _raceStartT = performance.now();
     if (name === 'countdown:GO' && _raceStartT === 0) _raceStartT = performance.now();
     const e = {
@@ -309,6 +396,8 @@
           isMobile:    !!window._isMobile,
           isTablet:    !!window._isTablet,
           dpr:         window.devicePixelRatio || 1,
+          qTier:       window._qTier || null,
+          qPinned:     !!window._qManualDowngrade,
           world:       window.activeWorld || '',
           gameState:   window.gameState || '',
           heapLimitMB: performance.memory ? +(performance.memory.jsHeapSizeLimit / 1048576).toFixed(0) : 0
@@ -430,6 +519,19 @@
   // ── Expose ────────────────────────────────────────────────────────────────
   window._rpp = _rpp;
   window._racePerfBuffer = _ring; // raw access per the prompt's spec
+  // Frame-profiler dump-API. dump() is non-destructief (het lopende segment
+  // blijft doorlopen); reset() gooit alles weg voor een schone meetrun.
+  window._frameProfile = {
+    dump(){
+      return {
+        captured: new Date().toISOString(),
+        qTierNow: window._qTier || null,
+        current: (_fpSeg && _fpSeg.count) ? _fpSummarize(_fpSeg) : null,
+        segments: _fpSegments.slice()
+      };
+    },
+    reset(){ _fpSegments.length = 0; _fpSeg = null; }
+  };
 
   // Boot meta entry
   _push({

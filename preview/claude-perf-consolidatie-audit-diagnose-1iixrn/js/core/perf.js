@@ -153,7 +153,7 @@
     }
 
     // World + game state
-    lines.push(`<span style="color:#888">WORLD</span> ${window.activeWorld||'?'} · <span style="color:#888">STATE</span> ${window.gameState||'?'}`);
+    lines.push(`<span style="color:#888">WORLD</span> ${window.activeWorld||'?'} · <span style="color:#888">STATE</span> ${window.gameState||'?'} · <span style="color:#888">TIER</span> ${window._qTier||'?'}${window._qManualDowngrade?' (pinned)':''}`);
 
     // Cars
     if (window.carObjs) {
