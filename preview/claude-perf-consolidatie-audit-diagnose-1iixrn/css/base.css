@@ -1,0 +1,632 @@
+/* base.css — auto-split from index.html */
+*{margin:0;padding:0;box-sizing:border-box}
+button{-webkit-appearance:none;appearance:none;outline:none;-webkit-tap-highlight-color:transparent;font-family:inherit}
+button:focus,button:focus-visible{outline:none}
+html,body,canvas,button,[id^="hud"],[id^="tc"],[id^="ntf"],.tcBtn,#glCanvas,#warnOverlay,#wrongWayOverlay,#nitroBar,#nitroFill,#nitroLbl,#slipIndicator,#cdNum,#cdOverlay{
+  -webkit-touch-callout:none !important;
+  -webkit-user-select:none !important;
+  -moz-user-select:none !important;
+  -ms-user-select:none !important;
+  user-select:none !important;
+  -webkit-tap-highlight-color:transparent !important;
+}
+canvas,#glCanvas{touch-action:none !important}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;position:fixed;touch-action:none;-webkit-overflow-scrolling:none;overscroll-behavior:none}
+:root{
+  --z-game:0;
+  --z-screen:20;
+  --z-banner:40;
+  --z-popup:45;
+  --z-flash:52;
+  --z-mirror:54;
+  --z-toast:999;
+  --z-modal:9999;
+  --z-critical:10000;
+
+  /* ── Holographic Iridescent palette ── */
+  --bg:#08080e;
+  --bg-2:#1a0e28;
+  --surface:rgba(255,255,255,.04);
+  --surface-2:rgba(255,255,255,.08);
+  --line:rgba(255,255,255,.12);
+  --line-strong:rgba(255,255,255,.30);
+  --text:#f8f8ff;
+  --text-mid:#b8b0d0;
+  --text-dim:#6a6080;
+  --pink:#ff3a8a;
+  --violet:#d4a8ff;
+  --blue:#a8d4ff;
+  --peach:#ffd4a8;
+  --cyan:#00e0ff;
+  --gold:#ffd000;
+  --iridescent:linear-gradient(135deg,#ff3a8a 0%,#d4a8ff 25%,#a8d4ff 50%,#ffd4a8 75%,#ff3a8a 100%);
+
+  /* ── Typography ── */
+  --font-display:'Syne',sans-serif;
+  --font-body:'Geist',sans-serif;
+  --font-mono:'Geist Mono',monospace;
+
+  /* ── HUD palette — semantic colors used by all in-race panels.
+     Mapped to holographic palette; backwards-compat aliases preserved
+     so hud.js / notifications.js continue to work without code changes. */
+  --hud-primary:var(--blue);       /* was #00d9ff — neutral info */
+  --hud-accent:var(--peach);       /* was #ffb800 — active value */
+  --hud-warning:var(--pink);       /* was #ff3b3b — danger */
+  --hud-success:#3affd0;           /* was #2ecc71 — holo-mint */
+  --hud-text:var(--text);
+  --hud-text-dim:rgba(248,248,255,.55);
+  --hud-text-mute:rgba(248,248,255,.32);
+  --hud-bg:rgba(8,8,14,.55);
+  --hud-bg-strong:rgba(8,8,14,.72);
+  --hud-border:rgba(255,255,255,.10);
+  --hud-pad:16px;
+  --hud-pad-mobile:8px;
+
+  /* ── HUD geometry — single source of truth for the in-race overlay.
+     Right-column cadence: pause(18,44h) → mute(74,30h) → titan(116,24h) → leader(152).
+     Each gap = 12px. Eyebrow line-box (top:8 + 9h) + 11px clearance = 28px padding-top. */
+  --hud-card-radius:14px;
+  --hud-card-pad-y:11px;
+  --hud-card-pad-x:14px;
+  --hud-card-pad-top-with-eyebrow:28px;
+  --hud-eyebrow-size:9px;
+  --hud-eyebrow-tracking:3px;
+  --hud-eyebrow-color:var(--text-dim);
+  --hud-col-right:18px;
+  --hud-row-gap:12px;
+  --hud-col-w:148px;
+
+  /* ── Holo glow tokens (reusable) ── */
+  --glow-card:0 12px 40px rgba(212,168,255,.30);
+  --glow-cta:0 6px 16px rgba(212,168,255,.50);
+  --glow-pink:0 0 28px rgba(255,58,138,.45);
+  --glow-violet-soft:0 0 28px rgba(212,168,255,.15),inset 0 0 24px rgba(212,168,255,.05);
+}
+
+/* ── Chromatic aberration — hero titles only.
+   Alpha .333 matches the Light Edition design refs (crisper than .5). */
+.chromatic {
+  text-shadow:
+    -2px 0 rgba(255,58,138,.333),
+     2px 0 rgba(0,224,255,.333),
+     0 0 1px currentColor;
+}
+/* Variants with explicit center color (instead of currentColor) — refs use
+   these on the Finish P-headline (silver/peach for bronze etc.). */
+.chromatic-violet {
+  text-shadow:
+    -2px 0 rgba(255,58,138,.333),
+     2px 0 rgba(0,224,255,.333),
+     0 0 1px var(--violet);
+}
+.chromatic-peach {
+  text-shadow:
+    -2px 0 rgba(255,58,138,.333),
+     2px 0 rgba(0,224,255,.333),
+     0 0 1px var(--peach);
+}
+
+/* ── Iridescent gradient border helper ── */
+.holo-edge {
+  padding:2px;
+  border-radius:14px;
+  background:var(--iridescent);
+}
+.holo-edge > * { border-radius:12px; }
+
+/* ── Mono utility ── */
+.mono-label {
+  font-family:var(--font-mono);
+  letter-spacing:3px;
+  text-transform:uppercase;
+}
+#glCanvas{position:fixed;top:0;left:0;width:100%;height:100%}
+.screen{position:fixed;inset:0;z-index:var(--z-screen);display:flex;flex-direction:column;align-items:center;justify-content:center}
+/* Critical: must be in blocking CSS so screen-routing works before async
+   hud.css/screens.css land. Otherwise every .screen.hidden renders full-
+   viewport, sFinish (last in DOM) covers everything, and Back/Enter
+   buttons are swallowed by the empty overlay. */
+.hidden{display:none!important}
+/* #sTitle background → .neon-bg class (shared with #loadingScreen). */
+#titleFlames{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.flame{position:absolute;bottom:-10px;border-radius:50% 50% 30% 30%;animation:flameRise linear infinite;filter:blur(1px);will-change:transform,opacity}
+@keyframes flameRise{0%{transform:translateY(0) scaleX(1);opacity:.9}100%{transform:translateY(-110vh) scaleX(.2);opacity:0}}
+.tLogo{
+  font-family:var(--font-display);font-weight:700;text-align:center;
+  font-size:clamp(56px,12vw,168px);line-height:0.9;letter-spacing:-4px;
+  color:var(--text);position:relative;z-index:2;margin-top:2px;
+  /* .chromatic class supplies the text-shadow (see base.css:67) */
+}
+/* "SPENCER'S" small caps above logo (eyebrow) */
+.tLogoSub{
+  font-family:var(--font-display);font-weight:500;font-size:clamp(12px,1.4vw,18px);
+  letter-spacing:10px;color:var(--text-mid);text-align:center;z-index:2;position:relative;
+  text-transform:uppercase
+}
+/* Prismatic divider below logo — refs use thin lines flanking the caption */
+.tLogoDivider{
+  display:flex;align-items:center;gap:14px;z-index:2;position:relative;margin-top:14px
+}
+.tLogoDivider .tDivLine{
+  width:80px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--pink),var(--violet),var(--blue),var(--peach),transparent)
+}
+.tLogoDivider .tDivText{
+  font-family:var(--font-mono);font-size:11px;color:var(--text-mid);letter-spacing:6px
+}
+/* Title-screen corner tags (4 corners, ref layout) */
+.titleTag{
+  position:absolute;z-index:3;font-family:var(--font-mono);font-size:11px;
+  letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:8px;pointer-events:none;
+  white-space:nowrap
+}
+.titleTag .holoDiamond{font-size:10px;color:var(--text-dim)}
+.titleTagTL{top:24px;left:28px}
+.titleTagTR{top:24px;right:28px}
+.titleTagBL{bottom:24px;left:28px}
+.titleTagBR{bottom:24px;right:28px}
+@media(max-width:600px){
+  .titleTag{font-size:9px;letter-spacing:2px}
+  .titleTagTL,.titleTagTR{top:14px}
+  .titleTagBL,.titleTagBR{bottom:14px}
+  .titleTagTL,.titleTagBL{left:14px}
+  .titleTagTR,.titleTagBR{right:14px}
+  .titleTagBtn{padding:5px 10px;margin:-6px -11px}
+}
+/* Clickable variant — used on the version tag to open Settings */
+.titleTagBtn{
+  -webkit-appearance:none;appearance:none;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(184,176,208,.28);
+  color:var(--text-mid);
+  padding:6px 12px;margin:-7px -13px;
+  cursor:pointer;pointer-events:auto;border-radius:999px;
+  transition:color .15s ease,background .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.titleTagBtn .holoDiamond{color:var(--text-mid)}
+.titleTagBtn:hover{
+  color:var(--text);
+  background:var(--surface);
+  border-color:rgba(255,255,255,.35);
+  box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 2px 12px rgba(184,176,208,.18);
+}
+.titleTagBtn:hover .holoDiamond{color:var(--pink)}
+.titleTagBtn:active{transform:scale(.97)}
+.titleTagBtn:focus-visible{
+  outline:none;
+  border-color:var(--violet);
+  box-shadow:0 0 0 2px rgba(143,107,255,.35);
+}
+@keyframes lglow{0%,100%{opacity:.92}50%{opacity:1}}
+/* Iridescent pill CTA — 2px gradient border wrap + dark inner */
+.tStart{
+  margin-top:48px;cursor:pointer;z-index:2;
+  padding:2px;border-radius:999px;
+  background:var(--iridescent);
+  border:0;display:inline-flex;
+  -webkit-tap-highlight-color:transparent
+}
+.tStartInner{
+  padding:14px 36px;border-radius:999px;
+  background:var(--bg);color:var(--text);
+  display:flex;align-items:center;gap:14px;
+  font-family:var(--font-display);font-weight:600;
+  font-size:clamp(13px,1.8vw,18px);letter-spacing:4px
+}
+/* Keep .tStartLabel / .tStartBracket as dead but harmless shells
+   in case JS references them; they render nothing visible now. */
+.tStartLabel,.tStartBracket{display:none}
+@keyframes starDrift{from{background-position:0 0,70px 40px,150px 90px}to{background-position:220px 180px,210px 200px,450px 340px}}
+/* .tSub/.tTip/.tRow/.tBtn/.weatherBtn/.wSel waren dead — verwijderd */
+#sTitle::before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,150,30,.04) 48%,rgba(255,200,80,.10) 50%,rgba(255,150,30,.04) 52%,transparent 70%);animation:titleSweep 4.5s ease-in-out infinite;pointer-events:none;z-index:1}
+@keyframes titleSweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+.previewName{font-family:var(--font-display);font-size:clamp(14px,2vw,22px);color:var(--text);letter-spacing:3px;text-align:center;text-shadow:0 0 20px rgba(212,168,255,.5)}
+.previewBrand{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:4px;text-align:center;text-transform:uppercase}
+.statRow{display:flex;align-items:center;gap:8px;margin:4px 0}
+.statLbl{font-family:var(--font-mono);font-size:8px;color:var(--text-mid);letter-spacing:2px;width:32px;text-transform:uppercase}
+.statFill{height:100%;border-radius:3px;transition:width .4s cubic-bezier(.34,1.3,.64,1)}
+.carSwatch{width:40px;height:40px;border-radius:10px;flex-shrink:0;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+.carSwatch::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.22) 0%,transparent 55%);border-radius:10px}
+.carBrand{font-family:var(--font-mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase}
+.carName{font-family:var(--font-display);font-size:11px;color:var(--text);font-weight:700;letter-spacing:1px}
+.setLabel{font-family:var(--font-mono);font-size:8px;color:var(--text-mid);letter-spacing:3px;margin-bottom:8px;display:block;text-transform:uppercase}
+.lapRow{display:flex;gap:7px}
+.diffRow{display:flex;gap:7px}
+.toggleRow{display:flex;gap:8px;align-items:center}
+.statFill{transition:width .5s cubic-bezier(.34,1.3,.64,1)!important}
+.lapSummary{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:2px;text-align:center;margin-top:4px}
+#mapCvs{width:100%;height:100%}
+#rainCanvas{position:fixed;inset:0;pointer-events:none;z-index:8;display:none}
+#warnOverlay{position:fixed;top:38%;left:50%;transform:translateX(-50%);z-index:38;pointer-events:none;display:none}
+.warn{font-family:var(--font-mono);font-size:14px;color:var(--peach);background:rgba(8,8,14,.78);padding:8px 24px;border-radius:8px;border:1px solid var(--peach);letter-spacing:3px;text-transform:uppercase;text-shadow:0 0 8px rgba(255,212,168,.5);box-shadow:0 0 14px rgba(255,212,168,.20)}
+#finStats{font-family:var(--font-mono);font-size:clamp(11px,1.5vw,16px);color:var(--text-mid);letter-spacing:2px;margin:0;text-align:center}
+.lapPill{font-family:var(--font-mono);font-size:11px;letter-spacing:2px;color:var(--text);padding:5px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.lapPillBest{position:relative;color:var(--text);border-color:transparent;background:rgba(8,8,14,.6);box-shadow:inset 0 0 0 1px var(--line-strong),0 0 14px rgba(255,58,138,.35)}
+.lapPillBest::before{content:'';position:absolute;inset:0;border-radius:14px;background:var(--iridescent);opacity:.20;pointer-events:none}
+/* A4 — leaderboard wrapped in a glass container with a 2px iridescent
+   top stripe for subtle premium feel. */
+.leaderTable{border-collapse:separate;border-spacing:0;margin:10px 0;width:min(480px,90vw);border:1px solid var(--line);background:rgba(8,8,14,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-radius:12px;overflow:hidden;border-top:2px solid transparent;border-image:var(--iridescent) 1}
+.leaderTable th{font-family:var(--font-mono);font-size:9px;color:var(--text-mid);letter-spacing:2px;padding:7px 12px;border-bottom:1px solid var(--line);text-align:left;background:var(--surface);text-transform:uppercase}
+.leaderTable td{font-family:var(--font-mono);font-size:14px;color:var(--text);padding:5px 12px;border-bottom:1px solid var(--line)}
+@media (hover:hover){
+  .leaderTable tr:hover td{background:var(--surface-2);transition:background .15s}
+}
+.leaderTable tr.pRow td{color:var(--pink);font-weight:700;text-shadow:0 0 10px rgba(255,58,138,.45);background:linear-gradient(90deg,rgba(255,58,138,.14),rgba(212,168,255,.06) 60%,transparent);position:relative}
+.leaderTable tr.pRow td::after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 22px rgba(255,58,138,.18);pointer-events:none}
+.leaderTable tr.pRow td:first-child{box-shadow:inset 3px 0 0 0 var(--pink), inset 6px 0 12px -6px rgba(212,168,255,.6)}
+.lRow{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:1px;line-height:1.6;display:flex;gap:6px}
+.lRow.lMe{color:var(--peach);font-weight:500}
+.lPos{width:22px;text-align:right}
+.lName{flex:1}
+.pauseTitle{font-family:var(--font-display);font-size:clamp(30px,6vw,72px);font-weight:700;letter-spacing:-2px;line-height:1;position:relative;z-index:1;color:var(--text);text-shadow:-2px 0 rgba(255,58,138,.333),2px 0 rgba(0,224,255,.333),0 0 1px var(--text)}
+.pauseSubtitle{font-family:var(--font-mono);font-size:14px;color:var(--text-dim);letter-spacing:4px;position:relative;z-index:1}
+#hdLapDelta{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.5px;margin-left:6px;vertical-align:middle}
+/* A3 — podium presentation polish. Subtle 3D tilt + base reflection +
+   1st-place pulse. CSS-only, GPU-cheap (transform + opacity keyframes
+   only, no box-shadow recalc). */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:14px 0;perspective:600px}
+.podBox{display:flex;flex-direction:column;align-items:center;position:relative}
+.podPlatform{width:108px;border-radius:4px 4px 0 0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:22px;font-weight:700;transform:rotateX(6deg);transform-origin:50% 100%;position:relative}
+.podPlatform::before{content:'';position:absolute;bottom:-18px;left:8%;right:8%;height:18px;background:linear-gradient(180deg,currentColor 0%,transparent 100%);opacity:.22;filter:blur(4px);transform:scaleY(-1);pointer-events:none}
+/* Display order in finish.js:122 is [1,0,2] — so the 2nd .podBox in DOM
+   is the winner (1st place). Pulse only that one. */
+.podium .podBox:nth-child(2){animation:champPulse 2.8s ease-in-out infinite}
+@keyframes champPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.podium .podBox:nth-child(2) .podPlatform{box-shadow:0 0 28px rgba(255,58,138,.6),0 0 60px rgba(212,168,255,.4),inset 0 1px 0 rgba(255,212,168,.6)}
+@media (prefers-reduced-motion:reduce){
+  .podium .podBox:nth-child(2){animation:none}
+}
+.podLabel{font-family:var(--font-mono);font-size:11px;letter-spacing:2px;margin:5px 0 3px;text-align:center;padding:3px 10px;background:rgba(8,8,14,.65);border-radius:10px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);text-transform:uppercase}
+.podCarName{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:5px;text-align:center}
+.podCarBlock{width:108px;height:42px;border-radius:6px 6px 8px 8px;margin-bottom:3px;position:relative;overflow:hidden}
+/* Subtle windscreen highlight — overlay matches whatever inline gradient
+   finish.js:130 sets via background-color; the overlay reads as a glossy
+   reflection band. */
+.podCarBlock::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 0%,transparent 38%,rgba(255,255,255,.22) 50%,transparent 62%,transparent 100%);pointer-events:none}
+.tHighScore{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:3px;margin-top:8px;z-index:2;text-align:center;text-transform:uppercase}
+/* ── Career panel on World Select screen ───────────────────────────────
+   Sits between the worldSelHeader and the world grid. Compact summary:
+   level + XP-bar, stars total, cars/worlds counters, cup-badge strip. */
+#careerPanel{
+  position:relative;z-index:2;flex-shrink:0;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  margin:0 auto 16px;padding:12px 22px;width:min(720px,92vw);
+  background:var(--surface);
+  border:1px solid rgba(212,168,255,.28);
+  border-radius:14px;
+  box-shadow:0 0 28px rgba(212,168,255,.15),inset 0 0 24px rgba(212,168,255,.05);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)
+}
+#cpLevelRow{display:flex;align-items:center;gap:12px;width:100%;font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;color:var(--text-mid)}
+#cpLevelBadge{flex-shrink:0;padding:2px;border-radius:10px;background:var(--iridescent);color:var(--text);font-weight:900;font-size:13px;letter-spacing:.12em}
+#cpLevelBadge span{display:block;padding:3px 11px;border-radius:8px;background:var(--bg)}
+#cpXpBar{flex:1;height:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+#cpXpFill{height:100%;width:0%;background:var(--iridescent);transition:width .6s cubic-bezier(.34,1.3,.64,1)}
+#cpXpText{flex-shrink:0;color:var(--text-mid);font-size:10px}
+#cpStarsRow{display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:center;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--text-mid);text-transform:uppercase}
+#cpStarsRow #cpStarsIcon{color:var(--gold);text-shadow:0 0 8px rgba(255,208,0,.5)}
+#cpStarsRow #cpStarsText{color:var(--gold);text-shadow:0 0 8px rgba(255,208,0,.35);margin-right:6px}
+#cpCupsRow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;width:100%}
+.cupBadge{font-family:var(--font-mono);font-size:9px;font-weight:500;letter-spacing:.14em;padding:4px 9px;border-radius:8px;background:var(--surface);color:var(--text-dim);border:1px solid var(--line);white-space:nowrap;text-transform:uppercase}
+.cupBadge.cbDone{background:var(--surface-2);color:var(--blue);border-color:rgba(168,212,255,.45);text-shadow:0 0 8px rgba(168,212,255,.45);box-shadow:0 0 10px rgba(168,212,255,.18)}
+.cupBadge.cbMaster{position:relative;color:var(--text);border-color:transparent;box-shadow:inset 0 0 0 1px var(--line-strong),0 0 14px rgba(255,212,168,.35)}
+.cupBadge.cbMaster::before{content:'';position:absolute;inset:0;border-radius:8px;background:var(--iridescent);opacity:.30;pointer-events:none}
+.cupBadge.cbMaster > *{position:relative;z-index:1}
+@media(max-width:600px){
+  #careerPanel{padding:8px 12px;gap:6px;margin:0 auto 10px;width:min(460px,94vw)}
+  #cpLevelRow{font-size:10px;gap:8px}
+  #cpLevelBadge{font-size:11px;padding:4px 8px}
+  #cpStarsRow{gap:6px 12px;font-size:9px}
+  .cupBadge{font-size:8px;padding:3px 7px}
+}
+
+/* ── Dev mode panel (?dev=1 or 5×logo-tap) — hidden by default ──────────
+   Anchored bottom-right so it doesn't fight the title content (logo +
+   PRESS START + careerPanel are center-stacked) or the #fpsOverlay
+   debug badge in the top-right. Pointer-events stay on so dev clicks
+   work; backdrop-filter keeps the title visible behind. */
+#devPanel{position:fixed;bottom:14px;right:14px;z-index:9999;background:rgba(8,8,14,.92);border:1px solid var(--line-strong);border-radius:14px;padding:14px 16px;box-shadow:0 0 0 1px rgba(255,58,138,.25),0 0 32px rgba(212,168,255,.20),0 0 60px rgba(168,212,255,.10);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font-family:var(--font-mono);max-width:340px}
+#devPanel[hidden]{display:none!important}
+.devPanelClose{position:absolute;top:8px;right:10px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:50%;font-family:var(--font-display);font-size:16px;font-weight:700;line-height:1;cursor:pointer;padding:0;transition:all .15s;z-index:2}
+.devPanelClose:hover{background:var(--surface-2);border-color:var(--line-strong);transform:scale(1.08)}
+.devPanelTitle{font-family:var(--font-display);color:var(--text);font-size:12px;letter-spacing:.35em;font-weight:700;text-align:center;margin-bottom:12px;padding:0 28px;text-shadow:-1px 0 rgba(255,58,138,.333),1px 0 rgba(0,224,255,.333),0 0 1px var(--text)}
+.devPanelGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.devBtn{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.14em;padding:8px 10px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.devBtn:hover{background:var(--surface-2);border-color:var(--line-strong);transform:translateY(-1px)}
+.devBtn.devBig{grid-column:1/-1;position:relative;background:var(--bg);color:var(--text);font-family:var(--font-display);font-size:12px;padding:11px;border-color:transparent;box-shadow:inset 0 0 0 1px var(--line-strong),0 0 16px rgba(255,212,168,.25);overflow:hidden}
+.devBtn.devBig::before{content:'';position:absolute;inset:0;background:var(--iridescent);opacity:.18;pointer-events:none}
+.devBtn.devBig:hover{box-shadow:inset 0 0 0 1px var(--line-strong),0 0 24px rgba(212,168,255,.50)}
+.devBtn.devBig:hover::before{opacity:.32}
+.devBtn.devDanger{color:var(--pink);border-color:rgba(255,58,138,.45)}
+.devBtn.devDanger:hover{background:rgba(255,58,138,.10);border-color:var(--pink);box-shadow:0 0 12px rgba(255,58,138,.35)}
+@media(max-width:600px){
+  /* Mobile: anchor bottom-right, keep narrow enough to not occlude career panel. */
+  #devPanel{bottom:8px;right:8px;left:auto;top:auto;max-width:min(280px,calc(100vw - 16px));padding:10px 12px}
+  .devBtn{font-size:9px;padding:6px 8px}
+  .devBtn.devBig{font-size:11px;padding:9px}
+}
+#sectorInfo{position:absolute;top:31%;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:13px;font-weight:500;letter-spacing:2px;pointer-events:none;opacity:0;transition:opacity .25s;text-align:center;text-transform:uppercase}
+#mirrorFrame{position:fixed;top:14px;left:50%;transform:translateX(-50%);width:204px;height:82px;border:3px solid rgba(255,255,255,.35);border-radius:10px 10px 14px 14px;pointer-events:none;z-index:var(--z-mirror);display:none;background:#000;overflow:hidden;box-shadow:0 0 12px rgba(0,0,0,.8),inset 0 0 4px rgba(0,0,0,.5)}
+/* WebGL readRenderTargetPixels returns rows bottom-up; canvas 2D putImageData
+   writes top-down. scaleY(-1) flips the canvas display so the rear-view is
+   right-side-up without per-frame row-copy work. */
+#mirrorCanvas{display:block;width:100%;height:100%;transform:scaleY(-1)}
+#mirrorLabel{position:fixed;top:102px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:8px;color:var(--hud-text-dim);letter-spacing:3px;pointer-events:none;z-index:var(--z-mirror);display:none;text-align:center;text-transform:uppercase}
+.f1-gantry{
+  background:linear-gradient(180deg,#2e2e2e 0%,#141414 55%,#1e1e1e 100%);
+  border:3px solid #555;border-top:3px solid #777;
+  border-radius:14px;padding:14px 28px 18px;
+  box-shadow:0 18px 60px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.08),inset 0 1px 0 rgba(255,255,255,.12),0 0 30px rgba(255,40,0,.15);
+}
+.f1-gantry-label{
+  font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,.55);
+  letter-spacing:5px;text-align:center;margin-bottom:14px;text-transform:uppercase;
+}
+.f1-panel{display:flex;gap:18px;align-items:center;}
+.f1-light-unit{
+  display:flex;align-items:center;justify-content:center;
+  background:#0c0c0c;border:2px solid #2a2a2a;border-bottom:2px solid #111;
+  border-radius:9px;padding:9px;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.85),0 3px 6px rgba(0,0,0,.55);
+}
+.f1Light{
+  width:72px;height:72px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#2d0000 0%,#0e0000 100%);
+  border:3px solid #1a0000;
+  transition:none; /* instant on — syncs with audio beep */
+  position:relative;
+  box-shadow:inset 0 0 14px rgba(0,0,0,.95),0 0 4px rgba(255,40,0,.05);
+  transform:scale(1);
+}
+.f1Light::after{
+  content:'';position:absolute;top:9px;left:12px;
+  width:22px;height:12px;border-radius:50%;
+  background:rgba(255,255,255,.08);transform:rotate(-25deg);
+}
+.f1Light.on{
+  background:radial-gradient(circle at 38% 32%,#ff7733 0%,#dd1100 40%,#7a0000 100%);
+  border-color:#ff3300;
+  box-shadow:0 0 28px #ff3300,0 0 70px #ff0000aa,0 0 140px #ff000055,inset 0 2px 8px rgba(255,140,80,.30);
+  animation:f1LightPop .32s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes f1LightPop{
+  0%{transform:scale(1);}
+  45%{transform:scale(1.18);box-shadow:0 0 40px #ff5500,0 0 100px #ff0000cc,0 0 180px #ff000066,inset 0 2px 8px rgba(255,200,140,.45);}
+  100%{transform:scale(1);}
+}
+.f1Light.flash{
+  background:radial-gradient(circle at 38% 32%,#ffffff 0%,#aaffaa 35%,#22cc44 80%);
+  border-color:#aaffaa;
+  box-shadow:0 0 50px #66ffaa,0 0 120px #22ee66cc,0 0 220px #00cc4488;
+  animation:f1LightFlash .42s ease-out both;
+}
+@keyframes f1LightFlash{
+  0%{transform:scale(1);}
+  35%{transform:scale(1.35);box-shadow:0 0 70px #ffffff,0 0 160px #66ff99,0 0 280px #00ee44aa;}
+  100%{transform:scale(1);}
+}
+@keyframes f1LightOff{
+  0%{box-shadow:0 0 35px #ffdd00,0 0 80px #ffaa0099;background:radial-gradient(circle at 38% 32%,#ffcc44 0%,#ff8800 100%);}
+  100%{box-shadow:inset 0 0 12px rgba(0,0,0,.95);background:radial-gradient(circle at 38% 32%,#2d0000 0%,#0e0000 100%);}
+}
+.f1Light.extinguish{animation:f1LightOff .42s ease-out forwards;}
+@media(max-width:600px),(pointer:coarse) and (max-width:900px){
+  .f1Light{width:50px;height:50px;}
+  .f1Light::after{top:6px;left:8px;width:15px;height:8px;}
+  .f1-panel{gap:11px;}
+  .f1-gantry{padding:10px 18px 14px;border-radius:10px;}
+  .f1-gantry-label{font-size:7px;letter-spacing:3px;margin-bottom:9px;}
+}
+#rstFill{height:100%;width:0%;background:linear-gradient(90deg,#ff7700,#ffee00);border-radius:3px;transition:width .05s linear}
+#rstLabel{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:9px;color:var(--hud-text-dim);letter-spacing:3px;display:none;z-index:20;text-transform:uppercase}
+.floatText{position:fixed;font-family:var(--font-mono);font-size:clamp(11px,1.35vw,14px);font-weight:500;letter-spacing:2.5px;text-transform:uppercase;pointer-events:none;z-index:200;white-space:nowrap;padding:7px 16px;border-radius:999px;background:var(--hud-bg-strong);border:1px solid currentColor;backdrop-filter:blur(12px) saturate(150%);-webkit-backdrop-filter:blur(12px) saturate(150%);animation:floatUp 1.15s ease-out forwards;transform:translateX(-50%)}
+@keyframes floatUp{0%{opacity:0;transform:translateX(-50%) translateY(8px) scale(.92)}12%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}65%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-70px) scale(.85)}}
+@media (max-width:600px),(pointer:coarse) and (max-width:900px){.floatText{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(8,8,14,.92)}}
+#speedLines{position:fixed;inset:0;pointer-events:none;z-index:9;opacity:0;transition:opacity .08s}
+#goldCelebration{position:fixed;inset:0;pointer-events:none;z-index:var(--z-popup);opacity:0;background:radial-gradient(ellipse 70% 50% at 50% 28%,rgba(255,68,221,.42) 0%,rgba(204,68,255,.22) 45%,transparent 75%),radial-gradient(ellipse 90% 65% at 50% 70%,rgba(164,91,255,.22) 0%,transparent 60%);transition:opacity 1.8s;mix-blend-mode:screen}
+#driftLabel{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:9px;color:var(--peach);letter-spacing:3px;display:none;z-index:12;text-shadow:0 0 8px rgba(255,212,168,.5)}
+#ghostLabel{position:absolute;top:54%;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:10px;color:var(--blue);letter-spacing:3px;pointer-events:none;display:none;text-transform:uppercase;text-shadow:0 0 8px rgba(168,212,255,.45)}
+#pitCountbar{width:260px;height:8px;background:var(--surface);border:1px solid var(--line-strong);border-radius:4px;margin-top:18px;overflow:hidden}
+.lGap{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);min-width:36px;text-align:right}
+.lMe .lGap{color:var(--gold)}
+#sectorPanel{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);border:1px solid #1a1a2a;border-radius:8px;padding:5px 10px;pointer-events:none;min-width:130px;opacity:0;transition:opacity .3s}
+.secRow{display:flex;justify-content:space-between;gap:8px;font-family:var(--font-mono);font-size:9px;letter-spacing:1px;line-height:1.7}
+.secLabel{color:var(--text-dim)}
+.secTime{font-weight:700}
+#speedTrapEl{position:absolute;top:11%;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:clamp(12px,1.7vw,17px);font-weight:500;letter-spacing:3px;color:var(--gold);text-shadow:0 0 14px rgba(255,208,0,.6),0 2px 6px rgba(0,0,0,.8);pointer-events:none;display:none;text-align:center}
+.carLock{position:absolute;inset:0;background:rgba(0,0,0,.72);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;gap:4px;pointer-events:none}
+/* .tDedicated was dead — verwijderd */
+@keyframes posFlash{0%{transform:scale(1);color:var(--peach)}20%{transform:scale(1.45);color:#ffffff;text-shadow:0 0 24px #ffffff,0 0 48px rgba(58,255,208,.8)}60%{transform:scale(1.15);color:var(--hud-success)}100%{transform:scale(1);color:var(--peach)}}
+.posPulse{animation:posFlash .6s cubic-bezier(.34,1.56,.64,1)}
+.previewName{font-family:var(--font-display);font-size:clamp(14px,2vw,22px);color:var(--text);letter-spacing:3px;text-align:center;text-shadow:0 0 20px rgba(212,168,255,.5)}
+.previewBrand{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:4px;text-align:center;text-transform:uppercase}
+.previewType{font-family:var(--font-mono);font-size:8px;letter-spacing:3px;padding:3px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line);color:var(--violet);text-transform:uppercase}
+.carInfo{flex:1;min-width:0}
+.carBrand{font-family:var(--font-mono);font-size:8px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase}
+.carName{font-family:var(--font-display);font-size:10px;color:var(--text);font-weight:700;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.carTypeBadge{font-family:var(--font-mono);font-size:7px;color:var(--text-dim);letter-spacing:1px;margin-top:1px;text-transform:uppercase}
+/* #sTitle — .neon-bg handles backdrop; .tLogo uses holo chromatic style above. */
+/* Legacy .flame kept alive so JS title.js doesn't error; colours replaced. */
+.flame{background:linear-gradient(to top,rgba(212,168,255,.4),rgba(168,212,255,.4),transparent)!important}
+#sTitle::before{display:none!important}
+@media(max-width:600px){
+.setLabel{margin-bottom:5px!important}
+.previewName{font-size:15px!important;letter-spacing:2px!important}
+.carSwatch{width:46px!important;height:46px!important;border-radius:12px!important}
+.carName{font-size:13px!important}
+.carBrand{font-size:10px!important}
+.carTypeBadge{font-size:9px!important;color:var(--violet)!important}
+}
+@media(max-width:600px),(pointer:coarse) and (max-width:900px){
+#warnOverlay{top:48%!important}
+.warn{font-size:14px!important;padding:6px 16px!important;letter-spacing:2px!important}
+}
+@media(min-width:769px) and (max-width:1200px){
+.tLogo{font-size:clamp(44px,6vw,72px)!important}
+}
+@media(max-width:600px){
+#finBody{flex-direction:column!important;gap:10px!important;align-items:center!important;margin-top:4px!important}
+#finLeft{min-width:0!important;width:100%!important}
+#finRight{max-width:100%!important;width:100%!important;min-width:0!important}
+.leaderTable{width:100%!important;margin:6px 0!important}
+.leaderTable th{padding:4px 6px!important;font-size:8px!important;letter-spacing:1px!important}
+.leaderTable td{padding:3px 6px!important;font-size:12px!important}
+#finLapTimes{gap:6px!important;flex-wrap:nowrap!important;overflow-x:auto!important;justify-content:flex-start!important;padding:0 4px 4px!important;-webkit-overflow-scrolling:touch}
+.lapPill{font-size:9px!important;padding:4px 9px!important;letter-spacing:1px!important;flex-shrink:0}
+#finStats{font-size:10px!important;letter-spacing:1px!important;text-align:center}
+#finPodium{transform:scale(.85)!important;transform-origin:top center!important}
+}
+@media(max-width:600px){
+.pauseTitle{letter-spacing:3px!important}
+.pauseSubtitle{font-size:11px!important;letter-spacing:2px!important;text-align:center}
+}
+@media(max-width:600px){
+.tStart{margin-top:28px!important;letter-spacing:3px!important}
+}
+@keyframes loadAnim{from{width:10%}to{width:100%}}
+
+/* ── Reusable holographic backdrop ──────────────────────────────────────
+   Shared by #sTitle and #loadingScreen. Three iridescent blobs + prism
+   beam + scatter dots give depth without competing with foreground. */
+.neon-bg{
+  background:
+    radial-gradient(50% 40% at 30% 30%,rgba(212,168,255,.18),transparent 60%),
+    radial-gradient(60% 50% at 70% 80%,rgba(168,212,255,.15),transparent 60%),
+    radial-gradient(40% 30% at 80% 30%,rgba(255,212,168,.12),transparent 60%),
+    linear-gradient(135deg,#08080e 0%,#1a0e28 50%,#08080e 100%);
+  overflow:hidden;position:fixed;inset:0
+}
+/* Prism beam through centre */
+.neon-bg::before{
+  content:'';position:absolute;left:50%;top:0;bottom:0;width:300px;
+  transform:translateX(-50%) skewX(-10deg);pointer-events:none;
+  background:linear-gradient(135deg,transparent 0%,rgba(212,168,255,.06) 20%,rgba(168,212,255,.08) 50%,rgba(255,212,168,.06) 80%,transparent 100%);
+  z-index:0
+}
+/* Scatter dots — light sparkle atmosphere */
+.neon-stars{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    radial-gradient(circle at 12% 18%,rgba(212,168,255,.6) 0.5px,transparent 1.5px),
+    radial-gradient(circle at 78% 32%,rgba(168,212,255,.5) 0.5px,transparent 1.5px),
+    radial-gradient(circle at 45% 62%,rgba(255,212,168,.4) 0.5px,transparent 1.5px),
+    radial-gradient(circle at 88% 88%,rgba(212,168,255,.5) 0.5px,transparent 1.5px),
+    radial-gradient(circle at 22% 75%,rgba(168,212,255,.4) 0.5px,transparent 1.5px),
+    radial-gradient(circle at 65% 12%,rgba(255,212,168,.5) 0.5px,transparent 1.5px),
+    radial-gradient(circle at 5%  45%,rgba(212,168,255,.4) 0.5px,transparent 1.5px),
+    radial-gradient(circle at 92% 58%,rgba(168,212,255,.4) 0.5px,transparent 1.5px);
+  background-size:80px 80px,110px 110px,140px 140px,90px 90px,120px 120px,70px 70px,100px 100px,95px 95px;
+  animation:starDrift 25s linear infinite;
+  will-change:background-position
+}
+@media(max-width:600px){
+  .neon-stars{background-size:160px 160px,220px 220px,280px 280px,180px 180px,240px 240px,140px 140px,200px 200px,190px 190px}
+}
+
+/* ── Loading screen ─────────────────────────────────────────────────────
+   Uses the shared .neon-bg + .neon-stars. The .tLogo class on the title
+   gives us the gradient + glow already; .loadLogo just shrinks it. */
+#loadingScreen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:var(--z-modal);font-family:var(--font-display);gap:18px
+}
+#loadingScreen .loadLogo{
+  font-size:clamp(22px,4.6vw,42px);position:relative;z-index:2;margin:0
+}
+.loadStatus{
+  font-family:var(--font-mono);font-size:12px;letter-spacing:5px;
+  color:var(--blue);text-shadow:0 0 8px rgba(168,212,255,.45);
+  position:relative;z-index:2;text-align:center
+}
+.loadDots{display:inline-block;animation:loadDots 1.4s ease-in-out infinite}
+@keyframes loadDots{
+  0%,100%{opacity:.35}
+  50%{opacity:1}
+}
+
+/* Race-start overlay — between Begin Race click and countdown. Masks the
+   makeAllCars + precompile + warmTextures + postFX-warm freeze with an
+   animated card so the user sees feedback instead of a frozen screen. */
+#raceStartOverlay{
+  position:fixed;inset:0;z-index:var(--z-modal);
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 50%,rgba(28,18,46,.96) 0%,rgba(6,6,14,.98) 80%);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  animation:rsoFadeIn .15s ease-out
+}
+#raceStartOverlay.hidden{display:none}
+#raceStartOverlay .rsoCard{
+  display:flex;flex-direction:column;gap:14px;align-items:center;
+  padding:32px 56px;border-radius:18px;
+  background:rgba(0,0,0,.4);border:1px solid rgba(255,58,140,.25);
+  box-shadow:0 20px 60px rgba(212,168,255,.25)
+}
+#raceStartOverlay .rsoTitle{
+  font-family:var(--font-display);font-size:clamp(18px,3vw,28px);
+  letter-spacing:6px;color:#fff;
+  text-shadow:0 0 12px rgba(255,58,140,.55)
+}
+#raceStartOverlay .rsoStatus{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:4px;
+  color:rgba(201,185,255,.85);text-align:center
+}
+@keyframes rsoFadeIn{from{opacity:0}to{opacity:1}}
+/* ── Shared smooth circular loader (used by #loadingScreen + #worldLoadingOverlay)
+   Rotation runs as a GPU-only CSS keyframe on the compositor thread so it
+   survives main-thread blocking. The arc fill (stroke-dashoffset) is driven
+   by JS in js/ui/smooth-loader.js — see SrcLoader. */
+/* Outer wrapper: holds the static glow halo (CSS box-shadow on a pseudo) so
+   the SVG arc no longer needs a filter:drop-shadow. SVG filters force the
+   rotating element back to software rasterization on iOS/Safari, which is
+   the main reason the spin stuttered while heavy boot work blocked main. */
+.srcLoaderHalo{
+  position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:0 0 18px rgba(212,168,255,.45),0 0 32px rgba(255,58,138,.22);
+  opacity:.85
+}
+.srcLoader{
+  width:64px;height:64px;position:relative;z-index:2;
+  display:inline-block;
+  /* translateZ promotes to its own compositor layer; the keyframe keeps the
+     translateZ so the layer is not torn down mid-animation. contain:paint
+     isolates child invalidations (arc dashoffset updates) so they cannot
+     dirty the rotating layer. */
+  transform:translateZ(0);
+  animation:srcLoaderSpin 1.4s linear infinite;
+  transform-origin:center;
+  will-change:transform;
+  contain:layout paint;
+  backface-visibility:hidden
+}
+.srcLoader svg{width:100%;height:100%;display:block;overflow:visible}
+.srcLoaderTrack{
+  stroke:rgba(255,255,255,.08);fill:none;stroke-width:3
+}
+.srcLoaderArc{
+  stroke:url(#srcLoaderGrad);fill:none;stroke-width:3;stroke-linecap:round;
+  transform:rotate(-90deg);transform-origin:center;
+  /* Arc sweep runs on the compositor via CSS keyframes so it keeps moving
+     even when main thread blocks (race start spike, world load, etc.).
+     Previously the arc length was driven by JS rAF mutating strokeDashoffset
+     every frame; that stuttered any time the loop fell behind. */
+  animation:srcLoaderArcSweep 1.6s cubic-bezier(.4,0,.2,1) infinite;
+  will-change:stroke-dasharray,stroke-dashoffset
+}
+.srcLoaderDone{opacity:0;transition:opacity .22s ease-out}
+.srcLoaderDone .srcLoaderArc{
+  animation:none;stroke-dasharray:163.36;stroke-dashoffset:0
+}
+@keyframes srcLoaderSpin{
+  from{transform:translateZ(0) rotate(0deg)}
+  to{transform:translateZ(0) rotate(360deg)}
+}
+@keyframes srcLoaderArcSweep{
+  0%  {stroke-dasharray:4 163.36;stroke-dashoffset:0}
+  50% {stroke-dasharray:110 163.36;stroke-dashoffset:-40}
+  100%{stroke-dasharray:4 163.36;stroke-dashoffset:-163.36}
+}
+@media (prefers-reduced-motion:reduce){
+  .srcLoader{animation:none}
+  .srcLoaderArc{animation:none;stroke-dasharray:80 163.36;stroke-dashoffset:0}
+}
