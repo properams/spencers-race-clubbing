@@ -574,11 +574,15 @@ async function boot(){
   if(window.perfMark){perfMark('boot:gameData:end');perfMeasure('boot.gameData','boot:gameData:start','boot:gameData:end');}
   // Validate waypoint loops once the data is loaded. Pure diagnostic — any
   // flagged world stays playable but the warning helps spot regressions early.
+  if(window.perfMark)perfMark('boot:validateTrackSchema:start');
   try{_validateTrackSchema();}
   catch(e){if(window.dbg)dbg.warn('track-validate','validator threw: '+(e&&e.message||e));}
+  if(window.perfMark){perfMark('boot:validateTrackSchema:end');perfMeasure('boot.validateTrackSchema','boot:validateTrackSchema:start','boot:validateTrackSchema:end');}
   _setProgress(40,'INITIALIZING');
   _installIOSGestureBlocks();
+  if(window.perfMark)perfMark('boot:spawnFlames:start');
   spawnFlames();
+  if(window.perfMark){perfMark('boot:spawnFlames:end');perfMeasure('boot.spawnFlames','boot:spawnFlames:start','boot:spawnFlames:end');}
   // Defer heavy init zodat de browser eerst de loading-screen kan painten.
   setTimeout(async ()=>{
     if(window.perfMark)perfMark('boot:initRenderer:start');

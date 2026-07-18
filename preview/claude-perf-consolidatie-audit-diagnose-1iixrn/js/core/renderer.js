@@ -109,22 +109,35 @@ function initRenderer(){
   renderer.dithering = true;
   // outputEncoding (r134) / outputColorSpace (r150+) via compat-laag.
   ThreeCompat.applyRendererColorSpace(renderer);
+  // Init-subpasses individueel gemeten (2026-07 consolidatie-audit): dit was
+  // alleen zichtbaar als het coarse boot.initRenderer-totaal. NB: deze
+  // measures vuren op élke initRenderer-run (boot én webglcontextrestored).
   // Bloom post-processing — auto-disabled on mobile (see js/effects/postfx.js).
+  if(window.perfMark)perfMark('renderer:initPostFX:start');
   if(typeof initPostFX==='function')initPostFX();
+  if(window.perfMark){perfMark('renderer:initPostFX:end');perfMeasure('renderer.initPostFX','renderer:initPostFX:start','renderer:initPostFX:end');}
   // Atmosphere extension (godrays + horizon haze). Must run AFTER initPostFX
   // so the original matComposite exists to be swapped. Also mobile-skipped
   // internally; piggy-backs on _postfx.ready so the same toggles apply.
+  if(window.perfMark)perfMark('renderer:atmospherePass:start');
   if(typeof _initAtmospherePass==='function')_initAtmospherePass();
+  if(window.perfMark){perfMark('renderer:atmospherePass:end');perfMeasure('renderer.atmospherePass','renderer:atmospherePass:start','renderer:atmospherePass:end');}
   // Phase 9.1 — SSAO init na atmosphere zodat composite shader uniforms
   // bestaan voor tAO wire-up. Skipt op mobile + low-q via interne guard.
+  if(window.perfMark)perfMark('renderer:ssao:start');
   if(typeof _initSSAO==='function')_initSSAO();
+  if(window.perfMark){perfMark('renderer:ssao:end');perfMeasure('renderer.ssao','renderer:ssao:start','renderer:ssao:end');}
   // Sessie 03 — SSR init after SSAO; wires tSSR uniform on the
   // composite shader. Skips on mobile/low via internal guard.
+  if(window.perfMark)perfMark('renderer:ssr:start');
   if(typeof _initSSR==='function')_initSSR();
+  if(window.perfMark){perfMark('renderer:ssr:end');perfMeasure('renderer.ssr','renderer:ssr:start','renderer:ssr:end');}
   // PBR-upgrade Brok 2 — SMAA "lite" 2-pass anti-aliasing op rtFinal ná
   // composite. Skipt op LOW via _qFlags.smaa===false. Postfx leest
   // _smaaCompositeTarget() en routeert composite-output daarnaartoe.
+  if(window.perfMark)perfMark('renderer:smaa:start');
   if(typeof _initSMAA==='function')_initSMAA();
+  if(window.perfMark){perfMark('renderer:smaa:end');perfMeasure('renderer.smaa','renderer:smaa:start','renderer:smaa:end');}
   window.dbg&&dbg.log('renderer','init done — '+innerWidth+'×'+innerHeight+' dpr '+renderer.getPixelRatio().toFixed(2)+' shadow='+renderer.shadowMap.enabled+' THREE '+(THREE.REVISION||'?'));
   // Single resize pipeline: one rAF-debounced handler bound to resize, orientationchange and
   // visualViewport.resize. Re-evaluates device flags so portrait↔landscape (and split-view)

@@ -177,7 +177,10 @@
     let rpp = null;
     try{ if(window._rpp && typeof window._rpp.snapshot === 'function') rpp = window._rpp.snapshot(); }catch(_){}
     let dbgEvents = null;
-    try{ if(window.dbg && typeof window.dbg.events === 'function') dbgEvents = window.dbg.events(); }catch(_){}
+    // Meetinfra-reparatie (2026-07): dbg.events() heeft nooit bestaan — de
+    // accessor heet raceEvents(). dbgEvents was hierdoor altijd null in de
+    // dump. Output-key blijft 'dbgEvents' voor bestaande consumers.
+    try{ if(window.dbg && typeof window.dbg.raceEvents === 'function') dbgEvents = window.dbg.raceEvents(); }catch(_){}
     let longTasks = null;
     try{ if(window.dbg && typeof window.dbg.longTasks === 'function') longTasks = window.dbg.longTasks(); }catch(_){}
     return {

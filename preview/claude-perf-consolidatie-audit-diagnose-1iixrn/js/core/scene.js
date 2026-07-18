@@ -255,7 +255,12 @@ function _getOrBuildSkyTex(makeFn){
   const k=_skyCacheKey();
   const hit=_skyTexCache[k];
   if(hit&&hit.isTexture)return hit;
+  // Miss-pad timen (2026-07 consolidatie-audit): de canvas-raster is de enige
+  // onzichtbare kost hier — afwezigheid van deze loadperf-entry op een switch
+  // betekent dus cache-hit. Hit-pad blijft meetvrij (reference-return).
+  const _t0=(window._loadPerf)?performance.now():0;
   const tex=makeFn();
+  if(window._loadPerf)window._loadPerf('sky.canvasRaster',performance.now()-_t0,{key:k});
   if(tex&&tex.isTexture){
     tex.userData=tex.userData||{};
     tex.userData._sharedAsset=true;
@@ -1049,11 +1054,14 @@ async function buildScene(opts){
   // dus geen actieve refs naar non-current world textures/models. Dispose
   // alles dat niet bij de actieve world hoort om cumulatieve VRAM-leak
   // over meerdere world-switches te voorkomen (Phase 1 bevinding 1.1).
+  if(window.perfMark)perfMark('build:evict:start');
   if(window.Assets&&window.Assets.evictAllExcept){
     try{ Assets.evictAllExcept(activeWorld); }
     catch(e){ if(window.dbg)dbg.warn('scene','evictAllExcept failed: '+(e&&e.message||e)); }
   }
+  if(window.perfMark){perfMark('build:evict:end');perfMeasure('build.evict','build:evict:start','build:evict:end');}
   // ── Swap TRACK_WP data for active world ───────────────────────
+  if(window.perfMark)perfMark('build:stateReset:start');
   {const src=(_TRACKS&&_TRACKS[activeWorld])||_DEFAULT_WP;
    TRACK_WP.length=0;src.forEach(wp=>TRACK_WP.push(wp));}
   // ── Reset global arrays populated during scene build ──────────
@@ -1205,7 +1213,12 @@ async function buildScene(opts){
     window.disposeCinematicCaches();
   }
 
+  if(window.perfMark){perfMark('build:stateReset:end');perfMeasure('build.stateReset','build:stateReset:start','build:stateReset:end');}
   await _yieldBuild();
+  // Scene-setup t/m lightsCamera was tot 2026-07 de grootste ongetimede
+  // sync-regio in buildScene (skybox-raster + PMREM + lights). Vier
+  // blok-measures zodat een longtask hier via de span-ring attribueerbaar is.
+  if(window.perfMark)perfMark('build:skySetup:start');
   const isSpace=activeWorld==='space';
   const isDeepSea=activeWorld==='deepsea';
   const isCandy=activeWorld==='candy';
@@ -1312,16 +1325,20 @@ async function buildScene(opts){
     scene.fog=new THREE.FogExp2(0x010018,.0014);
     _fogColorDay.setHex(0x10085a);_fogColorNight.setHex(0x0a0a30);
   }
+  if(window.perfMark){perfMark('build:skySetup:end');perfMeasure('build.skySetup','build:skySetup:start','build:skySetup:end');}
   // World-themed envMap: PMREM het skybox canvas voor cubemap-reflecties op
   // car clearcoat. Vervangt de generic procedural gradient die in een eerder
   // commit als scene.environment werd gezet (vlak na new Scene()). Per-world
   // envs zijn dramatisch rijker: sun-spot reflectie op GP, ember glow op
   // Volcano. Procedural blijft fallback voor het
   // geval PMREM faalt.
+  if(window.perfMark)perfMark('build:worldEnvPMREM:start');
   {
     const _worldEnv=_buildWorldEnvFromSky(scene.background);
     scene.environment=_worldEnv||_buildProceduralEnvMap();
   }
+  if(window.perfMark){perfMark('build:worldEnvPMREM:end');perfMeasure('build.worldEnvPMREM','build:worldEnvPMREM:start','build:worldEnvPMREM:end');}
+  if(window.perfMark)perfMark('build:visualTune:start');
   // Per-world color grading + vignette in postfx composite.
   if(typeof setWorldGrading==='function')setWorldGrading(activeWorld);
   // Per-world bloom strength multiplier (Candy/Guangzhou have many emissives
@@ -1343,6 +1360,8 @@ async function buildScene(opts){
   // disposeScene op wereld-switch.
   if(typeof window._initContactShadows === 'function')window._initContactShadows();
   if(typeof window._reattachContactShadows === 'function')window._reattachContactShadows();
+  if(window.perfMark){perfMark('build:visualTune:end');perfMeasure('build.visualTune','build:visualTune:start','build:visualTune:end');}
+  if(window.perfMark)perfMark('build:lightsCamera:start');
   // Per-world camera far-plane. Deep Sea krijgt 800u afgestemd op fog-cutoff
   // (~2/d met d=0.0028 desktop) — voorkomt onnodig tekenen achter de fog-muur
   // en blijft binnen sunLight.shadow.camera.far (700). Andere worlds blijven 900.
@@ -1426,6 +1445,7 @@ async function buildScene(opts){
   } else {
     window._rimLight = null;
   }
+  if(window.perfMark){perfMark('build:lightsCamera:end');perfMeasure('build.lightsCamera','build:lightsCamera:start','build:lightsCamera:end');}
 
   await _yieldBuild();
   if(window.perfMark)perfMark('build:track:start');
@@ -1585,11 +1605,13 @@ async function buildScene(opts){
   // computeBoundingSphere() per mesh hoeft te draaien (10-100ms spikes op
   // prop-heavy worlds). Eén traverse hier kost <1ms; daarna heeft elke mesh
   // een geldige geometry.boundingSphere voor LOD-anchor berekening.
+  if(window.perfMark)perfMark('build:boundingSpheres:start');
   try{
     scene.traverse(o=>{
       if(o.isMesh && o.geometry && !o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
     });
   }catch(e){if(window.dbg)dbg.warn('scene','eager boundingSphere compute failed: '+(e&&e.message||e));}
+  if(window.perfMark){perfMark('build:boundingSpheres:end');perfMeasure('build.boundingSpheres','build:boundingSpheres:start','build:boundingSpheres:end');}
   if(renderer&&scene&&camera){
     if(window.perfMark)perfMark('build:warmRender:start');
     try{renderer.render(scene,camera);}

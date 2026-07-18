@@ -1113,12 +1113,19 @@ async function rebuildWorldAsync(newWorld){
   if(_worldRebuildInFlight)return;
   _worldRebuildInFlight=true;
   if(window.perfMark)perfMark('rebuildWorldAsync:start');
+  // worldSwitch.summary-venster (2026-07 consolidatie-audit): eigen
+  // timestamp + from-wereld lokaal vastleggen; het record wordt in de
+  // finally hieronder geëmit. Zelfde venster-discipline als worldLoad.summary.
+  const _wsT0=performance.now();
+  const _wsFrom=activeWorld;
+  let _wsOverlayMs=null;
   _showWorldLoadingOverlay();
   // Double-yield: rAF gives the browser a paint frame to render the overlay,
   // setTimeout(0) breaks the current task so buildScene runs on a fresh task
   // (Chrome's "page unresponsive" detector resets between tasks).
   await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
   if(window.perfMark)perfMark('rebuildWorldAsync:overlay-shown');
+  _wsOverlayMs=performance.now()-_wsT0;
   // Fase 1C: laad het wereld-script lazy. Was statisch in index.html; nu via
   // window.loadWorldScript (zie js/core/world-loader.js). Door dit voor het
   // synchrone buildScene-blok te doen voorkomen we een ReferenceError op
@@ -1140,6 +1147,53 @@ async function rebuildWorldAsync(newWorld){
     _hideWorldLoadingOverlay();
     _worldRebuildInFlight=false;
     if(window.perfMark){perfMark('rebuildWorldAsync:end');perfMeasure('rebuildWorldAsync.total','rebuildWorldAsync:start','rebuildWorldAsync:end');}
+    // worldSwitch.summary — één geconsolideerd record per wissel: de
+    // evict→refetch→reparse→skybake→PMREM→builder-keten. Afgeleid uit
+    // perfLog (één timestamp-gebounde backwards-scan, patroon
+    // worldLoad.summary in scene.js) — niets wordt dubbel gemeten.
+    // preload is fire-and-forget: preloadMs===null betekent "niet
+    // afgerond binnen het wissel-venster", de late entry landt alsnog
+    // in perfLog voor de LOAD TIMELINE. models/textures: maxMs/maxPath,
+    // nooit sommen (parallelle wall-times overlappen).
+    if(window._loadPerf&&window.perfLog)try{
+      const _wsNow=performance.now();
+      const _hit={};let _skyRasterMs=null,_skyRasterN=0;
+      for(let i=window.perfLog.length-1;i>=0;i--){
+        const e=window.perfLog[i];
+        if(e.t<_wsT0-60000)break;
+        if(e.name==='loadperf.sky.canvasRaster'&&e.t>=_wsT0){_skyRasterMs=(_skyRasterMs||0)+e.ms;_skyRasterN++;continue;}
+        if(_hit[e.name]!==undefined)continue;
+        const _inWin=e.t>=_wsT0;
+        if(_inWin&&(e.name==='worldScript.load'||e.name==='assets.hdri'||e.name==='assets.models'||e.name==='assets.textures')&&e.world!==newWorld)continue;
+        if((e.name==='assets.preloadWorld.total'||e.name==='assets.models'||e.name==='assets.textures')&&e.world===newWorld){_hit[e.name]=e;continue;}
+        if(_inWin)_hit[e.name]=e;
+      }
+      const _m=n=>_hit[n]?+(+_hit[n].ms).toFixed(1):null;
+      window._loadPerf('worldSwitch.summary',_wsNow-_wsT0,{
+        from:_wsFrom||null,to:newWorld,
+        overlayMs:_wsOverlayMs!==null?+_wsOverlayMs.toFixed(1):null,
+        scriptMs:_m('worldScript.load'),
+        evictMs:_m('loadperf.assets.evict'),
+        evicted:_hit['loadperf.assets.evict']?_hit['loadperf.assets.evict'].evicted:null,
+        preloadMs:_m('assets.preloadWorld.total'),
+        modelsMs:_m('assets.models'),
+        modelsMaxPath:_hit['assets.models']?(_hit['assets.models'].maxPath||null):null,
+        texturesMs:_m('assets.textures'),
+        texturesMaxPath:_hit['assets.textures']?(_hit['assets.textures'].maxPath||null):null,
+        hdriMs:_m('assets.hdri'),
+        skyRasterMs:_skyRasterMs!==null?+_skyRasterMs.toFixed(1):null,
+        skyRasterN:_skyRasterN||null,
+        pmremSkyMs:_m('loadperf.pmrem.worldSky'),
+        envBakeMs:_m('build.envBake'),
+        nightMs:_m('build.night'),
+        builderMs:_m('build.world'),
+        precompileMs:_m('build.precompile'),
+        buildTotalMs:_m('build.total'),
+        programsBefore:_hit['loadperf.programs.switch.before']?_hit['loadperf.programs.switch.before'].ms:null,
+        programsAfter:_hit['loadperf.programs.switch.after']?_hit['loadperf.programs.switch.after'].ms:null,
+      });
+      if(window.dbg)dbg.log('world-load','switch-summary '+(_wsFrom||'?')+'→'+newWorld+' total='+(_wsNow-_wsT0).toFixed(0)+'ms');
+    }catch(_){/* instrumentatie mag de wissel nooit blokkeren */}
   }
 }
 if(typeof window!=='undefined')window.rebuildWorldAsync=rebuildWorldAsync;
