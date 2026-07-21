@@ -173,9 +173,107 @@ function bakeSceneEnv(scn, position){
 // again on the same world (e.g. dev-panel manual rebake), we dispose the
 // previous bake here — tagged via userData._cubeBaked so we never
 // accidentally dispose a sky-based env still held by night.js's cache.
+// ── Perf-arc It.2 (2026-07): uitgesteld + gespreid baken ─────────────────
+// De synchrone bake (6 volledige scene-renders + PMREM in één taak) was de
+// grootste gemeten longtask op boot én world-switch (bench-baseline
+// 2026-07-18: 11,7s headless op het titelpad) en veroorzaakte ook de
+// gedocumenteerde periodieke hitch van de reflectie-probe (15-40ms per
+// re-bake). In deferred modus rendert de bake één cube-face per rAF en
+// draait PMREM+apply als laatste stap; tot die tijd blijft de sky-based env
+// van _buildWorldEnvFromSky staan (visueel progressief, geen gat — zelfde
+// fallback die al bestond voor mobile/PMREM-fail).
+// Kill-switch: _ENVBAKE_DEFERRED=false herstelt exact het oude sync-pad.
+const _ENVBAKE_DEFERRED = true;
+let _bakeJobId = 0; // token: nieuwe schedule/context-loss maakt lopende job ongeldig
+
+if(typeof window !== 'undefined' && typeof window.addEventListener === 'function'){
+  window.addEventListener('webglcontextlost', () => { _bakeJobId++; }, { passive: true });
+}
+
+function _scheduleSceneEnvBake(){
+  if(typeof scene === 'undefined' || !scene) return;
+  if(typeof camera === 'undefined' || !camera) return;
+  if(!window.renderer || typeof THREE.PMREMGenerator !== 'function') return;
+  if(!_ensureCubeBaker()) return;
+  const jobId = ++_bakeJobId;
+  const scn = scene;
+  const wasDark = (typeof isDark !== 'undefined') ? !!isDark : false;
+  _envBakePos.set(camera.position.x, Math.max(camera.position.y, 14), camera.position.z);
+  _envCubeCam.position.copy(_envBakePos);
+  _envCubeCam.updateMatrixWorld(true); // face-cams zijn children — world-matrices verversen
+  let face = 0;
+  const step = () => {
+    // Abort-guards: nieuwere job, scene vervangen (world-switch), resources
+    // weg (context-lost) of nacht-stand gewijzigd sinds schedule — dan zou
+    // de bake een verkeerde (dag/nacht-)env over de cache heen zetten.
+    if(jobId !== _bakeJobId || !_envCubeRT || !_envCubeCam) return;
+    if(typeof scene === 'undefined' || scene !== scn) return;
+    const r = window.renderer;
+    if(!r) return;
+    if(face < 6){
+      const fi = face;
+      const doFace = () => {
+        const cam = _envCubeCam.children[fi];
+        if(!cam) { _bakeJobId++; return; }
+        const prevRT = r.getRenderTarget();
+        const prevShadows = r.shadowMap.enabled;
+        r.shadowMap.enabled = false;
+        try {
+          r.setRenderTarget(_envCubeRT, fi);
+          r.clear();
+          r.render(scn, cam);
+        } catch(e){
+          if(window.dbg) dbg.error('env-baker', e, 'chunked cube face '+fi+' failed');
+          _bakeJobId++; // job afbreken; sky-env blijft staan
+        }
+        r.setRenderTarget(prevRT);
+        r.shadowMap.enabled = prevShadows;
+      };
+      if(window._perfSpan) window._perfSpan('envBake.face'+fi, doFace); else doFace();
+      face++;
+      requestAnimationFrame(step);
+      return;
+    }
+    if(((typeof isDark !== 'undefined') ? !!isDark : false) !== wasDark) return; // M-press tijdens job
+    const doFinish = () => {
+      const _lpT0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+      let envMap = null;
+      try {
+        if(!_sharedPMREM){
+          _sharedPMREM = new THREE.PMREMGenerator(window.renderer);
+          _sharedPMREM.compileCubemapShader();
+        }
+        if(_prevPmremRT){ try { _prevPmremRT.dispose(); } catch(_) {} _prevPmremRT = null; }
+        const pmremRT = _sharedPMREM.fromCubemap(_envCubeRT.texture);
+        _prevPmremRT = pmremRT;
+        envMap = pmremRT.texture;
+      } catch(e){ if(window.dbg) dbg.error('env-baker', e, 'PMREM fromCubemap failed (deferred)'); return; }
+      if(window._loadPerf && typeof performance !== 'undefined'){
+        window._loadPerf('pmrem.sceneEnv', performance.now() - _lpT0, {
+          res: ((_envCubeRT && _envCubeRT.width) || 0) + '² cube (deferred)',
+          world: (typeof activeWorld !== 'undefined') ? activeWorld : '?'
+        });
+      }
+      if(envMap){
+        envMap.userData = envMap.userData || {};
+        envMap.userData._cubeBaked = true;
+        const prev = scn.environment;
+        if(prev && prev.isTexture && prev.userData && prev.userData._cubeBaked){
+          try { prev.dispose(); } catch(_) {}
+        }
+        scn.environment = envMap;
+        if(window.dbg) dbg.log('env-baker', 'scene env baked (deferred, 6 faces gespreid) — '+((typeof activeWorld!=='undefined')?activeWorld:'?'));
+      }
+    };
+    if(window._perfSpan) window._perfSpan('envBake.pmrem', doFinish); else doFinish();
+  };
+  requestAnimationFrame(step);
+}
+
 function applySceneEnvBake(){
   if(typeof scene === 'undefined' || !scene) return;
   if(typeof camera === 'undefined' || !camera) return;
+  if(_ENVBAKE_DEFERRED){ _scheduleSceneEnvBake(); return; }
   // Position cube camera at the race-start camera location so the bake
   // matches what the player sees on the grid. y bumped to 14 so the floor
   // doesn't dominate the bottom cube-face. Reused module-scratch — no per-bake alloc.

@@ -303,6 +303,13 @@ function updateSkylineParallax(){
 if(typeof window !== 'undefined') window._updateSkylineParallax = updateSkylineParallax;
 
 function buildBackgroundLayers(){
+  // Perf-arc It.2c: dit was het grootste niet-geattribueerde longtask-gat
+  // ("span:null nabij build.world", bench-baseline 2026-07-18) — de functie
+  // draait direct ná elke world-builder maar had geen span. Wrap-only.
+  if(window._perfSpan) return window._perfSpan('build.backgroundLayers', _buildBackgroundLayersImpl);
+  return _buildBackgroundLayersImpl();
+}
+function _buildBackgroundLayersImpl(){
   // Phase 8.10 — reset parallax-layer registry bij elke world-build.
   // disposeScene removes meshes from scene maar de array houdt stale
   // refs; reset hier zodat alleen layers van de actieve wereld scrollen.
