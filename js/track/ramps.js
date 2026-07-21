@@ -77,8 +77,13 @@ function buildJumpRamps(){
     // Point light for dramatic glow
     // Phase 7.5b: PointLight intensity 1.5 → 2.0 — sterker beacon-effect
     // op het jump-pad sign, bloom catcht de extra spill.
-    const pl=new THREE.PointLight(padEmit,2.0,28);
-    pl.position.copy(p);pl.position.y=h+3.2;scene.add(pl);
+    // It.7 (mobiele livetest): geen beacon-PointLight op mobiel — de
+    // emissive sign/pad-materialen dragen het beeld; elke forward-light
+    // telt per fragment mee op telefoon-GPU's.
+    if(!window._isMobile){
+      const pl=new THREE.PointLight(padEmit,2.0,28);
+      pl.position.copy(p);pl.position.y=h+3.2;scene.add(pl);
+    }
 
     jumpRamps.push({
       pos:p.clone(),tg:tg.clone(),
@@ -160,8 +165,10 @@ function buildSpinPads(){
     // via disc + pulserende ring + chevrons + point-light.
 
     // Point light for glow
-    const pl=new THREE.PointLight(pal.ring,1.4,22);
-    pl.position.copy(p);pl.position.y=1.2;scene.add(pl);
+    if(!window._isMobile){
+      const pl=new THREE.PointLight(pal.ring,1.4,22);
+      pl.position.copy(p);pl.position.y=1.2;scene.add(pl);
+    }
 
     spinPads.push({pos:p.clone(),disc,ring,radius:4.5});
   });
@@ -250,8 +257,11 @@ function buildBoostPads(){
     const padArrows=[ring];
 
     // Point light
-    const pl=new THREE.PointLight(pal.light,2.0,26);
-    pl.position.copy(p);pl.position.y=2.2;scene.add(pl);
+    let pl=null;
+    if(!window._isMobile){
+      pl=new THREE.PointLight(pal.light,2.0,26);
+      pl.position.copy(p);pl.position.y=2.2;scene.add(pl);
+    }
 
     boostPads.push({pos:p.clone(),tg:tg.clone(),strip,arrows:padArrows,radius:TW,len:4.6,active:true,light:pl});
   });

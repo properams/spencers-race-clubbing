@@ -117,8 +117,11 @@ function buildCollectibles(){
     scene.add(g);
     // Phase 7.1: PointLight intensity 2.2 → 2.8 — coins als bright beacons
     // op afstand + bloom catcht de light spill op surrounding props/track.
-    const starLight=new THREE.PointLight(pal.light,2.8,18);
-    starLight.position.copy(pos);starLight.userData._baseIntensity=2.8;scene.add(starLight);
+    let starLight=null;
+    if(!window._isMobile){
+      starLight=new THREE.PointLight(pal.light,2.8,18);
+      starLight.position.copy(pos);starLight.userData._baseIntensity=2.8;scene.add(starLight);
+    }
     collectibles.push({mesh:g,pos:pos.clone(),collected:false,radius:2.4,respawn:0,type:'score',light:starLight});
   });
 
@@ -181,8 +184,11 @@ function buildCollectibles(){
     g.add(groundRing);
 
     scene.add(g);
-    const kitLight=new THREE.PointLight(0x00ff66,1.6,16);
-    kitLight.position.copy(pos);kitLight.userData._baseIntensity=1.6;scene.add(kitLight);
+    let kitLight=null;
+    if(!window._isMobile){
+      kitLight=new THREE.PointLight(0x00ff66,1.6,16);
+      kitLight.position.copy(pos);kitLight.userData._baseIntensity=1.6;scene.add(kitLight);
+    }
     collectibles.push({mesh:g,pos:pos.clone(),collected:false,radius:2.6,respawn:15,type:'repair',light:kitLight});
   });
 }
