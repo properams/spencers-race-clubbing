@@ -1,0 +1,481 @@
+/* settings.css — full-screen Light Edition Settings panel. */
+
+#sSettings{
+  /* Override .screen flex-center so our header anchors to top-left and
+     the body fills the remaining viewport. */
+  align-items:stretch;
+  justify-content:flex-start;
+  padding:48px 56px;
+  background:radial-gradient(60% 50% at 50% 0%,rgba(212,168,255,.10),transparent 60%),var(--bg);
+}
+@media(max-width:760px){
+  #sSettings{padding:24px 18px}
+}
+
+.setHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:32px;
+  flex-shrink:0;
+}
+.setHeaderLeft{display:flex;flex-direction:column;gap:6px}
+.setTitle{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:clamp(48px,7vw,96px);
+  letter-spacing:-2px;
+  line-height:0.95;
+  color:var(--text);
+  margin:0;
+}
+.setCloseBtn{margin-top:6px;flex-shrink:0}
+
+/* Body = sidebar + content panel side-by-side */
+.setBody{
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:24px;
+  flex:1;
+  min-height:0;
+}
+@media(max-width:760px){
+  .setBody{grid-template-columns:1fr;gap:18px}
+}
+
+/* Sidebar nav */
+.setNav{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-self:start;
+}
+.setNavItem{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 18px;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:14px;
+  cursor:pointer;
+  color:var(--text-dim);
+  font-family:var(--font-body);
+  font-size:15px;
+  text-align:left;
+  transition:color .15s ease,background .15s ease,border-color .15s ease;
+  -webkit-appearance:none;appearance:none;
+}
+.setNavItem:hover{color:var(--text-mid);background:var(--surface)}
+.setNavItem .setNavNum{
+  width:24px;height:24px;
+  border-radius:50%;
+  display:inline-flex;
+  align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:11px;
+  background:var(--surface-2);
+  color:var(--text-dim);
+  flex-shrink:0;
+  transition:background .15s ease,color .15s ease,box-shadow .15s ease;
+}
+.setNavItem .setNavLbl{font-weight:600;letter-spacing:.02em}
+.setNavItemActive{
+  color:var(--text);
+  background:var(--surface);
+  border-color:var(--line);
+}
+.setNavItemActive .setNavNum{
+  background:linear-gradient(135deg,var(--pink),var(--violet));
+  color:var(--text);
+  box-shadow:0 0 12px rgba(255,58,138,.45);
+}
+
+/* Content panel */
+.setPanel{
+  padding:36px 42px;
+  min-height:0;
+  overflow-y:auto;
+}
+@media(max-width:760px){
+  .setPanel{padding:24px 22px}
+}
+.setSection{display:none}
+.setSection.setSectionActive{display:block}
+.setSectionEyebrow{margin-bottom:14px}
+.setSectionTitle{
+  font-family:var(--font-display);
+  font-weight:600;
+  font-size:clamp(36px,4.5vw,60px);
+  letter-spacing:-1px;
+  color:var(--text);
+  margin:0 0 28px;
+  line-height:1;
+}
+
+/* Slider rows */
+.setRow{
+  padding:18px 0;
+  border-top:1px solid var(--line);
+}
+.setRow:first-of-type{border-top:0;padding-top:8px}
+.setRowHead{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  margin-bottom:14px;
+  gap:14px;
+}
+.setRowLbl{
+  font-family:var(--font-body);
+  font-size:15px;
+  color:var(--text);
+  font-weight:500;
+}
+.setRowVal{
+  font-family:var(--font-mono);
+  font-size:13px;
+  color:var(--violet);
+  letter-spacing:1px;
+}
+
+/* Toggle row layout (no slider) */
+.setRowToggle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.setRowToggle .setRowLbl{margin:0}
+
+/* Placeholder paragraphs in not-yet-built sections */
+.setEmpty{
+  font-family:var(--font-body);
+  font-size:14px;
+  color:var(--text-mid);
+  line-height:1.6;
+  max-width:520px;
+}
+
+/* Helper paragraph below an interactive row */
+.setHelp{
+  font-family:var(--font-body);
+  font-size:12px;
+  color:var(--text-mid);
+  line-height:1.5;
+  margin:10px 0 0;
+  max-width:520px;
+}
+
+/* Pill-button rows used for quality / difficulty / lap presets */
+.setPillRow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.setPill{
+  font-family:var(--font-mono);
+  font-size:12px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  padding:8px 16px;
+  border-radius:999px;
+  background:transparent;
+  color:var(--text-mid);
+  border:1px solid var(--line);
+  cursor:pointer;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.setPill:hover{color:var(--text);border-color:rgba(255,255,255,.4)}
+.setPill.setPillActive{
+  background:linear-gradient(135deg,var(--violet),var(--pink));
+  border-color:transparent;
+  color:#fff;
+}
+
+/* Keyboard reference grid */
+.setKeyGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:8px 18px;
+}
+.setKeyRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-family:var(--font-body);
+  font-size:13px;
+  color:var(--text-mid);
+}
+.setKeyCap{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:1px;
+  padding:4px 9px;
+  min-width:42px;
+  text-align:center;
+  border-radius:6px;
+  border:1px solid var(--line);
+  background:var(--surface);
+  color:var(--text);
+}
+
+/* Holographic select dropdown used for touch-UI mode */
+.holoSelect{
+  font-family:var(--font-mono);
+  font-size:12px;
+  letter-spacing:1px;
+  background:var(--surface);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px 12px;
+  cursor:pointer;
+  transition:border-color .15s;
+}
+.holoSelect:hover,.holoSelect:focus{border-color:var(--violet);outline:none}
+
+/* Touch-UI override classes set by Settings → Controls → Show on-screen controls. */
+html.forceTouchUi #touchControls{display:block!important}
+html.hideTouchUi  #touchControls{display:none!important}
+
+/* ── Account / "Your Light" profile view ─────────────────────────────────
+   All classes live under [data-set-pane="account"]. Cards reuse the
+   .setSection grid so spacing stays consistent with Audio/Graphics tabs. */
+.profCard{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:18px 20px;
+  margin-bottom:16px;
+}
+.profCardHead{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--text-dim);
+  margin-bottom:14px;
+}
+
+/* Identity card */
+.profCardIdentity{display:flex;flex-direction:column;gap:14px}
+.profIdRow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.profFieldLbl{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--text-dim);
+  min-width:90px;
+}
+.profHandleInput{
+  flex:1;
+  min-width:160px;
+  background:var(--surface-2);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 14px;
+  font-family:var(--font-body);
+  font-size:15px;
+  transition:border-color .15s ease;
+  -webkit-appearance:none;appearance:none;
+}
+.profHandleInput:focus{outline:none;border-color:var(--violet)}
+.profIdMeta{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.profLevelBadge{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:18px;
+  letter-spacing:1px;
+  padding:4px 12px;
+  border-radius:8px;
+  background:var(--surface-2);
+  color:var(--peach);
+  border:1px solid var(--line);
+  flex-shrink:0;
+}
+.profXpWrap{flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px}
+.profXpBar{
+  height:8px;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:999px;
+  overflow:hidden;
+}
+.profXpFill{
+  height:100%;
+  width:0%;
+  background:var(--iridescent);
+  transition:width .4s ease-out;
+}
+.profXpText{
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:1px;
+  color:var(--text-dim);
+}
+.profCoinsBadge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--font-mono);
+  font-size:13px;
+  color:var(--gold);
+  padding:6px 12px;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  flex-shrink:0;
+}
+.profCoinsIcon{font-size:14px;line-height:1}
+
+/* Career stats grid */
+.profStatGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:10px;
+}
+.profStat{
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px;
+}
+.profStatLbl{
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--text-dim);
+  margin-bottom:4px;
+}
+.profStatVal{
+  font-family:var(--font-body);
+  font-size:15px;
+  font-weight:600;
+  color:var(--text);
+}
+
+/* Cup badges */
+.profCupRow{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:10px;
+}
+.profCup{
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px 14px;
+  position:relative;
+}
+.profCupDone{border-color:rgba(212,168,255,.4)}
+.profCupMaster{border-color:var(--peach);box-shadow:0 0 18px rgba(255,212,168,.18)}
+.profCupTop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.profCupName{
+  font-family:var(--font-display);
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:1px;
+  color:var(--text);
+}
+.profCupStars{
+  font-family:var(--font-mono);
+  font-size:10px;
+  color:var(--text-dim);
+  flex-shrink:0;
+}
+.profCupBar{
+  height:4px;
+  background:var(--surface);
+  border-radius:999px;
+  overflow:hidden;
+}
+.profCupBarFill{
+  height:100%;
+  background:var(--iridescent);
+  transition:width .4s ease-out;
+}
+
+/* Best laps table */
+.profLapsScroll{
+  max-height:280px;
+  overflow-y:auto;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface-2);
+}
+.profLapsTable{
+  width:100%;
+  border-collapse:collapse;
+  font-family:var(--font-body);
+  font-size:13px;
+  color:var(--text);
+}
+.profLapsTable thead th{
+  position:sticky;top:0;
+  background:var(--surface-2);
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--text-dim);
+  text-align:left;
+  padding:10px 12px;
+  border-bottom:1px solid var(--line);
+}
+.profLapsTable tbody td{
+  padding:8px 12px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.profLapsTable tbody tr:last-child td{border-bottom:none}
+.profLapTime{
+  font-family:var(--font-mono);
+  color:var(--peach);
+  font-weight:500;
+}
+
+/* Buttons */
+.profBtnRow{display:flex;flex-wrap:wrap;gap:10px}
+.profBtn{
+  font-family:var(--font-mono);
+  font-size:12px;
+  letter-spacing:1.5px;
+  padding:10px 16px;
+  background:var(--surface-2);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:10px;
+  cursor:pointer;
+  transition:border-color .15s ease,background .15s ease,color .15s ease;
+  -webkit-appearance:none;appearance:none;
+}
+.profBtn:hover{border-color:var(--violet);background:var(--surface)}
+.profBtnPrimary{border-color:rgba(212,168,255,.5);color:var(--violet)}
+.profBtnPrimary:hover{border-color:var(--violet);color:var(--text)}
+.profBtnDanger{color:var(--pink);border-color:rgba(255,58,138,.4)}
+.profBtnDanger:hover{border-color:var(--pink);background:rgba(255,58,138,.1)}
+.profBtnDisabled,.profBtn:disabled{
+  opacity:.45;cursor:not-allowed;color:var(--text-dim);
+}
+.profBtnDisabled:hover,.profBtn:disabled:hover{
+  border-color:var(--line);background:var(--surface-2);
+}
+.profHelp{
+  margin-top:10px;
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:1px;
+  color:var(--text-dim);
+}
+.profStatusMsg{
+  margin-top:8px;
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:1px;
+  min-height:1em;
+}
+.profStatusMsgOk{color:#3affd0}
+.profStatusMsgErr{color:var(--pink)}
