@@ -617,6 +617,14 @@ function buildKelp(){
     const kx=p.x+nr.x*side+(Math.random()-.5)*5,kz=p.z+nr.z*side+(Math.random()-.5)*5;
     const strands=2+Math.floor(Math.random()*3);
     const group=new THREE.Group();group.position.set(kx,0,kz);
+    // Perf-arc It.4 (R6b): strands per cluster gemerged tot één geometry —
+    // de sway roteert de GROEP (zie updateDeepSeaWorld), dus mergen is
+    // animatie- en beeld-identiek maar reduceert ~270 kelp-meshes naar 45
+    // (mobile: ~54 naar 18). Zelfde patroon als candy-stacks/sandstorm
+    // (mergeBufferGeometries via three-compat-polyfill). Cross-plane
+    // (Phase 11C) blijft: zelfde vlak nogmaals 90° gedraaid in de merge.
+    const _parts=[];
+    const _mtx=new THREE.Matrix4();
     for(let s=0;s<strands;s++){
       const h=4+Math.random()*7;
       const kgeo=new THREE.PlaneGeometry(.5,.8*h,1,Math.floor(h));
@@ -624,19 +632,19 @@ function buildKelp(){
       const pos=kgeo.attributes.position;
       for(let v=0;v<pos.count;v++){const y=pos.getY(v);const taper=1-Math.max(0,y/(.8*h))*.6;pos.setX(v,pos.getX(v)*taper);}
       pos.needsUpdate=true;
-      const strand=new THREE.Mesh(kgeo,kelpMat.clone());
-      strand.position.set((Math.random()-.5)*2,h/2,(Math.random()-.5)*2);
-      strand.rotation.y=Math.random()*Math.PI*2;
-      group.add(strand);
-      // Phase 11C — cross-plane: clone strand 90° offset zodat kelp van
-      // alle camera-hoeken een 3D-silhouet heeft ipv transparante 1-plane
-      // pop bij zijaanzicht. Mobile: skip om draw-calls te besparen.
+      const rotY=Math.random()*Math.PI*2;
+      const px=(Math.random()-.5)*2, py=h/2, pz=(Math.random()-.5)*2;
+      _mtx.makeRotationY(rotY);_mtx.setPosition(px,py,pz);
+      const g1=kgeo.clone();g1.applyMatrix4(_mtx);_parts.push(g1);
       if(!_M){
-        const strand2=strand.clone();
-        strand2.rotation.y += Math.PI/2;
-        group.add(strand2);
+        _mtx.makeRotationY(rotY+Math.PI/2);_mtx.setPosition(px,py,pz);
+        const g2=kgeo.clone();g2.applyMatrix4(_mtx);_parts.push(g2);
       }
+      kgeo.dispose();
     }
+    const _mergedKelp=THREE.BufferGeometryUtils.mergeBufferGeometries(_parts);
+    for(const _pg of _parts)_pg.dispose();
+    group.add(new THREE.Mesh(_mergedKelp,kelpMat.clone()));
     group._swayPhase=Math.random()*Math.PI*2;
     group._swaySpeed=.6+Math.random()*.5;
     scene.add(group);_kelpList.push(group);
