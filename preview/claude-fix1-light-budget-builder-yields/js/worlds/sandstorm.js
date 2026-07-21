@@ -1490,7 +1490,7 @@ function _ssBuildRoadsideDetail(){
 
 // ── Main builders ───────────────────────────────────────────────────────
 
-function buildSandstormEnvironment(){
+async function buildSandstormEnvironment(){
   // Weather reset — sandstorm has its own dust-storm hazard mechanic and is
   // fundamentally incompatible with weather-rain. The isRain / _rainTarget /
   // _rainIntensity globals persist across world-switches; without an explicit
@@ -1507,6 +1507,11 @@ function buildSandstormEnvironment(){
   // conventie als space/guangzhou); álle spans gaan naar de span-ring voor
   // longtask-attributie. Defensieve fallback conform window.perfMark-patroon.
   const _S=(l,fn)=>window._perfSpan?window._perfSpan('build.world.sandstorm.'+l,fn):fn();
+  // Fix-sessie 1 (audit rang 3, deepsea-patroon): yields tussen de
+  // helper-groepen — builder was één ononderbroken main-thread-taak.
+  // Volgorde ongewijzigd; call-site await'te al; dust-devil-scheduling
+  // blijft strikt als laatste (leest de race-klok).
+  const Y=(typeof _yieldBuild==='function')?_yieldBuild:()=>Promise.resolve();
   // ── Ground (sand canvas, anisotropy/repeat matches default-world style)
   _S('ground',()=>{
     const g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
@@ -1552,6 +1557,7 @@ function buildSandstormEnvironment(){
     }));
     scene.add(_sandstormFlecks);_sandstormFlecksGeo=geo;
   });
+  await Y();
   // ── World props (Phase 3 visual upgrade) ────────────────
   // Two depth-tiered horizon layers:
   //   1. Shared silhouette layers from track/environment.js (cylinder rings
@@ -1563,13 +1569,16 @@ function buildSandstormEnvironment(){
   _S('backgroundMesas',_ssBuildBackgroundMesas);
   _S('canyonCliffs',_ssBuildCanyonCliffs);
   _S('sandDunes',_ssBuildSandDunes);
+  await Y();
   _S('sphinxMonument',_ssBuildSphinxMonument);
   _S('templeRuins',_ssBuildTempleRuins);
   _S('obelisks',_ssBuildObelisks);
+  await Y();
   _S('palmTrees',_ssBuildPalmTrees);
   _S('camels',_ssBuildCamels);
   _S('pyramids',_ssBuildPyramids);
   _S('bedouinTents',_ssBuildBedouinTents);
+  await Y();
   // Phase-4 §4.2: 6 prop-type roadside detail spawner. Replaces the
   // standalone _ssBuildScarabSigns (folded in as one of the 6 types).
   _S('roadsideDetail',_ssBuildRoadsideDetail);
@@ -1597,6 +1606,7 @@ function buildSandstormEnvironment(){
     }
     stars.instanceMatrix.needsUpdate=true;scene.add(stars);
   }
+  await Y();
   // GLTF roadside props skipped — sandstorm has no GLTF manifest.
   _S('closeBand',_ssBuildCloseBand);          // Phase 12A
   _S('buriedObjects',_ssBuildBuriedObjects);  // Phase 11D
