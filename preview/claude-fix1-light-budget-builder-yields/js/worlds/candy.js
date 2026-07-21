@@ -124,7 +124,7 @@ function _applyCandyDayLighting(){
 }
 if(typeof window!=='undefined')window._applyCandyDayLighting=_applyCandyDayLighting;
 
-function buildCandyEnvironment(){
+async function buildCandyEnvironment(){
   // Weather reset — Sugar Rush is a fantasy candy world; water-rain would
   // visually clash (melting sugar). Clear leaked rain state from a previous
   // world or the title-screen rain toggle.
@@ -140,18 +140,27 @@ function buildCandyEnvironment(){
   // als space/guangzhou); álle spans gaan naar de span-ring voor longtask-
   // attributie. Defensieve fallback conform het window.perfMark-patroon.
   const _C=(l,fn)=>window._perfSpan?window._perfSpan('build.world.candy.'+l,fn):fn();
+  // Fix-sessie 1 (audit rang 3, deepsea-patroon): yields tussen de
+  // helper-groepen zodat de builder niet één ononderbroken main-thread-taak
+  // is — de world-loading-overlay blijft animeren en Chrome's
+  // "Page Unresponsive"-detector reset per taak. Volgorde ongewijzigd;
+  // de call-site (scene.js) await'te deze builder al.
+  const Y=(typeof _yieldBuild==='function')?_yieldBuild:()=>Promise.resolve();
   _C('dayLighting',_applyCandyDayLighting);
   _C('ground',buildCandyGround);
   _C('sky',buildCandySky);
+  await Y();
   _C('lollipopTrees',buildLollipopTrees);
   _C('candyCanes',buildCandyCanes);
   _C('chocolateRiver',buildChocolateRiver);
   _C('gumDropMountains',buildGumDropMountains);
+  await Y();
   _C('cakeBuilding',buildCakeBuilding);
   _C('candyGate',buildCandyGate);
   _C('carnivalLights',_buildCandyCarnivalLights);    // Verlaten-pretpark V1 — cinematic lamp-poles + cones
   _C('carnivalMist',_buildCandyCarnivalMist);        // Verlaten-pretpark V1 — ground fog + blinking markers
   _C('carnivalLandmarks',_buildCandyCarnivalLandmarks); // V3 prop-herontwerp Laag 1 — silhouet-attracties (reuzenrad/tenten/boog)
+  await Y();
   _C('sprinkleParticles',buildSprinkleParticles);
   _C('floatingCandyBits',buildFloatingCandyBits);
   _C('cottonCandyClouds',buildCottonCandyClouds);
@@ -159,12 +168,14 @@ function buildCandyEnvironment(){
   _C('barriers',buildCandyBarriers);
   _C('iceCreamCones',buildIceCreamCones);
   _C('cookieSpectators',buildCookieSpectators);
+  await Y();
   _C('closeBand',_buildCandyCloseBand);         // Phase 12A — foreground "whoosh" laag
   _C('midRing',_buildCandyMidRing);             // Phase 11A — mid-ground prop ring
   _C('midVariety',_buildCandyMidVariety);       // Phase 12B — geometry variation in mid-band
   _C('donutHoops',_buildCandyDonutHoops);       // Phase 12D — floating donut-hoops over track
   _C('lollipopGroupLights',_buildCandyLollipopGroupLights); // Phase 13B — practical cluster-lights
   _C('candyStacks',_buildCandyStacks);          // Phase 15 Step 3 — merged-geo candy stacks
+  await Y();
   _C('candyWrappers',_buildCandyWrappers);      // Phase 15 Step 4 — wrapped candies (4 IMs)
   _C('peppermintScatter',_buildPeppermintScatter); // Mockup pass — peppermint disks on grass
   _C('horizonSpecks',_buildCandyHorizonSpecks); // V3 prop-herontwerp Laag 3 — diepte-scatter richting horizon
