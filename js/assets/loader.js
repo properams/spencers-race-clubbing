@@ -569,10 +569,30 @@
     if (w.skybox_layers) for (const k in w.skybox_layers) if (w.skybox_layers[k]) out.add(w.skybox_layers[k]);
     return out;
   }
+  // Perf-arc It.3 (2026-07): desktop keep-last-N. Het alles-behalve-actief-
+  // evict-beleid maakte élke world-switch volledig koud — ook een herbezoek
+  // 10 seconden later (re-fetch + re-parse + re-decode + re-upload). Op
+  // desktop houden we nu de assets van de laatst bezochte N werelden vast;
+  // mobiel/iOS behoudt exact het oude evict-alles-pad (geheugenbudget was
+  // de reden van dit beleid — D3). N=2 = actieve + vorige wereld.
+  const _KEEP_LAST_N = 2;
+  const _worldVisitOrder = []; // most-recent-last
   function evictAllExcept(worldId){
     if (!_manifestLoaded || !_manifest || !_manifest.worlds) return { evicted: 0 };
     const _tEvict = performance.now();
     const keep = _collectKeepPaths(worldId);
+    const _keepWorlds = new Set([worldId]);
+    if (!window._isMobile){
+      const i = _worldVisitOrder.indexOf(worldId);
+      if (i >= 0) _worldVisitOrder.splice(i, 1);
+      _worldVisitOrder.push(worldId);
+      if (_worldVisitOrder.length > 8) _worldVisitOrder.shift();
+      for (const kw of _worldVisitOrder.slice(-_KEEP_LAST_N)){
+        if (kw === worldId) continue;
+        _keepWorlds.add(kw);
+        for (const p of _collectKeepPaths(kw)) keep.add(p);
+      }
+    }
     let evicted = 0;
     for (const [path, t] of _textureCache){
       if (!keep.has(path)){ _disposeCachedTexture(t); _textureCache.delete(path); evicted++; }
@@ -583,9 +603,11 @@
     for (const [path, gltf] of _modelCache){
       if (!keep.has(path)){ _disposeCachedModel(gltf); _modelCache.delete(path); evicted++; }
     }
-    // Andere worlds zijn niet meer geprealoaded — bij volgende switch terug-laden.
+    // Niet-gehouden worlds zijn niet meer gepreload — bij volgende switch
+    // terugladen. Keep-set-werelden behouden hun flag zodat een warm
+    // herbezoek preloadWorld() meteen laat returnen (It.3 LRU).
     for (const wId of Array.from(_worldPreloaded)){
-      if (wId !== worldId) _worldPreloaded.delete(wId);
+      if (!_keepWorlds.has(wId)) _worldPreloaded.delete(wId);
     }
     // Sync dispose-loop op het world-switch-pad; tot nu een blinde vlek
     // tussen build.disposeScene en build.track (2026-06 load-diagnose).

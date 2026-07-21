@@ -26,7 +26,7 @@ let _moonRadius=2400;
 // Niet gecached: disposeScene() ruimt 'm op bij elke world-switch.
 function _grassGroundTex(){
   const S=256,c=document.createElement('canvas');c.width=S;c.height=S;
-  const g=c.getContext('2d');
+  const g=c.getContext('2d',{willReadFrequently:true});
   g.fillStyle='#9aaa9a';g.fillRect(0,0,S,S);
   // Pixel noise (yellow-green speckle)
   const id=g.getImageData(0,0,S,S),d=id.data;
@@ -47,7 +47,7 @@ function _grassGroundTex(){
 }
 function _iceGroundTex(){
   const S=256,c=document.createElement('canvas');c.width=S;c.height=S;
-  const g=c.getContext('2d');
+  const g=c.getContext('2d',{willReadFrequently:true});
   g.fillStyle='#ddeef5';g.fillRect(0,0,S,S);
   // Subtle blue-ish noise
   const id=g.getImageData(0,0,S,S),d=id.data;
@@ -71,7 +71,7 @@ function _iceGroundTex(){
 }
 function _rockGroundTex(){
   const S=256,c=document.createElement('canvas');c.width=S;c.height=S;
-  const g=c.getContext('2d');
+  const g=c.getContext('2d',{willReadFrequently:true});
   g.fillStyle='#3a2a25';g.fillRect(0,0,S,S);
   const id=g.getImageData(0,0,S,S),d=id.data;
   for(let i=0;i<d.length;i+=4){
@@ -101,7 +101,7 @@ function _rockGroundTex(){
 }
 function _sandGroundTex(){
   const S=256,c=document.createElement('canvas');c.width=S;c.height=S;
-  const g=c.getContext('2d');
+  const g=c.getContext('2d',{willReadFrequently:true});
   g.fillStyle='#c0b08a';g.fillRect(0,0,S,S);
   const id=g.getImageData(0,0,S,S),d=id.data;
   for(let i=0;i<d.length;i+=4){
@@ -125,7 +125,7 @@ function _sandGroundTex(){
 }
 function _pavementGroundTex(){
   const S=256,c=document.createElement('canvas');c.width=S;c.height=S;
-  const g=c.getContext('2d');
+  const g=c.getContext('2d',{willReadFrequently:true});
   g.fillStyle='#888888';g.fillRect(0,0,S,S);
   const id=g.getImageData(0,0,S,S),d=id.data;
   for(let i=0;i<d.length;i+=4){

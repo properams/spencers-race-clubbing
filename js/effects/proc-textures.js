@@ -149,7 +149,7 @@
     const crackCount=opts.crackCount!=null?opts.crackCount:8;
     const ageWear=opts.ageWear!=null?opts.ageWear:0.5; // 0..1
     const c=_canvas(S,S);
-    const g=c.getContext('2d');
+    const g=c.getContext('2d',{willReadFrequently:true});
     // Base + grain noise
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     const id=_readImageData(g,0,0,S,S),d=id.data;
@@ -210,7 +210,7 @@
     const stratColors=opts.stratColors||['#7a3a1d','#a8643a','#8b4a25','#b87850','#cf8e60'];
     const ageWear=opts.ageWear!=null?opts.ageWear:0.4;
     const c=_canvas(S,S);
-    const g=c.getContext('2d');
+    const g=c.getContext('2d',{willReadFrequently:true});
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Horizontal bands, sub-pixel jitter on each band-line so strata
     // don't read as ruler-straight.
@@ -270,7 +270,7 @@
     const pebbleCount=opts.pebbleCount!=null?opts.pebbleCount:18;
     const edgeWear=opts.edgeWear!=null?opts.edgeWear:0;
     const c=_canvas(S,S);
-    const g=c.getContext('2d');
+    const g=c.getContext('2d',{willReadFrequently:true});
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Pixel noise (warm sand)
     const id=_readImageData(g,0,0,S,S),d=id.data;
@@ -410,7 +410,7 @@
     const stripeCount=opts.stripeCount||8;
     const colors=opts.colors||['#a83a25','#d4b890','#7a4a25'];
     const c=_canvas(S,S);
-    const g=c.getContext('2d');
+    const g=c.getContext('2d',{willReadFrequently:true});
     const stripeH=S/stripeCount;
     for(let i=0;i<stripeCount;i++){
       g.fillStyle=colors[i%colors.length];
@@ -443,7 +443,7 @@
     const baseColor=opts.baseColor||'#b89370';
     const glyphColor=opts.glyphColor||'#3a2418';
     const c=_canvas(S,S);
-    const g=c.getContext('2d');
+    const g=c.getContext('2d',{willReadFrequently:true});
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Grain underlay so glyphs don't sit on a flat base
     const id=_readImageData(g,0,0,S,S),d=id.data;
@@ -601,7 +601,7 @@
     const crackCount=opts.crackCount!=null?opts.crackCount:28;
     const sparkle=opts.sparkle!=null?opts.sparkle:0.35;
     const c=_canvas(S,S);
-    const g=c.getContext('2d');
+    const g=c.getContext('2d',{willReadFrequently:true});
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Pixel-noise base (cool blue shift)
     const id=_readImageData(g,0,0,S,S),d=id.data;
@@ -661,7 +661,7 @@
     const sprinkles=opts.sprinkles!==false;
     const bumpAlpha=opts.bumpAlpha!=null?opts.bumpAlpha:0.45;
     const c=_canvas(S,S);
-    const g=c.getContext('2d');
+    const g=c.getContext('2d',{willReadFrequently:true});
     g.fillStyle=baseColor; g.fillRect(0,0,S,S);
     // Soft pastel noise — minder ruig dan sand/stone (suiker is fijn)
     const id=_readImageData(g,0,0,S,S),d=id.data;
@@ -749,7 +749,7 @@
       return null;
     }
     const w = srcCanvas.width, h = srcCanvas.height;
-    const sctx = srcCanvas.getContext('2d');
+    const sctx = srcCanvas.getContext('2d',{willReadFrequently:true});
     const src = _readImageData(sctx, 0, 0, w, h).data;
     const out = _canvas(w, h);
     const octx = out.getContext('2d');

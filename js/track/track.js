@@ -28,7 +28,7 @@ function _buildTrackSurfaceTex(opts){
   const wetness=Math.max(0,Math.min(1,o.wetness||0));
   const laneColor=o.laneColor||'#f0f0f0';
   const S=256,c=document.createElement('canvas');c.width=S;c.height=S;
-  const g=c.getContext('2d');
+  const g=c.getContext('2d',{willReadFrequently:true});
   // Base mid-grey (multiplied with vertex/material color → keeps world tint)
   g.fillStyle='#9a9a9a';g.fillRect(0,0,S,S);
   // Per-pixel noise via ImageData — values 130..200 (subtle variance)

@@ -83,7 +83,7 @@ function _gzGetLightTex(){
   if(_gzLightTex) return _gzLightTex;
   const c = document.createElement('canvas');
   c.width = c.height = 32;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', {willReadFrequently:true});
   const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
   gr.addColorStop(0,    'rgba(255,255,255,1.00)');
   gr.addColorStop(0.3,  'rgba(255,255,255,0.85)');
@@ -454,7 +454,7 @@ function makeGuangzhouNightSkyTex(){
 function _gzGroundTex(){
   const S = 256, c = document.createElement('canvas');
   c.width = S; c.height = S;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', {willReadFrequently:true});
   // Base wet-dark asphalt
   g.fillStyle = '#0a0c12'; g.fillRect(0, 0, S, S);
   // Per-pixel grain — very dark range (8..16) with blue-shift
