@@ -1,0 +1,2 @@
+# Alleen atelier-scoped ignores — raakt de rest van de repo niet.
+pipeline/node_modules/
