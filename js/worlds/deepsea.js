@@ -1140,7 +1140,12 @@ function buildDeepSeaNightObjects(){
   // on adjacent coral when night-mode toggles intensity. With 6×2=12 pods spaced
   // along the track the bioluminescent ring still reads.
   const _M_pods = !!window._isMobile;
-  const PC = _M_pods ? 12 : 6;
+  // OS Fase B (mobiele matrix 2026-07-18): de ternary stond omgekeerd —
+  // mobiel bouwde 12 pods (=24 lichten), desktop 6, tegen het comment
+  // hierboven in. Nu overal 6. De intensity-0-PL's voeden alleen bloom
+  // (comment hierboven) en bloom staat op mobiel uit → op mobiel worden de
+  // lichten helemaal niet aangemaakt (pods blijven; count blijft stabiel).
+  const PC = 6;
   for(let li=0;li<PC;li++){
     const t=li/PC;const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
     const nr=new THREE.Vector3(-tg.z,0,tg.x);
@@ -1149,8 +1154,10 @@ function buildDeepSeaNightObjects(){
       const pod=new THREE.Mesh(new THREE.SphereGeometry(.3,6,5),
         new THREE.MeshBasicMaterial({color:0x00ffcc,transparent:true,opacity:.9}));
       pod.position.copy(pp);pod.position.y=.3;pod.visible=false;scene.add(pod);trackPoles.push(pod);
-      const pl=new THREE.PointLight(0x00ffaa,0,12);pl.position.copy(pp);pl.position.y=.3;
-      scene.add(pl);trackLightList.push(pl);
+      if(!_M_pods){
+        const pl=new THREE.PointLight(0x00ffaa,0,12);pl.position.copy(pp);pl.position.y=.3;
+        scene.add(pl);trackLightList.push(pl);
+      }
     });
   }
 }
