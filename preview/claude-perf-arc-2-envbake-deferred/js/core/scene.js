@@ -1545,15 +1545,6 @@ async function buildScene(opts){
   if(window.perfMark)perfMark('build:assetBridge:start');
   if(typeof maybeUpgradeWorld==='function'){maybeUpgradeWorld._lastCalledFrom='sceneBuild';maybeUpgradeWorld(activeWorld);}
   if(window.perfMark){perfMark('build:assetBridge:end');perfMeasure('build.assetBridge','build:assetBridge:start','build:assetBridge:end');}
-  // CubeCamera scene-env bake: replaces the sky-based env with a real cube
-  // rendering of the live 3D world (buildings, lava, neon, trees show in
-  // car clearcoat reflections). Skips on mobile. Sky-based env stays the
-  // fallback if PMREM/CubeCamera fails. Cost: ~5-15ms desktop, runs once
-  // per world build. See js/core/env-baker.js.
-  await _yieldBuild();
-  if(window.perfMark)perfMark('build:envBake:start');
-  if(typeof window._applySceneEnvBake==='function')window._applySceneEnvBake();
-  if(window.perfMark){perfMark('build:envBake:end');perfMeasure('build.envBake','build:envBake:start','build:envBake:end');}
   await _yieldBuild();
   // Pre-compile materials voor de nieuwe wereld. _precompileScene roept
   // alleen renderer.compile() aan; de daadwerkelijke shader-link + GPU-
@@ -1586,6 +1577,18 @@ async function buildScene(opts){
     }
     if(window.perfMark){perfMark('build:precompile:end');perfMeasure('build.precompile','build:precompile:start','build:precompile:end');}
   }
+  // CubeCamera scene-env bake: replaces the sky-based env with a real cube
+  // rendering of the live 3D world (buildings, lava, neon, trees show in
+  // car clearcoat reflections). Skips on mobile. Sky-based env stays the
+  // fallback if PMREM/CubeCamera fails. See js/core/env-baker.js — sinds
+  // perf-arc It.2 gespreid over rAF's (deferred). Verplaatst tot NÁ de
+  // precompile (It.2-bench-les): de sync-bake warmde voorheen impliciet
+  // alle shaders op waardoor precompile goedkoop leek; in deze volgorde
+  // compileert precompile gebudgetteerd en renderen de bake-faces met
+  // warme programs — geldt voor het deferred én het kill-switch-sync-pad.
+  if(window.perfMark)perfMark('build:envBake:start');
+  if(typeof window._applySceneEnvBake==='function')window._applySceneEnvBake();
+  if(window.perfMark){perfMark('build:envBake:end');perfMeasure('build.envBake','build:envBake:start','build:envBake:end');}
   // Title warm-render: _precompileScene() roept alleen renderer.compile() aan,
   // wat shader-source uploadt + async compileert. Driver-link + texture-upload
   // + 1e shadow-pass gebeuren pas op het 1e echte renderer.render(). Op TITLE
