@@ -486,7 +486,8 @@ function buildSpaceTrackPlatform(){
   // underglow-lights volledig weg. Mobiel behoudt het bestaande pad (D3).
   const _M_ug = !!window._isMobile;
   const _UG_COUNT = { high: 8, mid: 4, low: 0 };
-  const UC = _M_ug ? 4 : (_UG_COUNT[window._qTier] !== undefined ? _UG_COUNT[window._qTier] : 8);
+  // It.6: mobiel 4 -> 2 (zelfde livetest; emissive walls dragen de glow al).
+  const UC = _M_ug ? 2 : (_UG_COUNT[window._qTier] !== undefined ? _UG_COUNT[window._qTier] : 8);
   const glowCols=[0x00ffcc,0x8800ff,0x00aaff,0xff00aa];
   for(let i=0;i<UC;i++){
     const t=i/UC;const p=trackCurve.getPoint(t);
@@ -714,7 +715,11 @@ function buildSpaceOrbs(){
   // Stride per tier is de tunable; mobiel behoudt het bestaande _M-pad (D3).
   // high: 36 lichten · mid: 18 · low: 12 (was overal 72).
   const _ORB_LIGHT_STRIDE = { high: 2, mid: 4, low: 6 };
-  const _orbStride = _M ? 1 : (_ORB_LIGHT_STRIDE[window._qTier] || _ORB_LIGHT_STRIDE.high);
+  // It.6 (eigenaars-livetest mobiel 2026-07-18: "cosmic super langzaam,
+  // hapert overal"): mobiel had na fix1 nog stride 1 -> 36 forward-lights,
+  // méér dan desktop-low (12). Nu stride 3 op de 18 mobiele orb-posities
+  // -> 6×2 = 12 lichten; alle orb-meshes (emissive 2.8) blijven.
+  const _orbStride = _M ? 3 : (_ORB_LIGHT_STRIDE[window._qTier] || _ORB_LIGHT_STRIDE.high);
   const cols=[0x00ffff,0xff00ff,0x00ff88,0x8844ff];
   for(let i=0;i<OC;i++){
     const t=i/OC;
