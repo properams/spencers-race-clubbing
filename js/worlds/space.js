@@ -481,8 +481,12 @@ function buildSpaceTrackPlatform(){
     ()=> new THREE.MeshLambertMaterial({color:0xff00ff,emissive:0xcc00cc,emissiveIntensity:.9,transparent:true,opacity:.5,side:THREE.DoubleSide})));
   // Underglow point lights — 8 widely-spaced lights (emissive walls already provide glow).
   // Mobile: halve to 4 — PointLights with distance:55 zijn duur en de emissive walls dragen.
+  // Fix-sessie 1 (audit rang 1): desktop-budget per quality-tier — de
+  // emissive walls dragen de glow al, dus mid halveert en low laat de
+  // underglow-lights volledig weg. Mobiel behoudt het bestaande pad (D3).
   const _M_ug = !!window._isMobile;
-  const UC = _M_ug ? 4 : 8;
+  const _UG_COUNT = { high: 8, mid: 4, low: 0 };
+  const UC = _M_ug ? 4 : (_UG_COUNT[window._qTier] !== undefined ? _UG_COUNT[window._qTier] : 8);
   const glowCols=[0x00ffcc,0x8800ff,0x00aaff,0xff00aa];
   for(let i=0;i<UC;i++){
     const t=i/UC;const p=trackCurve.getPoint(t);
@@ -702,6 +706,15 @@ function buildSpaceOrbs(){
   // 36 → 18 orbs ook 36 PointLights bespaart (grootste single win in space).
   const _M = !!window._isMobile;
   const OC = _M ? 18 : 36;
+  // Fix-sessie 1 (audit rang 1): desktop-lichtbudget per quality-tier.
+  // Álle orb-meshes blijven staan (emissiveIntensity 2.8 draagt het
+  // lichtsnoer-beeld); alleen 1 op de N orb-posities krijgt nog een echte
+  // PointLight. 72 forward-lights op elk desktop-tier domineerden de
+  // space-framekost (zie docs/diagnostics/perf-consolidatie-2026-07-18.md).
+  // Stride per tier is de tunable; mobiel behoudt het bestaande _M-pad (D3).
+  // high: 36 lichten · mid: 18 · low: 12 (was overal 72).
+  const _ORB_LIGHT_STRIDE = { high: 2, mid: 4, low: 6 };
+  const _orbStride = _M ? 1 : (_ORB_LIGHT_STRIDE[window._qTier] || _ORB_LIGHT_STRIDE.high);
   const cols=[0x00ffff,0xff00ff,0x00ff88,0x8844ff];
   for(let i=0;i<OC;i++){
     const t=i/OC;
@@ -713,8 +726,11 @@ function buildSpaceOrbs(){
       const orb=new THREE.Mesh(new THREE.SphereGeometry(.75,8,8),
         new THREE.MeshLambertMaterial({color:col,emissive:col,emissiveIntensity:2.8}));
       orb.position.copy(pp);orb.position.y=4.2;scene.add(orb);
-      const pl=new THREE.PointLight(col,2.0,18);pl.position.copy(orb.position);scene.add(pl);
-      trackLightList.push(pl);trackPoles.push(orb);
+      if(i % _orbStride === 0){
+        const pl=new THREE.PointLight(col,2.0,18);pl.position.copy(orb.position);scene.add(pl);
+        trackLightList.push(pl);
+      }
+      trackPoles.push(orb);
     });
   }
 }

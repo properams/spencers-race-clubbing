@@ -1258,7 +1258,7 @@ function _p47BuildDockClutter(){
 //   9. Wet-asphalt material swap in track.js (sessie-2 commit 3)
 //  10. Headlights + sparse always-off stars (sessie-1)
 //  11. Motregen default + drizzle particle pool (sessie-3 commit 1 — NEW)
-function buildPier47Environment(){
+async function buildPier47Environment(){
   // Pier 47 default weather = motregen (sessie 3). Unlike sandstorm which
   // clears any inherited rain, pier47 LEANS INTO it: rain on, intensity
   // capped at 0.6 (drizzle, not pouring). The shared updateWeather() lerp
@@ -1278,6 +1278,10 @@ function buildPier47Environment(){
   // als space/guangzhou); álle spans gaan naar de span-ring voor longtask-
   // attributie. Defensieve fallback conform het window.perfMark-patroon.
   const _P=(l,fn)=>window._perfSpan?window._perfSpan('build.world.pier47.'+l,fn):fn();
+  // Fix-sessie 1 (audit rang 3, deepsea-patroon): yields tussen de
+  // helper-groepen — builder was één ononderbroken main-thread-taak.
+  // Volgorde ongewijzigd (rain-set blijft eerst); call-site await'te al.
+  const Y=(typeof _yieldBuild==='function')?_yieldBuild:()=>Promise.resolve();
   // Ground — flat dark-concrete kade. 2400² to fill the world; matches the
   // sandstorm/arctic pattern. y=-0.15 sits below the y=0.005 track ribbon.
   _P('ground',()=>{
@@ -1298,6 +1302,7 @@ function buildPier47Environment(){
   // shared cinematic.js helpers, replacing the sessie-2 minimal version.
   // Variation: 2-3 lamps "broken" (no light), 2-3 subtly tilted ("oude").
   _P('cinematicLamps',_p47BuildCinematicLamps);
+  await Y();
   // Industrial props (sessie 2 commit 2):
   //   • Containers — sectors 1 + 2 (Container Run + The Yard)
   //   • Warehouse — sector 3 / 4 corner (loods at WP9 90° right)
@@ -1306,6 +1311,7 @@ function buildPier47Environment(){
   _P('warehouse',_p47BuildWarehouse);
   _P('cranes',_p47BuildCranes);
   _P('ophaalbrug',_p47BuildOphaalbrug);
+  await Y();
   // Dock-clutter: vaten, pallets, kabelhaspels, bollards, pipes + 4 beacons.
   // Alles InstancedMesh per type → 5 nieuwe draw-calls totaal (+ pipes als
   // shared-material statics). Geen nieuwe PointLights — beacons zijn
@@ -1316,6 +1322,7 @@ function buildPier47Environment(){
   // Both via shared cinematic.js helpers; pulses driven by updateCinematic.
   _P('distantMarkers',_p47BuildDistantMarkers);
   _P('cityGlow',_p47BuildCityGlow);
+  await Y();
   // Cinematic motion: register subtle speed-scaled camera shake. Cleared
   // automatically on world-switch via resetCinematicState().
   if (typeof enableCinematicCameraShake === 'function'){
@@ -1373,6 +1380,7 @@ function buildPier47Environment(){
     }
     stars.instanceMatrix.needsUpdate=true;scene.add(stars);
   }
+  await Y();
   // ── Phase 10.8 — drifting fog patches over kade ──────────────────────
   // 3 shared sprite-instances die langzaam langs random paden glijden
   // boven de haven. Wrap rond camera als ze te ver weg drijven. Slate-
