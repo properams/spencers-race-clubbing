@@ -1,0 +1,14 @@
+{
+  "name": "atelier-pipeline",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Optimize-pipeline voor de atelier: raw image→3D-output → genormaliseerde GLB in assets/clean/",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@gltf-transform/core": "^4.2.1",
+    "@gltf-transform/extensions": "^4.2.1",
+    "@gltf-transform/functions": "^4.2.1",
+    "meshoptimizer": "^0.24.0"
+  }
+}
