@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230e0f11'/%3E%3Crect x='3' y='3' width='10' height='10' fill='none' stroke='%23ff4d00' stroke-width='2'/%3E%3C/svg%3E">
+  <title>atelier</title>
+  <style>
+    :root {
+      --bg: #0e0f11;
+      --panel: rgba(17, 19, 22, 0.86);
+      --line: #26292d;
+      --text: #c9cdd1;
+      --dim: #7a8188;
+      --accent: #ff4d00; /* het ene accent */
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+      font-family: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+      font-variant-numeric: tabular-nums; }
+    #stage { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+
+    /* ── topbalk ─────────────────────────────────────────────── */
+    #hud { position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 16px;
+      padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(6px); user-select: none; }
+    #hud .titel { font-size: 13px; font-weight: 700; letter-spacing: 0.32em; text-transform: uppercase; }
+    #hud .sub { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
+    #hud .vullen { flex: 1; }
+    #hud-stats { font-size: 11px; color: var(--text); white-space: nowrap; }
+    #hud-stats .dim { color: var(--dim); }
+    #hud-stats .over { color: var(--accent); font-weight: 700; }
+    #budgetbar { width: 180px; height: 4px; background: #1a1d20; border: 1px solid var(--line);
+      position: relative; }
+    #budgetfill { height: 100%; width: 0%; background: #9aa1a8; }
+    #budgetfill.over { background: var(--accent); }
+    #ijkpunt { font-size: 10px; color: var(--dim); white-space: nowrap; }
+
+    /* ── labels boven assets ─────────────────────────────────── */
+    #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    .chip { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+      padding: 6px 8px; font-size: 10.5px; line-height: 1.45; min-width: 118px;
+      backdrop-filter: blur(4px); }
+    .chip:hover { border-color: #3a3f45; }
+    .chip.fout { border-color: var(--accent); }
+    .chip b { font-size: 11px; letter-spacing: 0.04em; }
+    .chip .meta { color: var(--dim); }
+    .chip .rij { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 3px; }
+    .chip .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px;
+      vertical-align: 1px; border: 1px solid var(--dim); }
+    .chip .dot.st-review { background: transparent; }
+    .chip .dot.st-goedgekeurd { background: #e6e9ec; border-color: #e6e9ec; }
+    .chip .dot.st-afgekeurd { background: var(--accent); border-color: var(--accent); }
+    .chip button.wf { pointer-events: auto; cursor: pointer; font: inherit; font-size: 9.5px;
+      color: var(--dim); background: none; border: 1px solid var(--line); border-radius: 2px;
+      padding: 1px 6px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .chip button.wf:hover { color: var(--text); border-color: var(--dim); }
+    .chip button.wf.aan { color: var(--accent); border-color: var(--accent); }
+    .chip .foutmelding { color: var(--accent); }
+
+    /* ── legenda + statusmeldingen ───────────────────────────── */
+    #legenda { position: fixed; left: 14px; bottom: 12px; font-size: 10px; color: var(--dim);
+      letter-spacing: 0.05em; user-select: none; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 3px; padding: 6px 10px; }
+    #legenda b { color: var(--text); font-weight: 600; }
+    #status { position: fixed; inset: 0; display: none; place-items: center; text-align: center;
+      pointer-events: none; }
+    #status.zichtbaar { display: grid; }
+    #status .kader { background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+      padding: 18px 22px; font-size: 12px; color: var(--dim); line-height: 1.7; }
+    #status code { color: var(--text); background: #1a1d20; padding: 2px 6px; border-radius: 2px;
+      font-size: 11px; }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div id="hud">
+    <div>
+      <div class="titel" id="hud-titel">atelier</div>
+      <div class="sub">asset-showroom · kwaliteitspoort</div>
+    </div>
+    <div class="vullen"></div>
+    <div id="hud-stats">—</div>
+    <div id="budgetbar"><div id="budgetfill"></div></div>
+    <div id="ijkpunt">ijkpunt —</div>
+  </div>
+
+  <div id="labels"></div>
+
+  <div id="legenda">
+    <b>sleep</b> draai · <b>scroll</b> zoom · <b>shift+sleep</b> pan · <b>klik</b> focus ·
+    <b>W</b> wireframe · <b>R</b> reset
+  </div>
+
+  <div id="status"><div class="kader" id="status-tekst"></div></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.min.js",
+      "three/addons/": "./vendor/addons/"
+    }
+  }
+  </script>
+  <script type="module" src="./atelier.js?v=1"></script>
+</body>
+</html>

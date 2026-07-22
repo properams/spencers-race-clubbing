@@ -1,0 +1,19 @@
+{
+  "_format": "atelier-manifest v1",
+  "_doel": "Eigen manifest van de standalone atelier (asset-showroom). Staat volledig los van assets/manifest.json — geen game-code leest dit bestand.",
+  "_statuswaarden": ["review", "goedgekeurd", "afgekeurd"],
+  "_voorbeeld": {
+    "id": "rc_kart_v1",
+    "categorie": "voertuig",
+    "rol": "speler-kart",
+    "licentie": "eigen werk — image→3D (TRELLIS, MIT)",
+    "credit": "eigen concept-art → TRELLIS",
+    "tris": 4980,
+    "status": "review",
+    "file": "assets/clean/rc_kart_v1.glb",
+    "source": "assets/raw/rc_kart_v1_raw.glb",
+    "added": "2026-07-21"
+  },
+  "budget_tris_totaal": 1500000,
+  "entries": []
+}
