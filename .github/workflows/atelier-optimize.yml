@@ -1,0 +1,111 @@
+# Atelier optimize — draait de asset-pipeline in CI zodat de hele flow
+# vanaf een telefoon kan (een telefoon kan geen Node draaien).
+#
+# Trigger: een raw GLB die op master in atelier/assets/raw/ belandt (bv. via
+# github.com ▸ Upload files), of handmatig via "Run workflow" met een tris-doel.
+# Resultaat: genormaliseerde GLB in atelier/assets/clean/ + entry in
+# atelier/manifest.json, teruggecommit naar master → Vercel redeployt.
+#
+# Volledig atelier-scoped: raakt uitsluitend atelier/**. De commit gebruikt de
+# ingebouwde GITHUB_TOKEN, en die pushes triggeren zelf geen workflows —
+# samen met het pad-filter (alleen raw/) kan er geen lus ontstaan.
+name: atelier-optimize
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'atelier/assets/raw/**'
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'Raw GLB (pad of bestandsnaam; leeg = alle raws zonder clean)'
+        required: false
+        default: ''
+      tris:
+        description: 'Tris-doel voor simplify'
+        required: false
+        default: '5000'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atelier-optimize
+  cancel-in-progress: false
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installeer pipeline-deps
+        working-directory: atelier/pipeline
+        run: npm ci
+
+      - name: Bepaal en optimaliseer raw-assets
+        env:
+          EVENT: ${{ github.event_name }}
+          IN_FILE: ${{ github.event.inputs.file }}
+          IN_TRIS: ${{ github.event.inputs.tris }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TRIS="${IN_TRIS:-5000}"
+          declare -a FILES=()
+          if [ "$EVENT" = "workflow_dispatch" ] && [ -n "${IN_FILE:-}" ]; then
+            case "$IN_FILE" in
+              atelier/assets/raw/*) FILES+=("$IN_FILE") ;;
+              */*)                   FILES+=("$IN_FILE") ;;
+              *)                     FILES+=("atelier/assets/raw/$IN_FILE") ;;
+            esac
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
+            for r in atelier/assets/raw/*.glb; do
+              [ -e "$r" ] || continue
+              id="$(basename "$r" .glb)"; id="${id%_raw}"
+              [ -e "atelier/assets/clean/$id.glb" ] || FILES+=("$r")
+            done
+          else
+            if [ -z "${BEFORE:-}" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              CHANGED="$(git show --no-commit-id --name-only --pretty="" "$SHA")"
+            else
+              CHANGED="$(git diff --name-only "$BEFORE" "$SHA")"
+            fi
+            while IFS= read -r line; do
+              [ -n "$line" ] && FILES+=("$line")
+            done < <(printf '%s\n' "$CHANGED" | grep -E '^atelier/assets/raw/.*\.glb$' || true)
+          fi
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "Geen raw-GLB om te verwerken."
+            exit 0
+          fi
+          for f in "${FILES[@]}"; do
+            if [ ! -e "$f" ]; then echo "overslaan (bestaat niet): $f"; continue; fi
+            echo "::group::optimize $f (tris=$TRIS)"
+            node atelier/pipeline/optimize.mjs "$f" --tris "$TRIS"
+            echo "::endgroup::"
+          done
+
+      - name: Commit clean + manifest terug
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add atelier/assets/clean atelier/manifest.json
+          if git diff --cached --quiet; then
+            echo "Niets veranderd — geen commit."
+            exit 0
+          fi
+          git commit -m "atelier: optimize assets (auto) [skip ci]"
+          git pull --rebase origin master
+          git push origin HEAD:master

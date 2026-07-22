@@ -30,6 +30,9 @@ wireframe-toggle. HUD toont het lopende tris-totaal tegen het **ijkpunt van
 studio-belichting, geen game-haze — de vorm is wat je beoordeelt.
 Sneltoetsen: `W` wireframe alles · `R` reset camera · klik = focus.
 
+> 📱 Alles vanaf je telefoon doen? Zie [`MOBILE.md`](MOBILE.md) — de
+> optimize-stap draait dan automatisch in GitHub Actions.
+
 ## De volle keten: concept → game
 
 ### 1. Concept-art (2D, vaste stijl)
