@@ -1,0 +1,12 @@
+# Wegwerp deploy-preview-snapshots — niet langer in git getrackt.
+# Zie docs/DECISIONS.md (Fase B): 44 snapshots blazen de checkout op tot ~4,2 GB
+# en 97,6% van de bestanden, terwijl de game vanaf de Vercel-/Pages-root draait
+# en niets uit preview/ leest. History blijft intact; alleen tracking stopt.
+preview/
+
+# Node
+node_modules/
+
+# OS-rommel
+.DS_Store
+Thumbs.db
