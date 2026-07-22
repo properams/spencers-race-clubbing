@@ -270,5 +270,45 @@ verhuist naar een eigen repo + eigen Vercel-project.
 
 ---
 
-*Einde Fase A. Harde stop: geen reorganisatie, rename of verdere wijzigingen tot
-er een verdict is voor Fase B.*
+## Addendum (2026-07-22) — repo-topologie bevestigd
+
+Na Fase A gaf Jur toestemming om de overige account-repo's in te zien. Dat
+beantwoordt de open vragen uit dit rapport en corrigeert de uitgangs-aanname.
+
+**De account-repo's** (via `list_repos`):
+
+| Repo | Zichtbaarheid | Laatste push | Rol |
+|---|---|---|---|
+| `spencers-race-clubbing` | public | 2026-07-22 | **publish-mirror** race-game + native `atelier/` |
+| `srclub-workspace` | private | 2026-07-22 | **dev-source** race-game (pkg `spencers-race-club`, esbuild) |
+| `game-engine` | private | 2026-07-22 | **de "tuin"** — garden-walk + racer (three r184, WebGPU/TSL, Vite, TS) |
+| `Playground` | private | 2026-07-21 | niet geïnspecteerd (lijkt scratch) |
+
+**Bevestigde bevindingen die dit rapport bijstelt:**
+
+1. **Geen "merge" — het zijn drie repo's.** De tuin (`game-engine`) en de
+   race-game-dev (`srclub-workspace`) zijn aparte privé-repo's, elk met een
+   volledige werkwijze-laag. Deze publieke repo is de publish-mirror waar later
+   `atelier/` native aan toegevoegd is.
+2. **De game-bestanden hier zijn gegenereerd.** `srclub-workspace/.github/
+   workflows/publish.yml` bouwt (esbuild) en doet `cp index.html sw.js` +
+   `rsync -a --delete` op `assets/ css/ data/ dist/ js/` naar deze repo. Dit
+   verklaart de gecommitte `dist/`-bundels zonder in-repo build (sectie 2).
+3. **`preview/` is een deploy-mechanisme, geen toevallige bloat.**
+   `publish-preview.yml` deployt elke `claude/**`-branch naar
+   `…/spencers-race-clubbing/preview/<safe-branch>/`. Vandaar de 44 snapshots.
+4. **Waarom hier geen handover (sectie 3), nu scherper:** de werkwijze-laag
+   leeft in de privé-bronrepo's; sessies die op déze publieke mirror openen
+   (voor atelier of om de gepubliceerde game te bekijken) erven niets.
+5. **Extra rename-afhankelijkheid buiten deze repo:** `publish.yml`,
+   `publish-preview.yml` en `cleanuppublicbranches.yml` in `srclub-workspace`
+   hardcoden `properams/spencers-race-clubbing`. Een rename breekt de
+   publish-keten tot die refs zijn bijgewerkt (zie `docs/RENAME_RUNBOOK.md`).
+
+**Gevolg voor Fase B:** de werkwijze-laag in deze repo is gescoped op het native
+werk (atelier + repo-onderhoud) en documenteert expliciet dat de game-bestanden
+gegenereerd zijn. Governance voor de game/tuin zelf blijft in de privé-repo's.
+
+---
+
+*Einde Fase A + addendum.*

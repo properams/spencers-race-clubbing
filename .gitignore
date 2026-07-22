@@ -1,0 +1,11 @@
+# Node
+node_modules/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+
+# Let op: dist/ is BEWUST gecommit (sw.js pre-cachet de bundels, geen
+# build-stap in de repo). preview/ is momenteel óók gecommit (44 snapshots,
+# ~4,2 GB) — opruimen staat op de backlog, zie docs/BACKLOG.md.

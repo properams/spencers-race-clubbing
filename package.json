@@ -1,0 +1,11 @@
+{
+  "name": "race-club",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Spencer's Race Club — browser-based 3D arcade racer (root) + de atelier asset-showroom. Werktitel-slug 'race-club'; zie docs/RENAME_RUNBOOK.md.",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "verify": "node scripts/verify.mjs"
+  }
+}
