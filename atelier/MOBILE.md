@@ -10,13 +10,28 @@ het optimaliseren (Node) — draait automatisch in GitHub Actions
 
 ## Per asset
 
-1. **Concept-art (2D)** — genereer of teken één object, ¾-hoek, egale neutrale
-   achtergrond. Bewaar de PNG in je Foto's/Files.
+1. **Concept-art (2D)** — genereer in je browser, bv. Bing Image Creator
+   (bing.com/images/create), Leonardo.ai of Ideogram.ai. Bewaar de PNG in
+   je Foto's/Files.
+
+   **Recept voor een goed image→3D-resultaat** (bepaalt de kwaliteit!):
+   - één object, gecentreerd, vult ~70-80% van het beeld
+   - effen neutrale achtergrond (wit/lichtgrijs) — geen scène, geen
+     grondschaduw, geen andere objecten erbij
+   - ¾-aanzicht (niet zuiver front- of top-down — geeft meer diepte-info)
+   - zachte, egale studio-belichting, geen harde slagschaduw
+   - vermijd glas/spiegelend/transparant en dunne uitstekende delen
+   - voorbeeldprompt: *"a single [object], ¾ view, plain white studio
+     background, soft even lighting, no shadow on the ground, product
+     photo style"*
 
 2. **Image→3D** — open in je browser een gratis Space, upload de PNG, genereer,
    **download de GLB**:
    - TRELLIS — https://huggingface.co/spaces/JeffreyXiang/TRELLIS
    - Hunyuan3D — https://huggingface.co/spaces/tencent/Hunyuan3D-2
+   - Trage gratis wachtrij? fal.ai/models/fal-ai/trellis heeft een
+     **Playground**-tab (webformulier, geen curl/terminal nodig) — betaald
+     per run, wel sneller/stabieler.
 
 3. **Upload naar de repo** — github.com → repo → map `atelier/assets/raw/` →
    **Add file ▸ Upload files** → kies de GLB → hernoem naar `naam_raw.glb` →
@@ -32,9 +47,19 @@ het optimaliseren (Node) — draait automatisch in GitHub Actions
 5. **Vercel redeployt** automatisch op de master-push (~1 min).
 
 6. **Beoordeel op je telefoon** — open in een **privétab**:
-   `https://<jouw-vercel-project>.vercel.app/atelier/`
-   Turntable draaien, silhouet checken, **wire**-toggle voor topologie, tris
-   tegen het ijkpunt van 1.500.000.
+   `https://spencers-race-clubbing.vercel.app/atelier/`
+
+   Bediening op mobiel (de `W`/`R`-sneltoetsen in de legenda zijn
+   desktop-only en werken niet zonder toetsenbord):
+   - **1 vinger slepen** = draaien, **pinch** = zoomen, **2 vingers
+     slepen** = pannen (touch werkt gewoon)
+   - **wireframe**: tik de **"wire"-knop op de chip** van dat ene asset
+     (een tik-knop, geen sneltoets) — er is nog geen mobiele knop voor
+     "alles wireframe" of "camera resetten"
+
+   Kijk naar: silhouet op de turntable, wireframe (topologie-rommel),
+   tris in de chip, pivot t.o.v. de ring, en het lopende totaal tegen het
+   1.5M-ijkpunt.
 
 7. **Oordeel vastleggen** — github.com → `atelier/manifest.json` → potlood ✏️ →
    zet `"status"` op `goedgekeurd` of `afgekeurd` → Commit.
