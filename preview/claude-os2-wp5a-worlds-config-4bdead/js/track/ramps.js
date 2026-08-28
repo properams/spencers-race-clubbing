@@ -27,11 +27,13 @@ function buildJumpRamps(){
     const padLen=9,padW=TW*1.5;
     const h=def.h;
 
-    // Per-world colours
-    const isSpR=activeWorld==='space',isDsR=activeWorld==='deepsea',isSsR=activeWorld==='sandstorm';
-    const padCol=isSpR?0x6600cc:isDsR?0x006644:isSsR?0xcc6622:0xff4400;
-    const padEmit=isSpR?0x8833ff:isDsR?0x00aacc:isSsR?0xff8833:0xff7722;
-    const stripeColR=isSpR?0x00ccff:isDsR?0x00ffaa:isSsR?0xffd870:0xffdd00;
+    // Per-world colours — registry-veld `jumpRamp` is sparse: alleen
+    // werelden met eigen kleuren hebben een waarde; de rest (en onbekende
+    // werelden) valt op de oranje defaults hieronder.
+    const _jrCfg=getWorldConfig(activeWorld).jumpRamp;
+    const padCol=_jrCfg?_jrCfg.pad:0xff4400;
+    const padEmit=_jrCfg?_jrCfg.emit:0xff7722;
+    const stripeColR=_jrCfg?_jrCfg.stripe:0xffdd00;
 
     // Flat glowing launchpad on the track — no obstacle
     const padMat=_shMat('ramps/jump-pad#col='+padCol+'#em='+padEmit+'#ei=1.2#op=0.880#t=T#s=0#pf=-3/-3', function(){
@@ -96,25 +98,9 @@ function buildJumpRamps(){
 
 function buildSpinPads(){
   const spinDefs=[{t:.18},{t:.50},{t:.84}];
-  // Per-world palette — hazard theme
-  const SP={
-    space:    {disc:0x0033cc,emit:0x001188,ring:0x00aaff,cone:0x8866ff,marker:0x4422cc},
-    deepsea:  {disc:0x005566,emit:0x003344,ring:0x00ddcc,cone:0x44ffcc,marker:0x00aa88},
-    candy:    {disc:0xff3388,emit:0xcc0066,ring:0xff66bb,cone:0xffdd44,marker:0xffaa00},
-    volcano:  {disc:0xaa3300,emit:0x661100,ring:0xff6622,cone:0xff9922,marker:0xcc2200},
-    arctic:   {disc:0x336699,emit:0x113366,ring:0x66ccff,cone:0xbbeeff,marker:0x4488cc},
-    sandstorm:{disc:0x8b4a25,emit:0x5a2818,ring:0xff8c42,cone:0xd4a55a,marker:0xc97232},
-    // Pier 47 — sodium-amber matching the lamp anchor (#ff8830) in
-    // js/worlds/pier47.js. Without this entry the lookup falls back to
-    // SP.space (#0033cc) which reads as cold blue against the warm
-    // overcast harbour palette.
-    pier47:   {disc:0xa04020,emit:0x661511,ring:0xff8830,cone:0xffaa44,marker:0xa04020},
-    // Guangzhou — neon-magenta disc matching kerbEmissive (#ff2080).
-    // Without this entry the lookup falls back to SP.space (#0033cc dark blue)
-    // which clashes with the magenta/cyan neon palette.
-    guangzhou:{disc:0xaa1050,emit:0x660830,ring:0xff2080,cone:0x00e0ff,marker:0xff2080},
-  };
-  const pal=SP[activeWorld]||SP.space;
+  // Per-world palette (hazard theme) — registry-veld `spinPads`; zonder
+  // rij-waarde valt de lookup terug op de space-rij.
+  const pal=getWorldConfig(activeWorld).spinPads||WORLDS.space.spinPads;
 
   spinDefs.forEach(def=>{
     const p=trackCurve.getPoint(def.t).clone();p.y=.015;
@@ -176,24 +162,9 @@ function buildSpinPads(){
 
 
 function buildBoostPads(){
-  // Per-world palette
-  const BP={
-    space:    {pad:0xcc00ff,emit:0x8800cc,chev:0xffccff,glow:0xff88ff,light:0xff44ff},
-    deepsea:  {pad:0x00cc88,emit:0x007744,chev:0xaaffdd,glow:0x00ffaa,light:0x00ffaa},
-    candy:    {pad:0xff55aa,emit:0xcc2277,chev:0xffddee,glow:0xff88cc,light:0xff66bb},
-    volcano:  {pad:0xff5522,emit:0xdd2200,chev:0xffdd99,glow:0xff8844,light:0xff4422},
-    arctic:   {pad:0x66ddff,emit:0x2288cc,chev:0xe8f5ff,glow:0x99ddff,light:0x88ccff},
-    sandstorm:{pad:0xff8c42,emit:0xcc4a18,chev:0xffe4a8,glow:0xff9c52,light:0xff8c42},
-    // Pier 47 — sodium-amber matching the lamp anchor (#ff8830) in
-    // js/worlds/pier47.js. Avoids the BP.space (#cc00ff magenta)
-    // fallback which would clash with the warm overcast harbour palette.
-    pier47:   {pad:0xff8830,emit:0xa04020,chev:0xffcc88,glow:0xffaa44,light:0xff8830},
-    // Guangzhou — neon-magenta boost pad matching lamp pole cyan + kerbEmissive.
-    // Avoids the BP.space (#cc00ff magenta) fallback which would clash with the
-    // dual magenta/cyan neon palette by being indistinguishable.
-    guangzhou:{pad:0xff2080,emit:0xaa1050,chev:0x00e0ff,glow:0xff60a0,light:0xff2080},
-  };
-  const pal=BP[activeWorld]||BP.space;
+  // Per-world palette — registry-veld `boostPads`; zonder rij-waarde valt
+  // de lookup terug op de space-rij.
+  const pal=getWorldConfig(activeWorld).boostPads||WORLDS.space.boostPads;
 
   const boostDefs=[
     {t:.04},{t:.22},{t:.43},{t:.48},{t:.53},{t:.71},{t:.80},{t:.93},

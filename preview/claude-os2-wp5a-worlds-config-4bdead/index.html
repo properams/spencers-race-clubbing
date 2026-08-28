@@ -956,6 +956,10 @@
      ze worden lazy-geïnjecteerd door boot.js wanneer ?dev=1 of localStorage
      src_dev='1' actief is. Bespaart ~111 KB JS-parse op cold load. -->
 <script defer src="js/config.js"></script>
+<!-- Centrale WORLDS-registry (per-wereld data-rijen, WP5a/D19). Moet vóór
+     álle consumers staan (postfx, scene, track/ramps/collectibles, physics);
+     ES modules lezen hem uitsluitend lazy via window.WORLDS. -->
+<script defer src="js/core/world-config.js"></script>
 <script defer src="dist/device.bundle.js"></script>
 <script defer src="dist/breadcrumb.bundle.js"></script>
 <script defer src="dist/perf.bundle.js"></script>

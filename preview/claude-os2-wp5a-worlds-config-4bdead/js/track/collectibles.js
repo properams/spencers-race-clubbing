@@ -17,28 +17,10 @@ let _lastCollectAudioT=0;
 let _lastCoinPopupT=0;
 
 function buildCollectibles(){
-  // Per-world palette — coin, emissive, rim highlight, halo glow, light colour
-  const PAL={
-    space:    {coin:0x66ccff,emit:0x2288ff,rim:0xcce8ff,halo:0x66aaff,light:0x88bbff},
-    deepsea:  {coin:0xffaa33,emit:0xcc7700,rim:0xffd999,halo:0xffaa00,light:0xffaa44},
-    candy:    {coin:0xff77cc,emit:0xdd2288,rim:0xffddf0,halo:0xff55aa,light:0xff66cc},
-    volcano:  {coin:0xff7722,emit:0xff2200,rim:0xffcc88,halo:0xff4411,light:0xff4422},
-    arctic:   {coin:0xaadfff,emit:0x4488dd,rim:0xe8f5ff,halo:0x88bbee,light:0xaaddff},
-    // Sandstorm — warm sand-orange coin matching the canyon palette
-    // (sand: #ff8c42, halo: #ff9c52). Without this entry the lookup
-    // falls back to PAL.space (#66ccff cyan) which clashes with the
-    // warm desert tones.
-    sandstorm:{coin:0xff8c42,emit:0xc97232,rim:0xffe4a8,halo:0xff9c52,light:0xffaa66},
-    // Pier 47 — sodium-amber matching the lamp anchor (#ff8830) in
-    // js/worlds/pier47.js. Avoids the PAL.space (#66ccff cyan) fallback
-    // which clashes with the warm overcast harbour palette.
-    pier47:   {coin:0xff8830,emit:0xa04020,rim:0xffcc88,halo:0xffaa44,light:0xff9933},
-    // Guangzhou — neon-magenta coin matching the kerbEmissive (#ff2080) in
-    // js/worlds/guangzhou.js. Avoids the PAL.space (#66ccff cyan) fallback
-    // which reads as monotone against the already-cyan lamp poles.
-    guangzhou:{coin:0xff2080,emit:0xaa1050,rim:0xff80c0,halo:0xff40a0,light:0xff2080},
-  };
-  const pal=PAL[activeWorld]||PAL.space;
+  // Per-world palette (coin, emissive, rim highlight, halo glow, light
+  // colour) — registry-veld `collectibles`; zonder rij-waarde valt de
+  // lookup terug op de space-rij.
+  const pal=getWorldConfig(activeWorld).collectibles||WORLDS.space.collectibles;
 
   const positions=[.07,.18,.30,.42,.55,.67,.78,.90];
   positions.forEach(t=>{
