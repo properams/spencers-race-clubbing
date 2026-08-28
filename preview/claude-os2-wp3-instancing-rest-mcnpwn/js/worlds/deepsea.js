@@ -881,24 +881,22 @@ function _dsaJellyBellOBC(shader){
 }
 function _dsaJellyTentOBC(shader){
   shader.uniforms.uTime=_dsaSwayU.uTime;
+  // Kleur/opacity lopen via three's ingebouwde vertex-color-pad: attribute
+  // 'color' met itemSize 4 + vertexColors:true → USE_COLOR_ALPHA, en
+  // <color_fragment> doet dan al diffuseColor *= vColor. Alleen de
+  // positie-keten hoeft geïnjecteerd. (Bells kunnen dit niet: per-instance
+  // kleur, en instanceColor is vec3 in r160 — geen alpha.)
   shader.vertexShader=
     'uniform float uTime;\n'+
     'attribute vec3 aJOffset;\n'+  // groepscentrum (jx, jy0, jz)
     'attribute vec3 aJParam;\n'+   // phase0, bobSpeed, bobAmp
-    'attribute vec4 aJColor;\n'+   // rgb + tentakel-opacity
-    'varying vec4 vJColor;\n'+
     // Tentakels pulsen niet (scale.y raakte alleen de bell); wel spin + bob.
     shader.vertexShader.replace('#include <begin_vertex>',
-      'vJColor=aJColor;\n'+
       'float jPh=aJParam.x+uTime*aJParam.y;\n'+
       'float jCa=cos(uTime*0.15), jSa=sin(uTime*0.15);\n'+
       'vec3 transformed=vec3(position.x*jCa+position.z*jSa, position.y, -position.x*jSa+position.z*jCa);\n'+
       'transformed+=aJOffset;\n'+
       'transformed.y+=sin(jPh)*aJParam.z;');
-  shader.fragmentShader=
-    'varying vec4 vJColor;\n'+
-    shader.fragmentShader.replace('#include <color_fragment>',
-      '#include <color_fragment>\n\tdiffuseColor*=vJColor;');
 }
 function _dsaRayOBC(shader){
   shader.uniforms.uTime=_dsaSwayU.uTime;
@@ -993,8 +991,8 @@ function buildJellyfish(){
   tentGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(tentPos),3));
   tentGeo.setAttribute('aJOffset',new THREE.BufferAttribute(new Float32Array(tentOff),3));
   tentGeo.setAttribute('aJParam',new THREE.BufferAttribute(new Float32Array(tentParam),3));
-  tentGeo.setAttribute('aJColor',new THREE.BufferAttribute(new Float32Array(tentCol),4));
-  const tentMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true});
+  tentGeo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(tentCol),4));
+  const tentMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,vertexColors:true});
   tentMat.onBeforeCompile=_dsaJellyTentOBC;
   const tent=new THREE.LineSegments(tentGeo,tentMat);
   // frustumCulled=false is hier een harde eis, geen optimalisatie: position
