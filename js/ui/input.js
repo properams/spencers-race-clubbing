@@ -5,7 +5,6 @@
 //   keys, gameState, _camView, _mirrorEnabled
 //   carObjs, playerIdx, _pitStopActive, _pitStopUsed
 //   _hwKeyboardDetected, _touchControlsReady (in main.js gedeclareerd)
-//   _fpsShow (in core/loop.js gedeclareerd)
 //   togglePause, toggleMute (ui/pause.js)
 //   showPopup (ui/hud.js)
 //   setCamView (gameplay/camera.js)
@@ -23,7 +22,7 @@ window.addEventListener('keydown',e=>{
     if(e.code==='Enter'){e.preventDefault();if(typeof goToSelectAgain==='function')goToSelectAgain();return;}
   }
   if(e.code==='KeyM')toggleMute();
-  if(e.code==='F3'){e.preventDefault();_fpsShow=!_fpsShow;const fo=document.getElementById('fpsOverlay');if(fo)fo.style.display=_fpsShow?'block':'none';}
+  if(e.code==='F3'){e.preventDefault();if(typeof window.togglePerf==='function')window.togglePerf();}
   if(e.code==='KeyC'&&(gameState==='RACE'||gameState==='FINISH')){
     _camView=(_camView+1)%4;
     const names=['CHASE CAM','HELI CAM','HOOD CAM','BUMPER CAM'];

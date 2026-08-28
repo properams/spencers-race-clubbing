@@ -1846,10 +1846,11 @@ window._precompileScene=_precompileScene;
 // zichtbaar via navigation.js' raceStartOverlay / boot.js' loadingScreen;
 // deze fix levert main-thread vrij periodiek aan event loop.
 //
-// Feature-detect compileAsync (r152+) — als ooit beschikbaar in de vendor-
-// build (huidige assets/vendor/three-r160.min.js heeft 'm niet), gebruik
-// die native async-route. Fallback: per-mesh compile via scene.traverse,
-// yield elke BATCH_SIZE_DEFAULT meshes.
+// Feature-detect compileAsync (r152+) — sinds #99 levert de vendor-build
+// (assets/vendor/three-r160.min.js, échte r160) die wél, dus de native
+// async-route is het actieve pad op boot én wissel (rebaseline-ledger
+// 2026-08-28 §2). Fallback: per-mesh compile via scene.traverse, yield
+// elke BATCH_SIZE_DEFAULT meshes — onbereikbaar op de geleverde vendor.
 //
 // labelFn(i, N) wordt per voltooide batch aangeroepen voor UI-feedback
 // (setStatus in goToRace, SrcLoader.setLabel in buildScene-pad). Optional.
@@ -1860,8 +1861,10 @@ async function _precompileSceneChunked(opts){
   const labelFn = opts.labelFn;
   if(!renderer||!scene||!camera)return;
 
-  // Native fast-path. compileAsync sinds r152, niet in deze vendor build —
-  // maar feature-detect houdt het pad open voor toekomstige upgrade.
+  // Native fast-path. compileAsync sinds r152; de geleverde vendor is
+  // échte r160 (#99), dus dit ís het pad dat draait — runtime-bewijs:
+  // de span build.precompile.compileAsync verschijnt in elke boot
+  // (rebaseline-ledger 2026-08-28 §2).
   if(typeof renderer.compileAsync==='function'){
     if(window.perfMark)perfMark('precompile:compileAsync:start');
     try{ await renderer.compileAsync(scene,camera); }

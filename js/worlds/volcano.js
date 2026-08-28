@@ -68,14 +68,27 @@ function buildVolcanoEnvironment(){
   // Reset Track Identity Pass state on each rebuild so a quit→restart
   // doesn't carry the previous race's lap-3 intensity into lap 1.
   _volcanoIntensity=1.0;_volcanoLap=1;_volcanoBigEruptionFired=false;
+  // Sub-blok-metingen (OS2-WP5c): mechanische wrap van de inline build-
+  // blokken via window._perfSpan (debug.js). Spans >=5ms landen als
+  // build.world.volcano.<blok> in perfLog (zelfde naamconventie als
+  // candy/sandstorm/pier47); álle spans gaan naar de span-ring voor
+  // longtask-attributie. Puur meetinstrumentatie — volgorde en gedrag
+  // ongewijzigd; defensieve fallback conform het window.perfMark-patroon.
+  const _V=(l,fn)=>window._perfSpan?window._perfSpan('build.world.volcano.'+l,fn):fn();
+  // vm/lm zijn naar functie-scope getild: het hero-blok maakt ze aan en
+  // het secondaryVolcanoes-blok leest ze (ProcDecor-batch materials).
+  let vm,lm;
+  _V('ground',()=>{
   // Ground
   const g=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),
     _vMat({color:0x4a2515,map:_rockGroundTex()},{metalness:0.0,roughness:0.85},'lava-rock'));
   g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
   g.userData._isProcGround=true;
   scene.add(g);
+  });
   // Sky + fog set in core/scene.js so updateSky's lerp uses world-matched colors.
-  _applyVolcanoDayLighting();
+  _V('dayLighting',_applyVolcanoDayLighting);
+  _V('eruption',()=>{
   _volcanoGlowLight=new THREE.PointLight(0xff4400,3.0,600);
   _volcanoGlowLight.position.set(0,5,0);scene.add(_volcanoGlowLight);
   // Eruption particle system — lava blobs shooting out of main crater
@@ -97,6 +110,8 @@ function buildVolcanoEnvironment(){
     eruptLight.position.set(0,70,-350);scene.add(eruptLight);
     _volcanoEruption={geo:geo,pts:pts,vel:vel,life:life,N:PN,craterPos:new THREE.Vector3(0,70,-350),light:eruptLight,phase:'idle',phaseTimer:0};
   }
+  });
+  _V('hero',()=>{
   // ── Main volcano hero (Track Identity Pass redesign 2026-05-08) ──
   // Coherent silhouet via:
   //   1. Body: CylinderGeometry(15, 120, 150, 16) — open caldera mouth
@@ -110,10 +125,10 @@ function buildVolcanoEnvironment(){
   //      van caldera-lip naar cone-base via per-channel Y-rotated Group
   //      met rotation.z = atan(105/150) en position.x = 67.5
   //      (slope-midpoint).
-  const vm=_vMat({color:0x1a0800},{metalness:0.0,roughness:0.85},'lava-rock');
+  vm=_vMat({color:0x1a0800},{metalness:0.0,roughness:0.85},'lava-rock');
   // Phase 13A — lava materials MeshStandard voor speculaire highlights
   // op molten rims. Lava is "wet" molten rock dus lage roughness.
-  const lm=new THREE.MeshStandardMaterial({
+  lm=new THREE.MeshStandardMaterial({
     color:0xff4400, emissive:0xff2200, emissiveIntensity:1.2,
     roughness:0.18, metalness:0.30, envMapIntensity:1.4
   });
@@ -183,6 +198,8 @@ function buildVolcanoEnvironment(){
     heroGroup.add(channelGroup);
     _volcanoLavaRivers.push({mesh:channel,baseInt:1.0});
   }
+  });
+  _V('secondaryVolcanoes',()=>{
   // Secondary volcanoes — reject placements that overlap track. Threshold = trackHalfWidth + cone radius + safety margin.
   // Dense 200-sample scan (was 50): catches the true min-distance instead of an
   // optimistic over-estimate that let cones overlap the road when the spline
@@ -249,7 +266,9 @@ function buildVolcanoEnvironment(){
     }
   });
   ProcDecor.buildSecondaryVolcanoBatch(scene,_secVolcPos,{bodyMaterial:vm,lavaMaterial:lm});
+  });
 
+  _V('lavaRivers',()=>{
   // Phase 14: lava rivers — 12 cloned-material planes → 1 IM. Single shared
   // material pulst sync (alle 12 samen); voor achtergrond aanvaardbaar.
   // Spawn-posities apart bewaard voor bubble-particles + lava-glow lights
@@ -282,6 +301,8 @@ function buildVolcanoEnvironment(){
       });
     }
   }
+  });
+  _V('embers',()=>{
   // Ember particles
   var EN=_mobCount(400),egeo=new THREE.BufferGeometry();
   var epos=new Float32Array(EN*3),ecol=new Float32Array(EN*3);
@@ -298,6 +319,8 @@ function buildVolcanoEnvironment(){
   // Points-mesh staat statisch; alleen de geometry.attributes worden per
   // frame ge-update. matrixAutoUpdate=false bespaart de updateMatrix call.
   if(window._freezeMatrix)window._freezeMatrix(_volcanoEmbers);
+  });
+  _V('geysers',()=>{
   // Geysers
   [.22,.52,.78].forEach(function(t,gi){
     var p=trackCurve.getPoint(t).clone();
@@ -310,14 +333,18 @@ function buildVolcanoEnvironment(){
     var pl=new THREE.PointLight(0xff4400,2.0,22);pl.position.copy(p);pl.position.y=2;scene.add(pl);
     _volcanoGeisers.push({pos:p.clone(),geyser:gey,light:pl,active:false,timer:5+gi*3,activeDur:2.5});
   });
+  });
   // Bridge over lava (signature moment — collapsing in lap 3).
-  if(typeof buildVolcanoBridge==='function')buildVolcanoBridge();
+  if(typeof buildVolcanoBridge==='function')_V('bridge',buildVolcanoBridge);
   // Barriers
-  buildBarriers();buildStartLine();
+  _V('barriers',()=>{buildBarriers();buildStartLine();});
+  _V('lights',()=>{
   // Lights setup (headlights/taillights)
   plHeadL=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);plHeadR=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);
   scene.add(plHeadL);scene.add(plHeadL.target);scene.add(plHeadR);scene.add(plHeadR.target);
   plTail=new THREE.PointLight(0xff2200,0,10);scene.add(plTail);
+  });
+  _V('stars',()=>{
   // Stars (ember-colored)
   var sg=new THREE.SphereGeometry(.18,4,4),ssm=new THREE.MeshBasicMaterial({color:0xff4400,transparent:true,opacity:.8});
   stars=new THREE.InstancedMesh(sg,ssm,60);stars.visible=true;
@@ -328,8 +355,9 @@ function buildVolcanoEnvironment(){
     dm.scale.setScalar(.6+Math.random()*1.2);dm.updateMatrix();stars.setMatrixAt(i,dm.matrix);
   }
   stars.instanceMatrix.needsUpdate=true;scene.add(stars);
+  });
   // GLTF roadside props — rocks + burnt trees in the volcanic landscape.
-  if(window.spawnRoadsideProps){
+  if(window.spawnRoadsideProps)_V('roadsideProps',()=>{
     // Rocks + lava-crystal chunks track-side.
     window.spawnRoadsideProps('volcano',{
       propKeys:['rock_basalt_small','rock_basalt_medium','lava_chunk'],
@@ -353,12 +381,12 @@ function buildVolcanoEnvironment(){
         offsetMin: BARRIER_OFF + 30, offsetMax: BARRIER_OFF + 55,
       });
     }
-  }
-  _buildVolcanoCloseBand();      // Phase 12A
-  _buildVolcanoMidRing();        // Phase 11A
-  _buildVolcanoFarSilhouette();  // Phase 12C
-  _buildVolcanoHangingVines();   // Phase 12D
-  _buildVolcanoLavaGlowLights(); // Phase 13B
+  });
+  _V('closeBand',_buildVolcanoCloseBand);           // Phase 12A
+  _V('midRing',_buildVolcanoMidRing);               // Phase 11A
+  _V('farSilhouette',_buildVolcanoFarSilhouette);   // Phase 12C
+  _V('hangingVines',_buildVolcanoHangingVines);     // Phase 12D
+  _V('lavaGlowLights',_buildVolcanoLavaGlowLights); // Phase 13B
 }
 
 // Phase 13B — practical PointLights vanaf lava-rivers zodat nabije

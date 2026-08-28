@@ -261,8 +261,11 @@
     const btnFps = document.createElement('button');
     btnFps.textContent = 'FPS';
     btnFps.addEventListener('click', () => {
-      const ov = document.getElementById('fpsOverlay');
-      if(ov) ov.style.display = (ov.style.display === 'block' ? 'none' : 'block');
+      // WP5c (ledger P-7): wees eerst naar het dode #fpsOverlay-id. De
+      // echte FPS-HUD is #perfOverlay (dist/perf.bundle.js); togglePerf
+      // bouwt dat element lazy én start de refresh-timer — een kale
+      // display-toggle zou een leeg/bevroren paneel tonen.
+      if(typeof window.togglePerf === 'function') window.togglePerf();
     });
     actions.appendChild(btnFps);
 
