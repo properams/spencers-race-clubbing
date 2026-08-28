@@ -167,25 +167,46 @@ function buildArcticEnvironment(){
   // ── Crystal clusters alongside track (sparkly) ──
   // Phase 13C — 2 shared materials zodat helft van crystals desync pulst
   // (avoid harsh strobing). Cache aan _arcticCrystalMatA/B voor update.
+  // WP3 (#107, R6): 42/21 losse octahedron-meshes → 2 InstancedMesh, één
+  // per gedeeld materiaal zodat de desync-pulse in updateArcticWorld
+  // ongewijzigd doorwerkt. Radius zit als uniforme schaal in de instance-
+  // matrix i.p.v. in per-crystal geometry; plaatsingsformules identiek.
   var crystalM=new THREE.MeshLambertMaterial({color:0xccefff,emissive:0x4499cc,emissiveIntensity:.4,transparent:true,opacity:.75});
   var crystalM2=new THREE.MeshLambertMaterial({color:0xccefff,emissive:0x4499cc,emissiveIntensity:.4,transparent:true,opacity:.75});
   _arcticCrystalMatA = crystalM;
   _arcticCrystalMatB = crystalM2;
+  // Capaciteit: (i+k)%2 splitst _mobCount(14)*3 crystals maximaal in
+  // ceil(helft)+1 per IM (desktop 21/21, mobiel 11/10); count-fixup na de
+  // loop, zelfde patroon als deepsea buildCoralReefs.
+  var crCap=Math.ceil(_mobCount(14)*3/2)+1;
+  var crImA=new THREE.InstancedMesh(new THREE.OctahedronGeometry(1,0),crystalM,crCap);
+  var crImB=new THREE.InstancedMesh(new THREE.OctahedronGeometry(1,0),crystalM2,crCap);
+  crImA.count=0;crImB.count=0;
+  var _crDummy=new THREE.Object3D();
   for(var i=0;i<_mobCount(14);i++){
     var tt=(i/14+.04+Math.random()*.02)%1;
     var p=trackCurve.getPoint(tt),tgv=trackCurve.getTangent(tt).normalize();
     var nr=new THREE.Vector3(-tgv.z,0,tgv.x);
     var side=(i%2===0?-1:1)*(BARRIER_OFF+4+Math.random()*6);
     var cx=p.x+nr.x*side,cz=p.z+nr.z*side;
-    // 3-crystal cluster — alternate materials zodat helft pulst desync
+    // 3-crystal cluster — alternate IMs zodat helft pulst desync
     for(var k=0;k<3;k++){
-      var crMat = ((i+k) % 2 === 0) ? crystalM : crystalM2;
-      var cr=new THREE.Mesh(new THREE.OctahedronGeometry(.55+Math.random()*.4,0),crMat);
-      cr.position.set(cx+(Math.random()-.5)*1.8,.6+Math.random()*.8,cz+(Math.random()-.5)*1.8);
-      cr.rotation.set(Math.random(),Math.random(),Math.random());
-      scene.add(cr);
+      var crIm = ((i+k) % 2 === 0) ? crImA : crImB;
+      _crDummy.position.set(cx+(Math.random()-.5)*1.8,.6+Math.random()*.8,cz+(Math.random()-.5)*1.8);
+      _crDummy.rotation.set(Math.random(),Math.random(),Math.random());
+      var crS=.55+Math.random()*.4;
+      _crDummy.scale.set(crS,crS,crS);
+      _crDummy.updateMatrix();
+      crIm.setMatrixAt(crIm.count++,_crDummy.matrix);
     }
   }
+  crImA.instanceMatrix.needsUpdate=true;
+  crImB.instanceMatrix.needsUpdate=true;
+  // Instances beslaan de hele ring — zelfde IM-beleid als proc-decor/
+  // mid-ring: frustumCulled uit (1 draw-submit) + lod-cull opt-out.
+  crImA.frustumCulled=false;crImA.userData._noLodCull=true;
+  crImB.frustumCulled=false;crImB.userData._noLodCull=true;
+  scene.add(crImA);scene.add(crImB);
   // Snowbank mounds — Phase 14: 20 losse Meshes → 1 IM met jittered duneCap.
   var _snowMoundPos=[];
   for(var i=0;i<_mobCount(20);i++){
