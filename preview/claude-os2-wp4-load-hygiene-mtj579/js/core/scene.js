@@ -1005,6 +1005,11 @@ if(typeof window!=='undefined') window._yieldBuild=_yieldBuild;
 
 async function buildScene(opts){
   opts = opts || {};
+  // WP4 rang 7 — build-volgnummer voor de goToRace prewarm-cache: een
+  // herstart in dezelfde build (QuickRestart → goToSelectAgain → goToRace)
+  // hoeft de multi-pose/mirror prewarm-renders niet te herhalen; elke
+  // (re)build invalideert de cache doordat dit nummer verspringt.
+  window._sceneBuildSeq = (window._sceneBuildSeq|0) + 1;
   // opts.deferPrecompile: sla de zware _precompileSceneChunked over. Alleen
   // gezet door de boot-build (boot.js), die een wereld bouwt die de speler
   // nog niet bevestigd heeft — kiest hij een andere wereld in de carousel,

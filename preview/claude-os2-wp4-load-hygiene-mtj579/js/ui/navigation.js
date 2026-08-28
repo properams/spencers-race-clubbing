@@ -128,10 +128,26 @@ function _warmRenderOnePose(player, pose){
   }
 }
 
-// Multi-pose warm-render: rendert 4 poses (intro, chase, lucht, mirror) zodat
-// elke verwachte view-frustum tijdens de race vooraf gewarmd is. Camera-state
-// na afloop: laatste pose. Caller (goToRace) zet 'm daarna terug naar intro.
-function _warmRenderMultiPose(player){
+// WP4 rang 7 (knijpen) — mirror-prewarm alleen als het runtime-mirror-pad
+// ook echt kan renderen: zelfde expressie als de mirror-gate in loop.js
+// (incl. de _qFlags-ontbreekt-fallback). Op LOW en mobiel staat mirror per
+// tier uit; pose D/D2 en de mirror-prewarm-render warmen daar een pad dat
+// tijdens de race nooit draait (headless gemeten: samen 14-26s verspild
+// per race-start op SwiftShader-low).
+function _mirrorPrewarmWanted(){
+  const _qf = window._qFlags;
+  if(_qf) return !!_qf.mirror;
+  return (typeof _lowQuality !== 'undefined') ? !_lowQuality : true;
+}
+
+// Multi-pose warm-render: rendert de race-relevante poses (intro, chase,
+// lucht en — alleen op mirror-tiers — mirror) zodat elke verwachte
+// view-frustum tijdens de race vooraf gewarmd is. Camera-state na afloop:
+// laatste pose. Caller (goToRace) zet 'm daarna terug naar intro.
+// WP4 rang 7 (spreiden): async met één frame-yield tussen de poses, zodat
+// de eerste-draw-link-kost per pose (headless: pose A 4-19s) niet in één
+// longtask stapelt en de overlay-spinner blijft lopen.
+async function _warmRenderMultiPose(player){
   if(!camera || !renderer || !scene || !player || !player.mesh) return;
   // WP4 rang 7 — per-pose sub-spans (goToRace.warmRender.pose*) zodat de
   // headless harnas ziet wélke pose de eerste-draw-link-kost draagt.
@@ -159,6 +175,7 @@ function _warmRenderMultiPose(player){
     lookX: px+_wrV2.x, lookY: py+_wrV2.y, lookZ: pz+_wrV2.z,
     fov: 80
   }));
+  await _nextFrame();
 
   // Pose B — chase-cam vanaf grid (mimickt eerste race-frame). Offsets en
   // baseFov gespiegeld uit camera.js:181-238 zodat het frustum exact
@@ -182,6 +199,7 @@ function _warmRenderMultiPose(player){
     lookX: px+_wrV2.x, lookY: py+_wrV2.y, lookZ: pz+_wrV2.z,
     fov: _wrBaseFov
   }));
+  await _nextFrame();
 
   // Pose C — high-altitude airborne (mimick peak jump arc). Camera op ~9
   // units hoogte achter de auto, lookAt forward & lager. Triggert shader-
@@ -195,6 +213,13 @@ function _warmRenderMultiPose(player){
     fov: 65
   }));
 
+  // WP4 rang 7 (knijpen): pose D + D2 alleen op tiers waar de mirror echt
+  // rendert — op LOW/mobiel is het achterwaartse frustum tijdens de race
+  // onbereikbaar via het mirror-pad en warmen deze poses niets dat pose
+  // A/B/C niet al dekt (programs zijn per materiaal, niet per camera).
+  if(!_mirrorPrewarmWanted()) return;
+  await _nextFrame();
+
   // Pose D — mirror-backward view. Mimickt updateMirror() camera-pose
   // (camera.js:337-344): position binnen cabin, rotation = car rotation + π
   // (kijken achterwaarts). FOV 75 (mirrorCamera in scene.js:1289 is 68
@@ -205,6 +230,7 @@ function _warmRenderMultiPose(player){
     rotYDelta: Math.PI,
     fov: 75
   }));
+  await _nextFrame();
 
   // Bonus pose D2 — render door de echte mirrorCamera + mirrorRT pad als die
   // beschikbaar is. Dit warmt het readPixels-pad + mirrorCamera shader-
@@ -345,6 +371,14 @@ async function goToRace(){
   if(gameState!=='SELECT')return;
   if(window._raceStartInProgress)return;
   window._raceStartInProgress = true;
+  // WP4 rang 7 (cachen): prewarm-render-cache per scene-build. Bij een
+  // herstart in dezelfde build (QuickRestart → goToSelectAgain → goToRace)
+  // zijn alle programs al gelinkt en RT's gealloceerd; alleen de chase-
+  // render blijft dan staan als catch-all (nieuwe car-materialen van
+  // makeAllCars zijn dan al door precompileChunked+warmTextures gedekt).
+  // buildScene bumpt _sceneBuildSeq bij elke (re)build → cache invalide.
+  const _buildSeq = (typeof window._sceneBuildSeq==='number') ? window._sceneBuildSeq : 0;
+  const _freshBuild = (window._prewarmedBuildSeq !== _buildSeq);
   try{
     if(window._rpp)_rpp.mark('race:init',{world:activeWorld,laps:_selectedLaps,difficulty:difficulty});
     if(window.perfMark)perfMark('goToRace:start');
@@ -463,9 +497,13 @@ async function goToRace(){
     // bij hoge jumps (sky/far-LOD permutaties).
     if(window.perfMark)perfMark('goToRace:warmRender:start');
     try{
-      if(p && typeof _warmRenderMultiPose === 'function'){
-        if(window.dbg) dbg.measure('perf','warmRender.multiPose',()=>_warmRenderMultiPose(p));
-        else _warmRenderMultiPose(p);
+      if(!_freshBuild){
+        // Herstart op dezelfde build: poses al gewarmd, programs gelinkt.
+        // De chase-render in Fase 4.5 blijft de enige prewarm-render.
+        if(window.dbg) dbg.log('perf','warmRender.multiPose overgeslagen — zelfde build (prewarm-cache)');
+      } else if(p && typeof _warmRenderMultiPose === 'function'){
+        if(window.dbg) await dbg.measureAsync('perf','warmRender.multiPose',()=>_warmRenderMultiPose(p));
+        else await _warmRenderMultiPose(p);
       } else if(typeof renderWithPostFX==='function'){
         renderWithPostFX(scene,camera);
       } else if(renderer&&scene&&camera){
@@ -571,13 +609,15 @@ async function goToRace(){
           // pass actually renders the casters. Force one real render with
           // shadows enabled so de depth shaders tijdens de overlay-fase
           // compileren ipv op het 1e RACE-frame.
-          if(renderer.shadowMap){
-            const _wasShadowEnabled = renderer.shadowMap.enabled;
-            renderer.shadowMap.enabled = true;
+          // WP4 rang 7 (knijpen): alleen als shadows op dit tier al aan
+          // staan. Het oude pad forceerde enabled=true óók op LOW
+          // (shadows:false), en betaalde daar een volledige extra scene-
+          // render + depth-links voor een pipeline die tijdens de race
+          // nooit draait.
+          if(renderer.shadowMap && renderer.shadowMap.enabled){
             renderer.shadowMap.needsUpdate = true;
             try { renderer.render(scene, camera); }
             catch(e){ if(window.dbg) dbg.warn('perf','shadow prewarm render failed: '+(e&&e.message||e)); }
-            renderer.shadowMap.enabled = _wasShadowEnabled;
           }
         }
       }catch(e){
@@ -636,6 +676,13 @@ async function goToRace(){
     // (lazy buffers, lazy probes, mirror RT, first per-helper allocs) een
     // ~5s freeze geven op desktop. Hier draaien we ze één keer met dt~0
     // gemaskt door de overlay zodat die kosten al betaald zijn voor 'GO!'.
+    //
+    // WP4 rang 7: de drie segmenten (updates / mirror-render / chase-render,
+    // zie race-tick-warm.js) draaien met een frame-yield ertussen (spreiden);
+    // de mirror-render alleen op mirror-tiers én bij een verse build
+    // (knijpen + cachen). De overkoepelende goToRace.warmRaceTick-measure is
+    // hierdoor wall-time inclusief yields — de .updates/.mirror/.chase
+    // sub-spans blijven de blok-waarheid.
     if(window.perfMark)perfMark('goToRace:warmRaceTick:start');
     if(typeof window._warmRaceTick === 'function'){
       try{
@@ -645,7 +692,29 @@ async function goToRace(){
         if(window.dbg) dbg.warn('perf','warmRaceTick failed: '+(e && e.message || e));
       }
     }
+    await _nextFrame();
+    if(_freshBuild && !window._isMobile && _mirrorPrewarmWanted()
+       && typeof window._warmRaceTickMirrorRender === 'function'){
+      try{
+        if(window.dbg) dbg.measure('perf','warmRaceTick.mirror', window._warmRaceTickMirrorRender);
+        else window._warmRaceTickMirrorRender();
+      }catch(e){
+        if(window.dbg) dbg.warn('perf','warmRaceTick mirror-render failed: '+(e && e.message || e));
+      }
+      await _nextFrame();
+    }
+    if(typeof window._warmRaceTickChaseRender === 'function'){
+      try{
+        if(window.dbg) dbg.measure('perf','warmRaceTick.chase', window._warmRaceTickChaseRender);
+        else window._warmRaceTickChaseRender();
+      }catch(e){
+        if(window.dbg) dbg.warn('perf','warmRaceTick chase-render failed: '+(e && e.message || e));
+      }
+    }
     if(window.perfMark){perfMark('goToRace:warmRaceTick:end');perfMeasure('goToRace.warmRaceTick','goToRace:warmRaceTick:start','goToRace:warmRaceTick:end');}
+    // Prewarm-cache: deze build is nu volledig gewarmd — een herstart in
+    // dezelfde build slaat multi-pose + mirror-prewarm over.
+    window._prewarmedBuildSeq = _buildSeq;
     await _nextFrame();
 
     // ── Phase 5: race-state reset + HUD show + countdown ─────────────────

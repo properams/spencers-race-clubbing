@@ -16,9 +16,21 @@
 // (timers + UI states). Die functies hebben kleine first-call kosten of zijn
 // niet idempotent — beter één lichte spike accepteren dan corrupte state.
 //
-// Mirror RT prewarm doet één render naar mirrorCamera om het render-target
-// te alloceren + mirror-only shader-permutaties te linken (desktop-only;
-// mobiel skipt mirror sowieso).
+// WP4 rang 7 (spreiden/knijpen): dit bestand levert drie losse segmenten —
+// _warmRaceTick (update-whitelist, gemeten 8-16ms), _warmRaceTickMirrorRender
+// en _warmRaceTickChaseRender (de twee prewarm-renders, samen de whale:
+// mirror 14-21s + chase 2-21s op SwiftShader-headless). navigation.js Fase
+// 4.5 roept ze na elkaar aan met een frame-yield ertussen (spreiden), gate
+// de mirror-render op de runtime mirror-flag (knijpen: op LOW/mobiel rendert
+// de mirror nooit — loop.js:492) en slaat mirror over bij een herstart op
+// dezelfde build (cachen; de chase-render blijft als catch-all voor
+// first-draw-kosten van objecten die de update-whitelist aanmaakt).
+//
+// De oude claim dat de mirror-prewarm het mirror-render-target alloceert
+// klopte niet: de render gaat naar het default target; _initMirrorRT doet
+// de RT-allocatie pas bij updateMirror (frame 6). De waarde van de
+// mirror-prewarm is de eerste draw van achterwaarts-frustum-objecten ná de
+// update-whitelist — alleen relevant op tiers waar de mirror echt rendert.
 
 (function(){
   function _safe(name, fn){
@@ -158,20 +170,35 @@
     }
     if(window.perfMark){perfMark('goToRace:wrt:updates:end');perfMeasure('goToRace.warmRaceTick.updates','goToRace:wrt:updates:start','goToRace:wrt:updates:end');}
 
-    // ── Mirror RT + first render (desktop only — mobile skipt mirror) ─────
+    // Restore.
+    try{ if(_savedState!==null) gameState=_savedState; }catch(_){}
+    try{ gamePaused=_savedPaused; }catch(_){}
+  };
+
+  // ── Mirror prewarm-render — los segment (desktop + mirror-tier only) ────
+  // Caller (navigation.js Fase 4.5) gate op _mirrorPrewarmWanted() + verse
+  // build en yieldt vóór en ná; deze functie houdt alleen de eigen guards.
+  // Geen gameState-juggling nodig: het render-pad leest gameState niet
+  // (geen onBeforeRender-hooks in de codebase, postfx leest geen state).
+  window._warmRaceTickMirrorRender = function _warmRaceTickMirrorRender(){
+    if(typeof renderer==='undefined' || !renderer) return;
     if(window.perfMark)perfMark('goToRace:wrt:mirror:start');
     if(typeof window._isMobile === 'undefined' || !window._isMobile){
       if(typeof mirrorCamera!=='undefined' && mirrorCamera && typeof scene!=='undefined' && scene){
         _safe('mirror.prewarmRender', ()=>{
-          // Mirror render target wordt door updateMirror lazy gealloceerd
-          // op _aiFrameCounter>5; door hier één keer expliciet te renderen
-          // forceer je de RT-allocatie + mirror-only shader permutaties.
+          // Eerste draw van het achterwaartse frustum ná de update-whitelist
+          // (skid marks, per-world lazies). RT-allocatie doet updateMirror
+          // zelf op frame 6 — zie module-comment.
           renderer.render(scene, mirrorCamera);
         });
       }
     }
     if(window.perfMark){perfMark('goToRace:wrt:mirror:end');perfMeasure('goToRace.warmRaceTick.mirror','goToRace:wrt:mirror:start','goToRace:wrt:mirror:end');}
+  };
 
+  // ── Chase-cam prewarm-render — los segment (alle tiers, ook herstart) ───
+  window._warmRaceTickChaseRender = function _warmRaceTickChaseRender(){
+    if(typeof renderer==='undefined' || !renderer) return;
     if(window.perfMark)perfMark('goToRace:wrt:chase:start');
     // ── Final renderWithPostFX op de echte chase-cam pose ─────────────────
     // Phase 4 zette camera op de intro start-pose (FOV 80, offset (0,35,25)
@@ -245,9 +272,5 @@
       }
     }
     if(window.perfMark){perfMark('goToRace:wrt:chase:end');perfMeasure('goToRace.warmRaceTick.chase','goToRace:wrt:chase:start','goToRace:wrt:chase:end');}
-
-    // Restore.
-    try{ if(_savedState!==null) gameState=_savedState; }catch(_){}
-    try{ gamePaused=_savedPaused; }catch(_){}
   };
 })();
