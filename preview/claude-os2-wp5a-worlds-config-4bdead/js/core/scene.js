@@ -1455,43 +1455,32 @@ async function buildScene(opts){
   // Loopt na buildTrack zodat trackCurve gegarandeerd bestaat.
   if(typeof buildRacingLineWear === 'function') buildRacingLineWear();
   // Issue 12 (V5.3): buildGantry() was defined in track.js but never called.
-  // Gantry has world-specific text + colour via WORLD_TRACK_PALETTE + _gantryFrameText.
+  // Gantry has world-specific text + colour via de registry-velden
+  // track/gantryCol/gantryName (js/core/world-config.js) + _gantryFrameText.
   // Guangzhou entry exists: 'GUANGZHOU NIGHT GP' + accent #ff2080. Calling here,
   // after buildTrack() (needs trackCurve), before world environment builders.
   if(typeof buildGantry === 'function') buildGantry();
   if(window.perfMark){perfMark('build:track:end');perfMeasure('build.track','build:track:start','build:track:end');}
   await _yieldBuild();
   if(window.perfMark)perfMark('build:world:start');
-  if(isSpace){
-    await buildSpaceEnvironment();
-  }else if(isDeepSea){
-    await buildDeepSeaEnvironment();
-    buildBackgroundLayers();
-  }else if(isCandy){
-    await buildCandyEnvironment();
-    buildBackgroundLayers();
-  }else if(activeWorld==='volcano'){
-    await buildVolcanoEnvironment();
-    buildBackgroundLayers();
-  }else if(activeWorld==='arctic'){
-    await buildArcticEnvironment();
-    buildBackgroundLayers();
-  }else if(isSandstorm){
-    await buildSandstormEnvironment();
-    buildBackgroundLayers();
-  }else if(isPier47){
-    await buildPier47Environment();
-    // Sessie 2: distant industrial skyline silhouettes (containers /
-    // warehouse roofs / crane booms catching sodium-orange backlight).
-    // Palette lives in track/environment.js _SILHOUETTE_PALETTES.pier47.
-    buildBackgroundLayers();
-  }else if(isGuangzhou){
-    await buildGuangzhouEnvironment();
-    // _SILHOUETTE_PALETTES.guangzhou added in commit 3 — far CBD skyline
-    // silhouettes behind the track. See track/environment.js.
-    buildBackgroundLayers();
+  // Environment-builder-dispatch uit de registry (js/core/world-config.js):
+  // veld `builder` is een functie-NAAM omdat de wereld-scripts lazy geladen
+  // worden (world-loader) — runtime via window[naam] opgelost, awaited
+  // (builders zijn deels async). Veld `backgroundLayers` stuurt de
+  // silhouetten-pass; alleen space slaat die over. Onbekende wereld →
+  // gp-rij zonder builder → zelfde warn-fallback als de oude else-keten.
+  const _wcRow=getWorldConfig(activeWorld);
+  const _envBuilder=_wcRow.builder?window[_wcRow.builder]:null;
+  if(typeof _envBuilder==='function'){
+    await _envBuilder();
+    if(_wcRow.backgroundLayers)buildBackgroundLayers();
   }else{
-    if(window.dbg)dbg.warn('scene','unknown world '+activeWorld+' — no environment builder, scene will be sparse');
+    // Twee degraded-paden uit elkaar houden: een bekende wereld waarvan het
+    // (lazy) wereld-script niet geladen is, vs een wereld-key zonder
+    // registry-rij (gp-fallback zonder builder-veld).
+    if(window.dbg)dbg.warn('scene',_wcRow.builder
+      ?('world builder '+_wcRow.builder+' not loaded — scene will be sparse')
+      :('unknown world '+activeWorld+' — no environment builder, scene will be sparse'));
   }
   // Per-world moon (no-op for worlds without WORLD_MOON_PROFILE entry —
   // pier47 skips cleanly). Sun-pin pattern;

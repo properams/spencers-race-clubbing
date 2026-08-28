@@ -50,7 +50,12 @@
 //   silhouette   — { far:[lowColor, highColor, jaggedness, opacity, height],
 //                    near:[…zelfde 5…] } — afwezig voor space (void-wereld,
 //                    geen horizon); zonder veld rendert de fallback-pad in
-//                    environment.js alleen bij geladen mountains-textures
+//                    environment.js alleen bij geladen mountains-textures.
+//                    LET OP: WORLD_HORIZON_PROFILE (js/effects/horizon.js)
+//                    heeft in environment.js voorrang en shadowt dit veld
+//                    voor deepsea/arctic/candy/volcano — voor die 4 is de
+//                    rij hier runtime-dode reserve-data (alleen bereikt als
+//                    horizon.js niet geladen is); tunen doe je daar
 //   offtrackOverride — SPARSE (D13): alleen werelden met stilistische
 //                    off-track-copy die afwijkt van het surface-profiel;
 //                    { friction, label, color, chance }. Afwezigheid is het
@@ -60,6 +65,13 @@
 //                    [tint_r, tint_g, tint_b, gradeAmount, vignette,
 //                     liftR, liftG, liftB, saturation, hueShift]
 //                    (hueShift in radianen, ~±0.15 max)
+//   builder      — NAAM (string) van de environment-builder-functie; de
+//                    wereld-scripts zijn lazy geladen (world-loader), dus
+//                    scene.js lost de naam runtime op via window[naam] en
+//                    await't de call (builders zijn deels async)
+//   backgroundLayers — boolean: buildBackgroundLayers() na de builder
+//                    draaien (silhouetten-pass); alleen space slaat die
+//                    bewust over (void-wereld zonder horizon)
 
 'use strict';
 
@@ -82,6 +94,8 @@ var WORLDS = {
     // Geen silhouette-veld: void-wereld zonder horizon.
     // Cool deep-space lift met cyan hue-pull, mild saturation boost.
     grading: [0.85, 0.92, 1.18, 0.18, 0.55,  0.00, 0.02, 0.06, 1.12, -0.04],  // js/effects/postfx.js:328
+    builder: 'buildSpaceEnvironment',  // js/core/scene.js:1465-1466
+    backgroundLayers: false,  // js/core/scene.js:1465-1466 — enige wereld zonder silhouetten-pass
   },
   deepsea: {
     track: { asphalt:0x1a2830, kerbA:[0,.9,.7], kerbB:[0,.5,1], kerbEmissive:0x0a4a4a, kerbEmissiveInt:.85, gantryAccent:0x006688, gantryEmissive:0x00aacc },  // js/track/track.js:115
@@ -98,6 +112,8 @@ var WORLDS = {
     silhouette: { far:['#001144','#002255',0.08, 0.70, 190], near:['#00091a','#001133',0.12, 0.85, 120] },  // js/track/environment.js:245
     // Cyaan lift, boosted saturation + lichte cyan rotatie voor bioluminescent pop.
     grading: [0.78, 1.05, 1.12, 0.20, 0.65,  0.00, 0.03, 0.07, 1.18, -0.06],  // js/effects/postfx.js:330
+    builder: 'buildDeepSeaEnvironment',  // js/core/scene.js:1467-1469
+    backgroundLayers: true,  // js/core/scene.js:1467-1469
   },
   candy: {
     track: { asphalt:0x3a2a55, kerbA:[1,1,1], kerbB:[.08,.06,.12], kerbEmissive:0x442266, kerbEmissiveInt:.35, gantryAccent:0x441166, gantryEmissive:0x6622cc, lanes:3, laneColor:'#ffffff' },  // js/track/track.js:116
@@ -118,6 +134,8 @@ var WORLDS = {
     // desaturated; bloomed bronnen behouden kleur via bloom-additive),
     // lift negatief (zwart-niveau omlaag), hueShift naar cyan.
     grading: [0.85, 0.92, 1.08, 0.24, 0.82, -0.04,-0.04,-0.04, 0.55, -0.05],  // js/effects/postfx.js:338
+    builder: 'buildCandyEnvironment',  // js/core/scene.js:1470-1472
+    backgroundLayers: true,  // js/core/scene.js:1470-1472
   },
   volcano: {
     // Asphalt bewust near-black (0x0c0908, was 0x2a0808) — eigenaar-feedback
@@ -136,6 +154,8 @@ var WORLDS = {
     silhouette: { far:['#1a0608','#3a1010',0.65, 0.72, 100], near:['#080202','#1a0408',0.95, 0.86,  78] },  // js/track/environment.js:233
     // Warm ember-lift, strong saturation voor lava glow, hue naar oranje.
     grading: [1.22, 0.90, 0.75, 0.18, 0.55,  0.05, 0.01, 0.00, 1.25,  0.04],  // js/effects/postfx.js:340
+    builder: 'buildVolcanoEnvironment',  // js/core/scene.js:1473-1475
+    backgroundLayers: true,  // js/core/scene.js:1473-1475
   },
   arctic: {
     track: { asphalt:0x667788, kerbA:[.82,.07,.03], kerbB:[1,1,1], kerbEmissive:0x4488dd, kerbEmissiveInt:.45, gantryAccent:0x441166, gantryEmissive:0x6622cc },  // js/track/track.js:123
@@ -150,6 +170,8 @@ var WORLDS = {
     silhouette: { far:['#7a8aa6','#b4c2d8',0.50, 0.85, 110], near:['#3a4a64','#6678a0',0.75, 0.94,  82] },  // js/track/environment.js:238
     // Cool blue lift voor arctic, lichte saturation; hue iets cooler.
     grading: [0.90, 1.00, 1.20, 0.16, 0.50,  0.00, 0.02, 0.05, 1.10, -0.03],  // js/effects/postfx.js:342
+    builder: 'buildArcticEnvironment',  // js/core/scene.js:1476-1478
+    backgroundLayers: true,  // js/core/scene.js:1476-1478
   },
   sandstorm: {
     track: { asphalt:0x6a4a2e, kerbA:[.79,.45,.20], kerbB:[.95,.85,.62], kerbEmissive:0xc97232, kerbEmissiveInt:.40, gantryAccent:0x441166, gantryEmissive:0x6622cc },  // js/track/track.js:124
@@ -168,6 +190,8 @@ var WORLDS = {
     silhouette: { far:['#a86839','#d49060',0.85, 0.78, 110], near:['#5a2818','#8b3a1d',1.05, 0.90,  82] },  // js/track/environment.js:260
     // Sahara warmth, natuurlijke zand-kleur behouden met subtle oranje hue.
     grading: [1.12, 1.00, 0.88, 0.12, 0.45,  0.03, 0.01, 0.00, 1.08,  0.03],  // js/effects/postfx.js:344
+    builder: 'buildSandstormEnvironment',  // js/core/scene.js:1479-1481
+    backgroundLayers: true,  // js/core/scene.js:1479-1481
   },
   pier47: {
     // Industriële havennacht: near-black asfalt voor de wet-look, roest-
@@ -196,6 +220,8 @@ var WORLDS = {
     // Cool desaturated film-look, koele blauwgrijze shadow-push, hue naar
     // teal voor industriële night-mood.
     grading: [0.98, 0.92, 0.98, 0.18, 0.65,  0.00, 0.02, 0.04, 0.92, -0.05],  // js/effects/postfx.js:347
+    builder: 'buildPier47Environment',  // js/core/scene.js:1482-1487
+    backgroundLayers: true,  // js/core/scene.js:1482-1487 — verre industriële skyline-silhouetten
   },
   guangzhou: {
     // Cyberpunk-regen: nat donker asfalt (#0a0c12), kerbA magenta + kerbB
@@ -220,6 +246,8 @@ var WORLDS = {
     // Cool blue-purple urban neon, donkerpaars shadows, hue naar cyan-teal
     // voor cold cyberpunk.
     grading: [0.88, 0.86, 1.18, 0.20, 0.68,  0.02, 0.00, 0.05, 1.18, -0.06],  // js/effects/postfx.js:350
+    builder: 'buildGuangzhouEnvironment',  // js/core/scene.js:1488-1492
+    backgroundLayers: true,  // js/core/scene.js:1488-1492 — verre CBD-skyline-silhouetten
   },
 };
 
