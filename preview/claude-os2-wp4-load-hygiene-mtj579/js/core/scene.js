@@ -456,7 +456,13 @@ function _newSkyCanvas(top,bot){
   const _scale=window._isMobile?0.75:1;
   const c=document.createElement('canvas');
   c.width=Math.round(1024*_scale);c.height=Math.round(512*_scale);
-  const g=c.getContext('2d');
+  // WP4 rang 8 (R4-restant): willReadFrequently — guangzhou's sky-bakes
+  // lezen dit canvas full-size terug (dither-pass getImageData in
+  // makeGuangzhouSkyTex/makeGuangzhouNightSkyTex), en de candy seam-dbg
+  // sampelt er losse pixels uit. Zonder flag forceert dat een GPU→CPU
+  // copy per readback; context-attributen tellen alleen op de éérste
+  // getContext, dus de flag moet hier — niet op de leeslocaties.
+  const g=c.getContext('2d',{willReadFrequently:true});
   if(_scale!==1)g.scale(_scale,_scale);
   const gr=g.createLinearGradient(0,0,0,512);
   gr.addColorStop(0,top);gr.addColorStop(1,bot);g.fillStyle=gr;g.fillRect(0,0,1024,512);

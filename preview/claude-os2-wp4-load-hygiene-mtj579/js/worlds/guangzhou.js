@@ -42,6 +42,15 @@ let _gzBillboards = [];   // billboard mesh refs (for future animation hooks)
 let _gzWindowGroups = [];  // [{mat: MeshBasicMaterial, phase: number, baseOpacity: number}]
 let _gzHeroBillboardMats = [];  // V4 Phase C: animated billboard materials (UV-offset per frame)
 let _gzHeroBillboards = [];     // Phase 10.7 — billboard mesh refs (positions) for spark showers
+// WP4 rang 8 (R5) — module-cache voor de CJK-canvas-bakes. De canvassen zijn
+// per index volledig deterministisch (vaste pools/kleuren + seededRng met
+// vaste seeds), dus een rebuild (wereldwissel terug naar guangzhou) hoeft de
+// shadowBlur-tekstraster niet te herhalen. Bewust alléén de canvassen cachen,
+// niet de CanvasTextures: de wereld-dispose ruimt textures op (GPU-kant),
+// het canvas-bitmap (CPU-kant) overleeft dat en blijft herbruikbaar. Lengte
+// van de cache-array volgt de mobiel/desktop-COUNT vanzelf.
+let _gzFacadeBannerCanvases = null;   // 12 desktop / 6 mobiel × 128×512
+let _gzHeroBillboardCanvases = null;  // 6 desktop / 3 mobiel × 256×512
 let _gzNextSpark = 0;           // Phase 10.7 — next neon-spark shower trigger time
 let _gzFlyingCars = [];         // V4 Phase D: per-instance {x, yPos, zPos, speed, dir}
 let _gzFlyingCarsBody = null;   // InstancedMesh of V4 flying-car bodies
@@ -1160,14 +1169,24 @@ function _gzBuildFacadeBanners(){
 
   const sharedGeo = new THREE.PlaneGeometry(BW, BH);
 
+  // Cache-init (WP4 rang 8): _isMobile wisselt niet mid-sessie, maar bij een
+  // COUNT-mismatch (defensief) gooien we de cache weg i.p.v. verkeerd te mappen.
+  if(!_gzFacadeBannerCanvases || _gzFacadeBannerCanvases.length !== COUNT){
+    _gzFacadeBannerCanvases = new Array(COUNT).fill(null);
+  }
+
   for(let i = 0; i < COUNT; i++){
     const angle = (i / COUNT) * Math.PI * 2 + Math.PI * 0.1;  // slight offset from 0
     const yPos  = 12 + seededRng(i + 50) * 40;  // 12u to 52u height
     const cSpec = BANNER_COLORS[i % BANNER_COLORS.length];
     const nChars= 4 + Math.floor(seededRng(i + 200) * 3);  // 4–6 chars
 
-    // Build CanvasTexture: 128×512 portrait, vertical stack of CJK chars
-    const cvs = document.createElement('canvas');
+    // Build CanvasTexture: 128×512 portrait, vertical stack of CJK chars.
+    // WP4 rang 8 (R5): raster alleen bij een lege cache — inhoud is per
+    // index deterministisch, dus een rebuild hergebruikt het canvas 1-op-1.
+    let cvs = _gzFacadeBannerCanvases[i];
+    if(!cvs){
+    cvs = document.createElement('canvas');
     cvs.width  = 128;
     cvs.height = 512;
     const ctx  = cvs.getContext('2d');
@@ -1195,6 +1214,8 @@ function _gzBuildFacadeBanners(){
       const charIdx = Math.floor(seededRng(i * 100 + c) * CJK_POOL.length);
       const ch      = String.fromCharCode(CJK_POOL[charIdx]);
       ctx.fillText(ch, 64, (c + 0.5) * cellH);
+    }
+    _gzFacadeBannerCanvases[i] = cvs;
     }
 
     const tex = new THREE.CanvasTexture(cvs);
@@ -1261,6 +1282,11 @@ function _gzBuildHeroBillboards(scene){
   _gzHeroBillboardMats.length = 0;
   _gzHeroBillboards.length = 0;
 
+  // Cache-init (WP4 rang 8): zie _gzFacadeBannerCanvases-comment.
+  if(!_gzHeroBillboardCanvases || _gzHeroBillboardCanvases.length !== COUNT){
+    _gzHeroBillboardCanvases = new Array(COUNT).fill(null);
+  }
+
   for(let i = 0; i < COUNT; i++){
     const t  = tSamples[i];
     const pt = trackCurve.getPoint(t);
@@ -1274,8 +1300,12 @@ function _gzBuildHeroBillboards(scene){
     const pz = pt.z + nrZ * sDist;
     const py = 24;  // centered: billboard half-height = 20, base at 4u → center at 24
 
-    // Build unique CanvasTexture 256×512
-    const cvs = document.createElement('canvas');
+    // Build unique CanvasTexture 256×512.
+    // WP4 rang 8 (R5): raster alleen bij een lege cache — inhoud is per
+    // index deterministisch (vaste blocks/kleuren), rebuild hergebruikt 1-op-1.
+    let cvs = _gzHeroBillboardCanvases[i];
+    if(!cvs){
+    cvs = document.createElement('canvas');
     cvs.width = 256; cvs.height = 512;
     const gc = cvs.getContext('2d');
     const bd = bgGradients[i % bgGradients.length];
@@ -1308,6 +1338,8 @@ function _gzBuildHeroBillboards(scene){
       gc.fillText(chars[ch % chars.length], 128, 80 + ch * 104);
     }
     gc.shadowBlur = 0;
+    _gzHeroBillboardCanvases[i] = cvs;
+    }
 
     const tex = new THREE.CanvasTexture(cvs);
     tex.wrapS = THREE.RepeatWrapping;

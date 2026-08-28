@@ -186,7 +186,9 @@ function makePier47NightSkyTex(){
 // _sandGroundTex / _iceGroundTex pattern used by sandstorm/arctic.
 function _pier47GroundTex(){
   const S=256,c=document.createElement('canvas');c.width=S;c.height=S;
-  const g=c.getContext('2d');
+  // WP4 rang 8 (R4-restant): zelfde patroon als _gzGroundTex/_sandGroundTex
+  // — dit canvas wordt hieronder via getImageData teruggelezen.
+  const g=c.getContext('2d',{willReadFrequently:true});
   // Base dark-concrete grey
   g.fillStyle='#2a2a30';g.fillRect(0,0,S,S);
   // Per-pixel grain — ImageData range matches the surface tone (38..52)
