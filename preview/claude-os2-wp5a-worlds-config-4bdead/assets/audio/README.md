@@ -115,7 +115,8 @@ Filenames: `assets/audio/sfx/<slot>.ogg`.
 ## Surface (tire rolling)
 
 Per-oppervlakte tire-rolling loop. Wordt geactiveerd op basis van
-`WORLD_DEFAULT_SURFACE` mapping in `samples.js`. Procedurele fallback
+het registry-veld `surface` in `js/core/world-config.js` (gelezen via
+`getCurrentSurface()` in `samples.js`). Procedurele fallback
 varieert filter freq + Q + gain per surface (zie `SURFACE_PARAMS` in
 `engine.js`).
 

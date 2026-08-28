@@ -258,7 +258,8 @@ function preloadSurfacesForWorld(worldId){
 }
 
 function getCurrentSurface(){
-  return (window.WORLDS && window.WORLDS[window.activeWorld] && window.WORLDS[window.activeWorld].surface) || 'asphalt';
+  const row = window.WORLDS && window.WORLDS[window.activeWorld];
+  return (row && row.surface) || 'asphalt';
 }
 function hasSurfaceSample(surface){ return _surfaceReady.has(surface); }
 function getSurfaceBuffer(surface){ return _surfaceReady.get(surface) || null; }

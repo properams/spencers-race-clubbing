@@ -260,8 +260,8 @@ function _buildBackgroundLayersImpl(){
   const nearTex = window.Assets ? Assets.getTexture(activeWorld,'skybox_layers.mountains_near') : null;
   // First check WORLD_HORIZON_PROFILE (audit 2026-05-09 system) — if the
   // active world has a typed silhouette profile we render that. Falls
-  // through to legacy _SILHOUETTE_PALETTES + _silhouetteTex (mountains)
-  // for worlds without an entry.
+  // through to the registry-veld `silhouette` (js/core/world-config.js)
+  // + _silhouetteTex (mountains) for worlds without an entry.
   const horizonProfile = (window.WORLD_HORIZON_PROFILE && window.WORLD_HORIZON_PROFILE[activeWorld]) || null;
   if (horizonProfile && typeof window._buildHorizonSilhouette==='function'){
     const farT  = farTex  || window._buildHorizonSilhouette(horizonProfile.far);
