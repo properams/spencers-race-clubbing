@@ -44,6 +44,22 @@
 //                    eigen jump-ramp-kleuren; afwezig = consumer-default
 //                    (oranje 0xff4400/0xff7722/0xffdd00 in ramps.js)
 //   collectibles — { coin, emit, rim, halo, light }
+//   surface      — tire-surface-tag string uit {metal, water, sand, ice,
+//                    asphalt, dirt}; consumers vallen zonder rij-waarde
+//                    terug op 'asphalt'
+//   silhouette   — { far:[lowColor, highColor, jaggedness, opacity, height],
+//                    near:[…zelfde 5…] } — afwezig voor space (void-wereld,
+//                    geen horizon); zonder veld rendert de fallback-pad in
+//                    environment.js alleen bij geladen mountains-textures
+//   offtrackOverride — SPARSE (D13): alleen werelden met stilistische
+//                    off-track-copy die afwijkt van het surface-profiel;
+//                    { friction, label, color, chance }. Afwezigheid is het
+//                    contract — physics valt terug op het per-surface-
+//                    profiel. NIET aanvullen tot 8 rijen.
+//   grading      — positionele array van 10 floats voor setWorldGrading:
+//                    [tint_r, tint_g, tint_b, gradeAmount, vignette,
+//                     liftR, liftG, liftB, saturation, hueShift]
+//                    (hueShift in radianen, ~±0.15 max)
 
 'use strict';
 
@@ -62,6 +78,10 @@ var WORLDS = {
     boostPads: { pad:0xcc00ff, emit:0x8800cc, chev:0xffccff, glow:0xff88ff, light:0xff44ff },  // js/track/ramps.js:181
     jumpRamp: { pad:0x6600cc, emit:0x8833ff, stripe:0x00ccff },  // js/track/ramps.js:32-34
     collectibles: { coin:0x66ccff, emit:0x2288ff, rim:0xcce8ff, halo:0x66aaff, light:0x88bbff },  // js/track/collectibles.js:22
+    surface: 'metal',  // js/audio/samples.js:100
+    // Geen silhouette-veld: void-wereld zonder horizon.
+    // Cool deep-space lift met cyan hue-pull, mild saturation boost.
+    grading: [0.85, 0.92, 1.18, 0.18, 0.55,  0.00, 0.02, 0.06, 1.12, -0.04],  // js/effects/postfx.js:328
   },
   deepsea: {
     track: { asphalt:0x1a2830, kerbA:[0,.9,.7], kerbB:[0,.5,1], kerbEmissive:0x0a4a4a, kerbEmissiveInt:.85, gantryAccent:0x006688, gantryEmissive:0x00aacc },  // js/track/track.js:115
@@ -72,6 +92,12 @@ var WORLDS = {
     boostPads: { pad:0x00cc88, emit:0x007744, chev:0xaaffdd, glow:0x00ffaa, light:0x00ffaa },  // js/track/ramps.js:182
     jumpRamp: { pad:0x006644, emit:0x00aacc, stripe:0x00ffaa },  // js/track/ramps.js:32-34
     collectibles: { coin:0xffaa33, emit:0xcc7700, rim:0xffd999, halo:0xffaa00, light:0xffaa44 },  // js/track/collectibles.js:23
+    surface: 'water',  // js/audio/samples.js:101
+    // Donker "abyssal" silhouet, ver weg en laag opacity — de fog-density
+    // geeft alleen de hint dat er iets in de verte is (Phase 11C).
+    silhouette: { far:['#001144','#002255',0.08, 0.70, 190], near:['#00091a','#001133',0.12, 0.85, 120] },  // js/track/environment.js:245
+    // Cyaan lift, boosted saturation + lichte cyan rotatie voor bioluminescent pop.
+    grading: [0.78, 1.05, 1.12, 0.20, 0.65,  0.00, 0.03, 0.07, 1.18, -0.06],  // js/effects/postfx.js:330
   },
   candy: {
     track: { asphalt:0x3a2a55, kerbA:[1,1,1], kerbB:[.08,.06,.12], kerbEmissive:0x442266, kerbEmissiveInt:.35, gantryAccent:0x441166, gantryEmissive:0x6622cc, lanes:3, laneColor:'#ffffff' },  // js/track/track.js:116
@@ -81,6 +107,17 @@ var WORLDS = {
     spinPads: { disc:0xff3388, emit:0xcc0066, ring:0xff66bb, cone:0xffdd44, marker:0xffaa00 },  // js/track/ramps.js:103
     boostPads: { pad:0xff55aa, emit:0xcc2277, chev:0xffddee, glow:0xff88cc, light:0xff66bb },  // js/track/ramps.js:183
     collectibles: { coin:0xff77cc, emit:0xdd2288, rim:0xffddf0, halo:0xff55aa, light:0xff66cc },  // js/track/collectibles.js:24
+    surface: 'asphalt',  // js/audio/samples.js:102
+    // Lichte pastel-roze horizon — "candy land sky" i.p.v. mountains-in-mist
+    // (Phase 11C).
+    silhouette: { far:['#ffccee','#ff99dd',0.25, 0.50, 230], near:['#ff88cc','#ff55bb',0.35, 0.72, 150] },  // js/track/environment.js:251
+    // Handgekozen sticky-frosting callout: .22 frictie + eigen emoji-label.
+    offtrackOverride: { friction:0.22, label:'FROSTING! 🧁', color:'#ff66aa', chance:0.05 },  // js/cars/physics.js:35
+    // Verlaten pretpark V2 (grim contrast): koel teal-blauw tint, stevige
+    // vignette voor tunnel-feel, saturation hard omlaag (omgeving
+    // desaturated; bloomed bronnen behouden kleur via bloom-additive),
+    // lift negatief (zwart-niveau omlaag), hueShift naar cyan.
+    grading: [0.85, 0.92, 1.08, 0.24, 0.82, -0.04,-0.04,-0.04, 0.55, -0.05],  // js/effects/postfx.js:338
   },
   volcano: {
     // Asphalt bewust near-black (0x0c0908, was 0x2a0808) — eigenaar-feedback
@@ -93,6 +130,12 @@ var WORLDS = {
     spinPads: { disc:0xaa3300, emit:0x661100, ring:0xff6622, cone:0xff9922, marker:0xcc2200 },  // js/track/ramps.js:104
     boostPads: { pad:0xff5522, emit:0xdd2200, chev:0xffdd99, glow:0xff8844, light:0xff4422 },  // js/track/ramps.js:184
     collectibles: { coin:0xff7722, emit:0xff2200, rim:0xffcc88, halo:0xff4411, light:0xff4422 },  // js/track/collectibles.js:25
+    surface: 'sand',  // js/audio/samples.js:103
+    // Diepe roest-silhouetten ver achter de lava-rivers — verre ruggen
+    // bijna verloren in ember-haze.
+    silhouette: { far:['#1a0608','#3a1010',0.65, 0.72, 100], near:['#080202','#1a0408',0.95, 0.86,  78] },  // js/track/environment.js:233
+    // Warm ember-lift, strong saturation voor lava glow, hue naar oranje.
+    grading: [1.22, 0.90, 0.75, 0.18, 0.55,  0.05, 0.01, 0.00, 1.25,  0.04],  // js/effects/postfx.js:340
   },
   arctic: {
     track: { asphalt:0x667788, kerbA:[.82,.07,.03], kerbB:[1,1,1], kerbEmissive:0x4488dd, kerbEmissiveInt:.45, gantryAccent:0x441166, gantryEmissive:0x6622cc },  // js/track/track.js:123
@@ -102,6 +145,11 @@ var WORLDS = {
     spinPads: { disc:0x336699, emit:0x113366, ring:0x66ccff, cone:0xbbeeff, marker:0x4488cc },  // js/track/ramps.js:105
     boostPads: { pad:0x66ddff, emit:0x2288cc, chev:0xe8f5ff, glow:0x99ddff, light:0x88ccff },  // js/track/ramps.js:185
     collectibles: { coin:0xaadfff, emit:0x4488dd, rim:0xe8f5ff, halo:0x88bbee, light:0xaaddff },  // js/track/collectibles.js:26
+    surface: 'ice',  // js/audio/samples.js:104
+    // Koude mistige bergen; beide lagen licht zodat ze met de sneeuw blenden.
+    silhouette: { far:['#7a8aa6','#b4c2d8',0.50, 0.85, 110], near:['#3a4a64','#6678a0',0.75, 0.94,  82] },  // js/track/environment.js:238
+    // Cool blue lift voor arctic, lichte saturation; hue iets cooler.
+    grading: [0.90, 1.00, 1.20, 0.16, 0.50,  0.00, 0.02, 0.05, 1.10, -0.03],  // js/effects/postfx.js:342
   },
   sandstorm: {
     track: { asphalt:0x6a4a2e, kerbA:[.79,.45,.20], kerbB:[.95,.85,.62], kerbEmissive:0xc97232, kerbEmissiveInt:.40, gantryAccent:0x441166, gantryEmissive:0x6622cc },  // js/track/track.js:124
@@ -114,6 +162,12 @@ var WORLDS = {
     boostPads: { pad:0xff8c42, emit:0xcc4a18, chev:0xffe4a8, glow:0xff9c52, light:0xff8c42 },  // js/track/ramps.js:186
     jumpRamp: { pad:0xcc6622, emit:0xff8833, stripe:0xffd870 },  // js/track/ramps.js:32-34
     collectibles: { coin:0xff8c42, emit:0xc97232, rim:0xffe4a8, halo:0xff9c52, light:0xffaa66 },  // js/track/collectibles.js:31
+    surface: 'sand',  // js/audio/samples.js:105
+    // Roest/oranje canyon-ruggen die in warme haze (#e8b878) oplossen; hoge
+    // jaggedness voor het scherpe mesa-profiel van zuidwest-woestijn.
+    silhouette: { far:['#a86839','#d49060',0.85, 0.78, 110], near:['#5a2818','#8b3a1d',1.05, 0.90,  82] },  // js/track/environment.js:260
+    // Sahara warmth, natuurlijke zand-kleur behouden met subtle oranje hue.
+    grading: [1.12, 1.00, 0.88, 0.12, 0.45,  0.03, 0.01, 0.00, 1.08,  0.03],  // js/effects/postfx.js:344
   },
   pier47: {
     // Industriële havennacht: near-black asfalt voor de wet-look, roest-
@@ -130,6 +184,18 @@ var WORLDS = {
     spinPads: { disc:0xa04020, emit:0x661511, ring:0xff8830, cone:0xffaa44, marker:0xa04020 },  // js/track/ramps.js:111
     boostPads: { pad:0xff8830, emit:0xa04020, chev:0xffcc88, glow:0xffaa44, light:0xff8830 },  // js/track/ramps.js:190
     collectibles: { coin:0xff8830, emit:0xa04020, rim:0xffcc88, halo:0xffaa44, light:0xff9933 },  // js/track/collectibles.js:35
+    surface: 'asphalt',  // js/audio/samples.js:106
+    // Industriële haven-skyline: container-stapels, loodsen en kranen als
+    // vrijwel zwarte silhouetten tegen de city-glow; hoge jaggedness voor
+    // het rechthoekige machinerie-profiel.
+    silhouette: { far:['#0a0812','#1a1422',1.10, 0.85,  78], near:['#040206','#0a0812',1.35, 0.95,  60] },  // js/track/environment.js:270
+    // Off-track = kade-rand gravel/spillage. Sodium-oranje popup (#ff8830)
+    // matcht de gloeiende kerbs; frictie blijft op de asphalt-baseline .18 —
+    // alleen copy + kleur wijken af.
+    offtrackOverride: { friction:0.18, label:'OFF DOCK!', color:'#ff8830', chance:0.04 },  // js/cars/physics.js:41
+    // Cool desaturated film-look, koele blauwgrijze shadow-push, hue naar
+    // teal voor industriële night-mood.
+    grading: [0.98, 0.92, 0.98, 0.18, 0.65,  0.00, 0.02, 0.04, 0.92, -0.05],  // js/effects/postfx.js:347
   },
   guangzhou: {
     // Cyberpunk-regen: nat donker asfalt (#0a0c12), kerbA magenta + kerbB
@@ -143,6 +209,17 @@ var WORLDS = {
     spinPads: { disc:0xaa1050, emit:0x660830, ring:0xff2080, cone:0x00e0ff, marker:0xff2080 },  // js/track/ramps.js:115
     boostPads: { pad:0xff2080, emit:0xaa1050, chev:0x00e0ff, glow:0xff60a0, light:0xff2080 },  // js/track/ramps.js:194
     collectibles: { coin:0xff2080, emit:0xaa1050, rim:0xff80c0, halo:0xff40a0, light:0xff2080 },  // js/track/collectibles.js:39
+    surface: 'asphalt',  // js/audio/samples.js:109 — wet asphalt boulevard, zelfde tyre-sound als pier47
+    // CBD-hoogbouw als donkere paars-zwarte silhouetten, backlit door de
+    // neon city-glow; jaggedness hoger dan pier47 voor gevarieerde
+    // torenhoogtes. Window-emissives bewust uitgesteld (V2).
+    silhouette: { far:['#0a0814','#1a1428', 0.85, 0.82, 130], near:['#0e0a18','#14101e', 1.10, 0.92,  95] },  // js/track/environment.js:282
+    // Off-track = natte urban kerb/stoeprand; neon-magenta popup (#ff2080)
+    // matcht kerbEmissive; frictie .18, surface blijft asphalt.
+    offtrackOverride: { friction:0.18, label:'OFF GRID!', color:'#ff2080', chance:0.04 },  // js/cars/physics.js:45
+    // Cool blue-purple urban neon, donkerpaars shadows, hue naar cyan-teal
+    // voor cold cyberpunk.
+    grading: [0.88, 0.86, 1.18, 0.20, 0.68,  0.02, 0.00, 0.05, 1.18, -0.06],  // js/effects/postfx.js:350
   },
 };
 

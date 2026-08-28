@@ -219,71 +219,13 @@ function _silhouetteTex(seed, baseColor, accent, jaggedness){
   return t;
 }
 
-// Per-world procedural silhouette palettes. Tuned to sit *behind* the
-// existing rich horizon content (volcano embers, neon skyscrapers, arctic
-// auroras). Far layer = atmospheric haze ridge.
-// Near layer = darker mid-distance silhouettes. Worlds without a palette
+// Per-world procedural silhouette palettes wonen sinds WP5a in de centrale
+// registry (js/core/world-config.js, veld `silhouette` per wereld-rij;
+// space heeft er bewust geen — void-wereld zonder horizon). Tuned to sit
+// *behind* the existing rich horizon content (volcano embers, neon
+// skyscrapers, arctic auroras). Far layer = atmospheric haze ridge, near
+// layer = darker mid-distance silhouettes. Worlds without a palette
 // entry render only when textured mountains_*.png are loaded.
-//
-// Each entry: { far:[lowColor, highColor, jaggedness, opacity, height],
-//               near:[lowColor, highColor, jaggedness, opacity, height] }
-const _SILHOUETTE_PALETTES = {
-  // Volcano: deep rust silhouettes far behind the lava rivers — should
-  // read like distant ridges almost lost in ember haze.
-  volcano: {
-    far:  ['#1a0608','#3a1010',0.65, 0.72, 100],
-    near: ['#080202','#1a0408',0.95, 0.86,  78],
-  },
-  // Arctic: cold misty mountains. Both layers light to blend with snow.
-  arctic: {
-    far:  ['#7a8aa6','#b4c2d8',0.50, 0.85, 110],
-    near: ['#3a4a64','#6678a0',0.75, 0.94,  82],
-  },
-  // DeepSea: Phase 11C — donkerder + verder weg silhouet (was '#001a2a').
-  // Deepblauwer "abyssal" gevoel, lager opacity zodat fog-density alleen
-  // de hint geeft dat er iets is in de afstand.
-  deepsea: {
-    far:  ['#001144','#002255',0.08, 0.70, 190],
-    near: ['#00091a','#001133',0.12, 0.85, 120],
-  },
-  // Candy: Phase 11C — lichtere pastel-roze horizon (was '#ffb3d4').
-  // Voelt nu meer "candy land sky" ipv mountains-in-mist.
-  candy: {
-    far:  ['#ffccee','#ff99dd',0.25, 0.50, 230],
-    near: ['#ff88cc','#ff55bb',0.35, 0.72, 150],
-  },
-  // Sandstorm: deep rust/orange canyon ridges fading into warm haze.
-  // Far layer is the highest tier of mesas dissolving into the
-  // sand-haze fog (#e8b878), near layer is the closer canyon walls
-  // that bracket the slot section. Jaggedness 0.85/1.05 for the
-  // sharp mesa profile typical of southwest desert.
-  sandstorm: {
-    far:  ['#a86839','#d49060',0.85, 0.78, 110],
-    near: ['#5a2818','#8b3a1d',1.05, 0.90,  82],
-  },
-  // Pier 47: industrial harbour skyline — distant container stacks,
-  // warehouse rooftops, cranes silhouetted against the city-glow horizon.
-  // Both layers are very dark (almost black) so they read as flat
-  // silhouettes catching only the sodium-orange reflected light from the
-  // skybox foot-band. Higher jaggedness (1.10/1.35) gives the rectangular
-  // industrial-machinery profile typical of harbours.
-  pier47: {
-    far:  ['#0a0812','#1a1422',1.10, 0.85,  78],
-    near: ['#040206','#0a0812',1.35, 0.95,  60],
-  },
-  // Guangzhou Cinematic: Guangzhou CBD high-rise silhouettes. Very dark
-  // purple-black both layers — they read as flat skyscraper silhouettes
-  // backlit by the neon city-glow. High jaggedness (0.85/1.10) gives the
-  // vertical tower-block profile typical of Chinese CBD skylines.
-  // Jaggedness tuned higher than pier47 (industrial boxes) for taller,
-  // more varied tower heights. Opacity/height from verified schema.
-  // NOTE: window emissives deferred to V2 — the helper doesn't support
-  // windowEmissive/windowDensity; a local post-pass is a V2 addition.
-  guangzhou: {
-    far:  ['#0a0814','#1a1428', 0.85, 0.82, 130],
-    near: ['#0e0a18','#14101e', 1.10, 0.92,  95],
-  },
-};
 
 // Phase 8.10 — skyline parallax scroll. Per-frame texture.offset.x
 // shift op de silhouet-cylinders, geregistreerd via window._silhouetteLayers
@@ -358,7 +300,7 @@ function _buildBackgroundLayersImpl(){
     });
     return;
   }
-  const palette = _SILHOUETTE_PALETTES[activeWorld];
+  const palette = getWorldConfig(activeWorld).silhouette;
   if (!palette && !farTex && !nearTex) return;
 
   const farPal  = palette ? palette.far  : ['#3a4960','#6b7c98',0.55, 0.96, 110];

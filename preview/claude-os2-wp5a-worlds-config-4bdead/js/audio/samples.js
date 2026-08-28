@@ -94,20 +94,12 @@ const AMBIENT_MANIFEST = {
   windLoop:   '',  // looped environmental wind (niet de car-wind)
 };
 
-// Per-wereld default tire-surface. Override via getCurrentSurface() als
-// later per-zone surfaces gewenst zijn (bv. ice patch op arctic).
-const WORLD_DEFAULT_SURFACE = {
-  space:     'metal',
-  deepsea:   'water',
-  candy:     'asphalt',
-  volcano:   'sand',
-  arctic:    'ice',
-  sandstorm: 'sand',
-  pier47:    'asphalt',
-  // Guangzhou Cinematic: wet asphalt boulevard — same tyre-sound surface
-  // as pier47. No new audio assets needed (per V1 scope: no audio).
-  guangzhou: 'asphalt',
-};
+// Per-wereld default tire-surface woont sinds WP5a in de centrale registry
+// (js/core/world-config.js, veld `surface` per wereld-rij). Deze module is
+// een ES module die vóór dat classic script evalueert, dus lezen kan
+// UITSLUITEND lazy via window.WORLDS binnen de functies hieronder — nooit
+// op module-evaluatietijd. Override via getCurrentSurface() als later
+// per-zone surfaces gewenst zijn (bv. ice patch op arctic).
 
 // ── State ───────────────────────────────────────────────────────────────────
 // Music heeft LRU per wereld; engine/SFX/surface zijn globaal en blijven hot.
@@ -261,12 +253,12 @@ function preloadSurface(surface){
 }
 
 function preloadSurfacesForWorld(worldId){
-  const surface = WORLD_DEFAULT_SURFACE[worldId] || 'asphalt';
+  const surface = (window.WORLDS && window.WORLDS[worldId] && window.WORLDS[worldId].surface) || 'asphalt';
   return preloadSurface(surface);
 }
 
 function getCurrentSurface(){
-  return WORLD_DEFAULT_SURFACE[window.activeWorld] || 'asphalt';
+  return (window.WORLDS && window.WORLDS[window.activeWorld] && window.WORLDS[window.activeWorld].surface) || 'asphalt';
 }
 function hasSurfaceSample(surface){ return _surfaceReady.has(surface); }
 function getSurfaceBuffer(surface){ return _surfaceReady.get(surface) || null; }
@@ -346,7 +338,6 @@ window.ENGINE_MANIFEST = ENGINE_MANIFEST;
 window.SFX_MANIFEST = SFX_MANIFEST;
 window.SURFACE_MANIFEST = SURFACE_MANIFEST;
 window.AMBIENT_MANIFEST = AMBIENT_MANIFEST;
-window.WORLD_DEFAULT_SURFACE = WORLD_DEFAULT_SURFACE;
 
 window._preloadWorldAudio = preloadWorld;
 window._hasMusicStems = hasMusicStems;

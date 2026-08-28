@@ -16,10 +16,13 @@ let _wasBraking=false;
 // nulls when not in the DOM (e.g. on TITLE screen replace).
 let _speedTrapElCache=null;
 
-// Off-track friction + popup label per surface. Keyed by the surface tag in
-// audio/samples.js → WORLD_DEFAULT_SURFACE. Friction multipliers picked to
-// preserve the legacy per-world values (.09 space, .13 deepsea, .18 default).
-// Used by the off-track block in updatePlayer below.
+// Off-track friction + popup label per surface. Keyed by the surface tag
+// (registry-veld `surface` in js/core/world-config.js). Friction
+// multipliers picked to preserve the legacy per-world values (.09 space,
+// .13 deepsea, .18 default). Used by the off-track block in updatePlayer
+// below. Per-wereld stilistische overrides (Candy frosting, Pier 47 dock,
+// Guangzhou grid) wonen sinds WP5a als sparse registry-veld
+// `offtrackOverride` in dezelfde wereld-rijen.
 const _OFFTRACK_PROFILES={
   metal:   {friction:0.09, label:'MOON DUST!', color:'#aaaadd', chance:0.03},
   water:   {friction:0.13, label:'SEABED!',    color:'#44ddbb', chance:0.04},
@@ -27,22 +30,6 @@ const _OFFTRACK_PROFILES={
   ice:     {friction:0.18, label:'ICE!',       color:'#aaddff', chance:0.04},
   asphalt: {friction:0.18, label:'OFF TRACK!', color:'#88dd44', chance:0.04},
   dirt:    {friction:0.18, label:'GRAVEL!',    color:'#aa8855', chance:0.04},
-};
-// Per-world override row for stylistic copy that doesn't follow the surface
-// (Candy's frosting was a hand-picked callout — keep the .22 sticky feel +
-// custom emoji label).
-const _OFFTRACK_WORLD_OVERRIDES={
-  candy: {friction:0.22, label:'FROSTING! 🧁', color:'#ff66aa', chance:0.05},
-  // Pier 47: industrial harbour, off-track means slipping into the kade-edge
-  // gravel/spillage. Sodium-orange popup colour (#ff8830) matches the
-  // WORLD_TRACK_PALETTE.pier47 kerbEmissive — same visual language as the
-  // glowing kerbs the player just left. Friction stays at the asphalt
-  // baseline (.18) since the surface is asphalt; only the copy + colour change.
-  pier47: {friction:0.18, label:'OFF DOCK!', color:'#ff8830', chance:0.04},
-  // Guangzhou Cinematic: off-track is wet urban kerb / pavement edge.
-  // Neon-magenta popup (#ff2080) matches kerbEmissive. Surface stays asphalt
-  // (urban boulevard — no gravel/grass margin). friction .18 (same as pier47).
-  guangzhou: {friction:0.18, label:'OFF GRID!', color:'#ff2080', chance:0.04},
 };
 
 function updatePlayer(dt){
@@ -345,20 +332,21 @@ function updatePlayer(dt){
   }
 
   // Off-track slowdown — friction + popup driven by the per-world surface
-  // (window.WORLD_DEFAULT_SURFACE from audio/samples.js) so all 9 worlds
+  // (registry-veld `surface` uit window.WORLDS) so all 9 worlds
   // get a correctly-named popup. Friction multipliers preserve legacy
   // gameplay tuning: space (.09) and deepsea (.13) keep their lighter
-  // values; candy keeps its .22 sticky-frosting feel via the world-
-  // override row; everything else (volcano/arctic/sandstorm/pier47/guangzhou)
-  // keeps the legacy .18 default while the popup
+  // values; candy keeps its .22 sticky-frosting feel via the sparse
+  // `offtrackOverride`-rij; everything else (volcano/arctic/sandstorm/
+  // pier47/guangzhou) keeps the legacy .18 default while the popup
   // label now matches the actual surface ("SAND!" / "ICE!" / etc.)
   // instead of the misleading "GRASS!".
   if(!car.inAir&&!recoverActive){
     const offDist=trackDist(car.mesh.position,car.progress);
     if(offDist>TW){
       const overRatio=Math.min(1,(offDist-TW)/8);
-      const _profile=_OFFTRACK_WORLD_OVERRIDES[activeWorld]||
-                     _OFFTRACK_PROFILES[(window.WORLD_DEFAULT_SURFACE&&window.WORLD_DEFAULT_SURFACE[activeWorld])||'asphalt']||
+      const _wcfg=window.WORLDS&&window.WORLDS[activeWorld];
+      const _profile=(_wcfg&&_wcfg.offtrackOverride)||
+                     _OFFTRACK_PROFILES[(_wcfg&&_wcfg.surface)||'asphalt']||
                      _OFFTRACK_PROFILES.asphalt;
       car.speed*=Math.pow(1-overRatio*_profile.friction,dt*60);
       // Popup threshold raised TW+4 → TW+6 (17u → 19u) so curbs (13..15u
