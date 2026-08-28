@@ -3,12 +3,13 @@
   "_format_version": 2,
   "worlds": {
     "volcano": {
+      "_comment": "Inactieve texture-slots (bestanden bestaan niet; leeg pad = geen fetch, zelfde procedurele fallback als de oude 404-route). Drop-in paden als de assets er ooit komen: assets/textures/volcano/lavarock_color.jpg, assets/textures/volcano/lavarock_normal.jpg, assets/textures/volcano/lavarock_rough.jpg, assets/textures/volcano/silhouette_far.png, assets/textures/volcano/silhouette_near.png",
       "hdri": "",
       "hdri_mobile": "",
       "ground": {
-        "color": "assets/textures/volcano/lavarock_color.jpg",
-        "normal": "assets/textures/volcano/lavarock_normal.jpg",
-        "roughness": "assets/textures/volcano/lavarock_rough.jpg"
+        "color": "",
+        "normal": "",
+        "roughness": ""
       },
       "props": {
         "rock_basalt_small": [
@@ -43,17 +44,18 @@
         ]
       },
       "skybox_layers": {
-        "mountains_far": "assets/textures/volcano/silhouette_far.png",
-        "mountains_near": "assets/textures/volcano/silhouette_near.png"
+        "mountains_far": "",
+        "mountains_near": ""
       }
     },
     "arctic": {
+      "_comment": "Inactieve texture-slots (bestanden bestaan niet; leeg pad = geen fetch, zelfde procedurele fallback als de oude 404-route). Drop-in paden als de assets er ooit komen: assets/textures/arctic/snowice_color.jpg, assets/textures/arctic/snowice_normal.jpg, assets/textures/arctic/snowice_rough.jpg, assets/textures/arctic/icepeaks_far.png, assets/textures/arctic/icepeaks_near.png",
       "hdri": "",
       "hdri_mobile": "",
       "ground": {
-        "color": "assets/textures/arctic/snowice_color.jpg",
-        "normal": "assets/textures/arctic/snowice_normal.jpg",
-        "roughness": "assets/textures/arctic/snowice_rough.jpg"
+        "color": "",
+        "normal": "",
+        "roughness": ""
       },
       "props": {
         "iceberg_small": "assets/models/arctic/iceberg_small.glb",
@@ -74,16 +76,17 @@
         ]
       },
       "skybox_layers": {
-        "mountains_far": "assets/textures/arctic/icepeaks_far.png",
-        "mountains_near": "assets/textures/arctic/icepeaks_near.png"
+        "mountains_far": "",
+        "mountains_near": ""
       }
     },
     "deepsea": {
+      "_comment": "Inactieve texture-slots (bestanden bestaan niet; leeg pad = geen fetch, zelfde procedurele fallback als de oude 404-route). Drop-in paden als de assets er ooit komen: assets/textures/deepsea/sand_color.jpg, assets/textures/deepsea/sand_normal.jpg, assets/textures/deepsea/sand_rough.jpg, assets/textures/deepsea/rockwall_far.png, assets/textures/deepsea/rockwall_near.png",
       "hdri": "",
       "ground": {
-        "color": "assets/textures/deepsea/sand_color.jpg",
-        "normal": "assets/textures/deepsea/sand_normal.jpg",
-        "roughness": "assets/textures/deepsea/sand_rough.jpg"
+        "color": "",
+        "normal": "",
+        "roughness": ""
       },
       "props": {
         "coral_small": [
@@ -100,8 +103,8 @@
         ]
       },
       "skybox_layers": {
-        "mountains_far": "assets/textures/deepsea/rockwall_far.png",
-        "mountains_near": "assets/textures/deepsea/rockwall_near.png"
+        "mountains_far": "",
+        "mountains_near": ""
       }
     },
     "space": {
@@ -132,14 +135,15 @@
       }
     },
     "candy": {
+      "_comment": "Inactieve texture-slots (bestanden bestaan niet; leeg pad = geen fetch, zelfde procedurele fallback als de oude 404-route). Drop-in paden als de assets er ooit komen: assets/textures/candy/sweethills_far.png, assets/textures/candy/sweethills_near.png",
       "props": {
         "candy_lollipop": "",
         "candy_cane": "",
         "gumdrop": ""
       },
       "skybox_layers": {
-        "mountains_far": "assets/textures/candy/sweethills_far.png",
-        "mountains_near": "assets/textures/candy/sweethills_near.png"
+        "mountains_far": "",
+        "mountains_near": ""
       }
     },
     "sandstorm": {
