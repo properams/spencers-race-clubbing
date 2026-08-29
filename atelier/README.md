@@ -7,6 +7,8 @@ manifest, geen enkele import vanuit game-code.
 
 - Route: `/atelier/` (statische map op repo-root; geen build-stap nodig)
 - Manifest: `atelier/manifest.json` (los van `assets/manifest.json` van de game)
+- `concepts/` — drop hier een concept-PNG/JPG; de Action genereert zelf een
+  raw GLB via fal.ai en loopt 'm door de optimize-pipeline (zie §2, route A)
 - `assets/raw/` — **uitsluitend** eigen image→3D-output (geen betaalde
   Fab-bronbestanden; die blijven in de private workspace)
 - `assets/clean/` — genormaliseerde output van de optimize-pipeline
@@ -41,15 +43,29 @@ Eén object per beeld, ¾-aanzicht, egale neutrale achtergrond, zacht
 studiolicht, geen slagschaduw over de vloer. Zelfde stijlregels voor elke
 prompt zodat de set consistent blijft.
 
-### 2. Image→3D (extern)
+### 2. Image→3D — twee routes
 
-**Gratis route — Hugging Face Space (browser):** upload het concept, genereer,
+**Route A — automatisch via de Action (aanbevolen):** upload de PNG/JPG
+rechtstreeks naar `atelier/concepts/` (naamconventie: zie
+[`concepts/README.md`](concepts/README.md)). De workflow roept zelf fal.ai
+TRELLIS aan (model-id staat bovenaan
+`.github/workflows/atelier-optimize.yml`, ~$0,02/run), cachet de ruwe GLB
+naar `assets/raw/<id>_raw.glb`, en loopt 'm meteen door de optimize-pipeline
+hieronder — inclusief een manifest-entry met status `review`. Geen download,
+geen hernoemen, geen lokale tooling nodig: ga na het uploaden direct naar
+stap 5 (beoordelen). Een concept-bestand waarvan de id al een clean-GLB **en**
+een manifest-entry heeft, wordt overgeslagen — een re-run doet dus nooit
+opnieuw een betaalde call.
+
+**Route B — handmatig (terugval, ongewijzigd):**
+
+*Gratis — Hugging Face Space (browser):* upload het concept, genereer,
 download de GLB.
 
 - TRELLIS: https://huggingface.co/spaces/JeffreyXiang/TRELLIS
 - Hunyuan3D: https://huggingface.co/spaces/tencent/Hunyuan3D-2
 
-**API-route — fal.ai (betaald per run):**
+*Zelf de fal.ai-API aanroepen:*
 
 ```bash
 curl -X POST "https://queue.fal.run/fal-ai/trellis" \
@@ -61,7 +77,9 @@ curl -X POST "https://queue.fal.run/fal-ai/trellis" \
 Check het exacte model-slug + response-schema op https://fal.ai/models
 (zoek "trellis" of "hunyuan3d") — die wijzigen weleens.
 
-### 3. Download naar raw/
+Bij route B download je zelf de GLB en ga je verder met stap 3 hieronder.
+
+### 3. Download naar raw/ (alleen route B — route A doet dit automatisch)
 
 ```bash
 mv ~/Downloads/model.glb atelier/assets/raw/mijn_asset_raw.glb
@@ -132,3 +150,6 @@ voor eigen image→3D-output.
   stale-while-revalidate; hard refresh (Cmd/Ctrl+Shift+R) of bump `?v=` in
   `index.html`.
 - **IJkpunt aanpassen:** `budget_tris_totaal` in `atelier/manifest.json`.
+- **Ander fal-model voor route A:** `FAL_MODEL_ID` bovenaan
+  `.github/workflows/atelier-optimize.yml` (nu `fal-ai/trellis`;
+  `fal-ai/trellis-2` is de zwaardere, duurdere variant).

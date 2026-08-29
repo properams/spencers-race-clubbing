@@ -1,21 +1,36 @@
 # Atelier optimize — draait de asset-pipeline in CI zodat de hele flow
 # vanaf een telefoon kan (een telefoon kan geen Node draaien).
 #
-# Trigger: een raw GLB die op master in atelier/assets/raw/ belandt (bv. via
-# github.com ▸ Upload files), of handmatig via "Run workflow" met een tris-doel.
-# Resultaat: genormaliseerde GLB in atelier/assets/clean/ + entry in
-# atelier/manifest.json, teruggecommit naar master → Vercel redeployt.
+# Twee routes op master:
+#  1. atelier/assets/raw/** — een handmatig gedownloade raw GLB (bv. via
+#     github.com ▸ Upload files), of handmatig via "Run workflow" met een
+#     tris-doel. Draait weld → dedup → simplify → pivot-to-foot → meshopt.
+#  2. atelier/concepts/** — een concept-PNG/JPG. Genereert eerst zelf een raw
+#     GLB via fal.ai (model-id: zie FAL_MODEL_ID hieronder), cachet die naar
+#     atelier/assets/raw/<id>_raw.glb, en loopt daarna door dezelfde
+#     optimize-stappen als route 1.
+# Resultaat (beide routes): genormaliseerde GLB in atelier/assets/clean/ +
+# entry in atelier/manifest.json, teruggecommit naar master → Vercel
+# redeployt.
 #
-# Volledig atelier-scoped: raakt uitsluitend atelier/**. De commit gebruikt de
-# ingebouwde GITHUB_TOKEN, en die pushes triggeren zelf geen workflows —
-# samen met het pad-filter (alleen raw/) kan er geen lus ontstaan.
+# Volledig atelier-scoped: raakt uitsluitend atelier/**. Alle commits in deze
+# job gebruiken de ingebouwde GITHUB_TOKEN; pushes daarmee triggeren van
+# nature geen nieuwe workflow-runs, dus er kan geen lus ontstaan — ook niet
+# doordat route 2 zelf naar atelier/assets/raw/ schrijft en committeert. Elke
+# auto-commit draagt bovendien [skip ci] als extra vangnet.
 name: atelier-optimize
+
+env:
+  # image→3D-model op fal.ai voor de concepts/-route. fal-ai/trellis-2 is de
+  # zwaardere (duurdere, hogere-kwaliteit) variant — bewust niet gekozen.
+  FAL_MODEL_ID: fal-ai/trellis
 
 on:
   push:
     branches: [master]
     paths:
       - 'atelier/assets/raw/**'
+      - 'atelier/concepts/**'
   workflow_dispatch:
     inputs:
       file:
@@ -109,3 +124,76 @@ jobs:
           git commit -m "atelier: optimize assets (auto) [skip ci]"
           git pull --rebase origin master
           git push origin HEAD:master
+
+      - name: Bepaal en verwerk concept-assets (image→3D via fal.ai)
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BEFORE:-}" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            CHANGED="$(git show --no-commit-id --name-only --pretty="" "$SHA")"
+          else
+            CHANGED="$(git diff --name-only "$BEFORE" "$SHA")"
+          fi
+          declare -a CONCEPTS=()
+          while IFS= read -r line; do
+            [ -n "$line" ] && CONCEPTS+=("$line")
+          done < <(printf '%s\n' "$CHANGED" | grep -E '^atelier/concepts/.*\.(png|jpg)$' || true)
+          if [ "${#CONCEPTS[@]}" -eq 0 ]; then
+            echo "Geen nieuwe/gewijzigde concept-afbeeldingen."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Sync naar de actuele master-tip vóór de idempotentie-checks: bij
+          # een "Re-run failed jobs" checkt actions/checkout de oorspronkelijke
+          # push-SHA uit, die ouder kan zijn dan wat een eerdere (deels
+          # geslaagde) poging al naar master pushte. Zonder deze sync zou de
+          # cache-check hieronder ten onrechte denken dat er nog niets gedaan
+          # is, en een al betaalde fal-call herhalen.
+          git fetch origin master
+          git reset --hard origin/master
+
+          for f in "${CONCEPTS[@]}"; do
+            if [ ! -e "$f" ]; then echo "overslaan (bestaat niet meer): $f"; continue; fi
+            naam="$(basename "$f")"
+            id="${naam%.*}"
+            if ! [[ "$naam" =~ ^[a-z0-9][a-z0-9_]*\.(png|jpg)$ ]]; then
+              echo "::warning::overslaan — voldoet niet aan de naamconventie (kleine letters/cijfers/underscores + .png of .jpg): $f"
+              continue
+            fi
+
+            clean="atelier/assets/clean/${id}.glb"
+            raw="atelier/assets/raw/${id}_raw.glb"
+
+            if [ -e "$clean" ] && node -e "
+              const m = JSON.parse(require('fs').readFileSync('atelier/manifest.json', 'utf8'));
+              process.exit((m.entries || []).some((e) => e.id === '${id}') ? 0 : 1);
+            "; then
+              echo "overslaan (al verwerkt): $id"
+              continue
+            fi
+
+            echo "::group::concept→3D $f (id=$id)"
+            if [ -e "$raw" ]; then
+              echo "fal-call overgeslagen — raw-GLB al gecached: $raw"
+            else
+              node atelier/pipeline/fal-image-to-3d.mjs "$f" --id "$id" --out "$raw"
+            fi
+            node atelier/pipeline/optimize.mjs "$raw" --id "$id" --tris 5000 --status review
+            echo "::endgroup::"
+
+            git add atelier/assets/raw atelier/assets/clean atelier/manifest.json
+            if git diff --cached --quiet; then
+              echo "niets om te committen voor $id"
+            else
+              git commit -m "atelier: concept→3D $id (auto) [skip ci]"
+              git pull --rebase origin master
+              git push origin HEAD:master
+            fi
+          done
