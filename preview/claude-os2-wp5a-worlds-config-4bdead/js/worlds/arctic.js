@@ -73,6 +73,14 @@ function buildArcticEnvironment(){
     if(rainCanvas)rainCanvas.style.display='none';
   }
   if(typeof _weatherMode!=='undefined')_weatherMode='snow';
+  // Sub-blok-metingen (OS2-WP5c): mechanische wrap van de inline build-
+  // blokken via window._perfSpan (debug.js). Spans >=5ms landen als
+  // build.world.arctic.<blok> in perfLog (zelfde naamconventie als
+  // candy/sandstorm/pier47); álle spans gaan naar de span-ring voor
+  // longtask-attributie. Puur meetinstrumentatie — volgorde en gedrag
+  // ongewijzigd; defensieve fallback conform het window.perfMark-patroon.
+  const _A=(l,fn)=>window._perfSpan?window._perfSpan('build.world.arctic.'+l,fn):fn();
+  _A('ground',()=>{
   // Phase 4 graphics upgrade: ProcTextures.iceSurface() vervangt
   // _iceGroundTex — geeft sub-surface crackle + cyaan blue-shift dat
   // de flat 0xccddee plane miste. Tileable, mobile-halve via _sizeFor.
@@ -84,8 +92,10 @@ function buildArcticEnvironment(){
   g.rotation.x=-Math.PI/2;g.position.y=-.15;g.receiveShadow=true;
   g.userData._isProcGround=true; // hookable by asset-bridge if PBR ice maps loaded
   scene.add(g);
+  });
   // Sky + fog set in core/scene.js so updateSky's lerp uses world-matched colors.
-  _applyArcticDayLighting();
+  _A('dayLighting',_applyArcticDayLighting);
+  _A('iceBarriers',()=>{
   // Ice barriers — Phase 14: 440 losse Meshes → 1 InstancedMesh.
   // Beveled silhouet via ProcGeometry.beveledBox (mobile bevSegs:1).
   var _barrN=_mobCount(220),_barrierPos=[];
@@ -101,6 +111,8 @@ function buildArcticEnvironment(){
     }
   });
   ProcDecor.buildIceBarrierBatch(scene,_barrierPos,{width:.9,height:1.2,depth:1.0});
+  });
+  _A('icebergs',()=>{
   // Background ice mountains — Phase 14: 8 losse meshes → 2 IMs (body+cap).
   // Verzonken op y=-6 zodat enkel top deel zichtbaar is.
   ProcDecor.buildIcebergBatch(scene,
@@ -109,6 +121,8 @@ function buildArcticEnvironment(){
     }),
     {texRepeat:3,texSparkle:0.30,texCracks:18,includeShards:false,sides:10}
   );
+  });
+  _A('aurora',()=>{
   // Aurora borealis — 5 desktop, 3 mobile (per aurora eigen canvas-texture)
   var auroraColors=[0x00ff88,0x0088ff,0xaa00ff,0x00ffcc,0xff00aa];
   var _M_aur = !!window._isMobile;
@@ -128,6 +142,8 @@ function buildArcticEnvironment(){
     aurora.rotation.y=Math.random()*Math.PI*2;scene.add(aurora);
     _arcticAurora.push({mesh:aurora,phase:Math.random()*Math.PI*2,speed:.15+Math.random()*.1});
   }
+  });
+  _A('blizzard',()=>{
   // Blizzard particles
   var BN=_mobCount(500),bgeo=new THREE.BufferGeometry();
   var bpos=new Float32Array(BN*3);
@@ -135,6 +151,8 @@ function buildArcticEnvironment(){
   bgeo.setAttribute('position',new THREE.Float32BufferAttribute(bpos,3));
   scene.add(new THREE.Points(bgeo,new THREE.PointsMaterial({color:0xeeeeff,size:.28,transparent:true,opacity:.75,sizeAttenuation:true})));
   _arcticBlizzardGeo=bgeo;
+  });
+  _A('icePatches',()=>{
   // Black ice patches
   [.15,.38,.62,.82].forEach(function(t){
     var p=trackCurve.getPoint(t);
@@ -145,6 +163,8 @@ function buildArcticEnvironment(){
     if(window._freezeMatrix)window._freezeMatrix(patch);
     _arcticIcePatches.push({pos:p.clone(),radius:TW*.85,cooldown:0});
   });
+  });
+  _A('closeIcebergs',()=>{
   // Close-to-track iceberg clusters — Phase 14: 36+ losse meshes → 2-3 IMs.
   // Desktop krijgt sub-shard skirt voor extra silhouet-leesbaarheid.
   var _closeIcebergPos=[];
@@ -164,6 +184,8 @@ function buildArcticEnvironment(){
   ProcDecor.buildIcebergBatch(scene,_closeIcebergPos,{
     texRepeat:2,texSparkle:0.55,texCracks:24,includeShards:true
   });
+  });
+  _A('crystals',()=>{
   // ── Crystal clusters alongside track (sparkly) ──
   // Phase 13C — 2 shared materials zodat helft van crystals desync pulst
   // (avoid harsh strobing). Cache aan _arcticCrystalMatA/B voor update.
@@ -186,6 +208,8 @@ function buildArcticEnvironment(){
       scene.add(cr);
     }
   }
+  });
+  _A('snowMounds',()=>{
   // Snowbank mounds — Phase 14: 20 losse Meshes → 1 IM met jittered duneCap.
   var _snowMoundPos=[];
   for(var i=0;i<_mobCount(20);i++){
@@ -203,9 +227,10 @@ function buildArcticEnvironment(){
     });
   }
   ProcDecor.buildSnowMoundBatch(scene,_snowMoundPos);
+  });
   // Procedural snow trees — Phase 14: desktop-only, vult de gap waar GLTF
   // tree_frosted soms niet laadt. Multi-cone conifer met bark trunk + snow cap.
-  if(!window._isMobile){
+  if(!window._isMobile)_A('snowTrees',()=>{
     var _snowTreePos=[];
     for(var i=0;i<14;i++){
       var tt=(i/14+0.03+Math.random()*0.025)%1;
@@ -219,12 +244,15 @@ function buildArcticEnvironment(){
       });
     }
     ProcDecor.buildSnowTreeBatch(scene,_snowTreePos);
-  }
-  buildStartLine();
+  });
+  _A('startLine',buildStartLine);
+  _A('lights',()=>{
   // Lights
   plHeadL=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);plHeadR=new THREE.SpotLight(0xffffff,0,50,Math.PI*.16,.5);
   scene.add(plHeadL);scene.add(plHeadL.target);scene.add(plHeadR);scene.add(plHeadR.target);
   plTail=new THREE.PointLight(0xff2200,0,10);scene.add(plTail);
+  });
+  _A('stars',()=>{
   // Stars — 200 desktop, 100 mobile
   var sg=new THREE.SphereGeometry(.22,4,4),ssm=new THREE.MeshBasicMaterial({color:0xaaddff,transparent:true,opacity:.9});
   var SC = window._isMobile ? 100 : 200;
@@ -236,10 +264,11 @@ function buildArcticEnvironment(){
     dm.scale.setScalar(.5+Math.random()*1.8);dm.updateMatrix();stars.setMatrixAt(i,dm.matrix);
   }
   stars.instanceMatrix.needsUpdate=true;scene.add(stars);
+  });
   // Ice shelf signature moment — cracks lap 2, plates dip on lap 3.
-  if(typeof buildArcticIceShelf==='function')buildArcticIceShelf();
+  if(typeof buildArcticIceShelf==='function')_A('iceShelf',buildArcticIceShelf);
   // GLTF roadside props — icebergs + snow rocks + frosted dead trees.
-  if(window.spawnRoadsideProps){
+  if(window.spawnRoadsideProps)_A('roadsideProps',()=>{
     // Icebergs + snow rocks track-side.
     window.spawnRoadsideProps('arctic',{
       propKeys:['iceberg_small','iceberg_medium','snow_rock'],
@@ -263,12 +292,12 @@ function buildArcticEnvironment(){
         offsetMin: BARRIER_OFF + 30, offsetMax: BARRIER_OFF + 55,
       });
     }
-  }
-  _buildArcticCloseBand();    // Phase 12A
-  _buildArcticMidRing();      // Phase 11A
-  _buildArcticGlacierWall();    // Phase 11B
-  _buildArcticIceArch();         // Phase 12D
-  _buildArcticCinematicPoles();  // Phase 13B
+  });
+  _A('closeBand',_buildArcticCloseBand);           // Phase 12A
+  _A('midRing',_buildArcticMidRing);               // Phase 11A
+  _A('glacierWall',_buildArcticGlacierWall);       // Phase 11B
+  _A('iceArch',_buildArcticIceArch);               // Phase 12D
+  _A('cinematicPoles',_buildArcticCinematicPoles); // Phase 13B
 }
 
 // Phase 13B — cinematic light poles langs de baan. Sodium-blauwe palette

@@ -594,7 +594,9 @@ let _nitroFlameLastHex=-1;
 // disposeScene de texture overslaat bij world-switch.
 function _makeNitroFlameTex(){
   const c=document.createElement('canvas');c.width=64;c.height=128;
-  const ctx=c.getContext('2d');
+  // WP4 rang 8 (R4-restant): de alpha-falloff hieronder leest het canvas
+  // terug via getImageData.
+  const ctx=c.getContext('2d',{willReadFrequently:true});
   const g=ctx.createLinearGradient(0,128,0,0);
   g.addColorStop(0.00,'rgba(255,255,255,0)');
   g.addColorStop(0.10,'rgba(255,250,230,1)');
