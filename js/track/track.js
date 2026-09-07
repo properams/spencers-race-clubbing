@@ -89,74 +89,11 @@ function _buildTrackSurfaceTex(opts){
   return t;
 }
 
-// Per-world track-surface palette. Single source of truth for all per-world
-// color decisions in the track-build pipeline (asphalt base color, curb
-// stripes, curb emissive accent, gantry accent strip). Previously these
-// were spread across 4 separate inline ternary chains in buildTrack /
-// buildCurbs / buildGantry — adding a 9th world meant patching 4 places.
-//
-// Schema per entry:
-//   asphalt          — base track-mat color (number)
-//   kerbA, kerbB     — alternating curb stripe colors as [r,g,b] floats
-//   kerbEmissive     — curb material .emissive color (number)
-//   kerbEmissiveInt  — curb material .emissiveIntensity (number 0..1)
-//   gantryAccent     — gantry neon-strip base color (number)
-//   gantryEmissive   — gantry neon-strip emissive color (number)
-//
-// Lookup pattern: `WORLD_TRACK_PALETTE[activeWorld] || WORLD_TRACK_PALETTE.gp`.
-// Defensive fallback to GP keeps a future unknown world from crashing.
-//
-// All values copied EXACTLY from the inline ternaries this table replaces —
-// zero visual change vs pre-refactor. Worlds that didn't have an explicit
-// override in a given ternary inherit the GP default for that field.
-const WORLD_TRACK_PALETTE = {
-  gp:        { asphalt:0x262626, kerbA:[.82,.07,.03], kerbB:[1,1,1],     kerbEmissive:0x661111, kerbEmissiveInt:.30, gantryAccent:0x441166, gantryEmissive:0x6622cc },
-  space:     { asphalt:0x141420, kerbA:[0,.9,.9],     kerbB:[.7,0,.9],   kerbEmissive:0x4422aa, kerbEmissiveInt:.70, gantryAccent:0x4422aa, gantryEmissive:0x3311cc },
-  deepsea:   { asphalt:0x1a2830, kerbA:[0,.9,.7],     kerbB:[0,.5,1],    kerbEmissive:0x0a4a4a, kerbEmissiveInt:.85, gantryAccent:0x006688, gantryEmissive:0x00aacc },
-  candy:     { asphalt:0x3a2a55, kerbA:[1,1,1],       kerbB:[.08,.06,.12], kerbEmissive:0x442266, kerbEmissiveInt:.35, gantryAccent:0x441166, gantryEmissive:0x6622cc, lanes:3, laneColor:'#ffffff' },
-  // Volcano asphalt darkened from 0x2a0808 (RGB 42,8,8 — heavily red-tinted)
-  // to 0x0c0908 (RGB 12,9,8 — near-black with a vestigial warm undertone) per
-  // eigenaar feedback 2026-05-08: track was reading as scarlet, not as
-  // volcanic rock. Lava warmth stays in props (lava rivers, kerb-emissive,
-  // hero cone). Kerb-emissive intensity unchanged so curbs still glow lava.
-  volcano:   { asphalt:0x0c0908, kerbA:[.82,.07,.03], kerbB:[1,1,1],     kerbEmissive:0xff3300, kerbEmissiveInt:.55, gantryAccent:0x441166, gantryEmissive:0x6622cc },
-  arctic:    { asphalt:0x667788, kerbA:[.82,.07,.03], kerbB:[1,1,1],     kerbEmissive:0x4488dd, kerbEmissiveInt:.45, gantryAccent:0x441166, gantryEmissive:0x6622cc },
-  sandstorm: { asphalt:0x6a4a2e, kerbA:[.79,.45,.20], kerbB:[.95,.85,.62],kerbEmissive:0xc97232, kerbEmissiveInt:.40, gantryAccent:0x441166, gantryEmissive:0x6622cc },
-  // Pier 47 (industrial harbour by night). Asphalt is near-black (#1a1a1e)
-  // for the future wet-look pass; kerbs are rust-orange (#a04020) and
-  // faded warning-yellow (#aaa030); kerbEmissive picks up sodium-lamp tint
-  // (#ff8830) so the kerbs glow under the planned street-pole lights in
-  // sessie 2. Line color (#d0d0c8) is the broken-white edge marking.
-  // pbrTrack + lanes 2 + wetness 0.6 (Phase 2 graphics upgrade): wet-asphalt
-  // gebruikte al MeshStandardMaterial; flag maakt het generaliseerbaar voor
-  // guangzhou. Centrale dashed line + cool-blue streaks
-  // pakken sodium-lamp highlights extra hard.
-  pier47:    { asphalt:0x1a1a1e, kerbA:[.627,.251,.125], kerbB:[.667,.627,.188], kerbEmissive:0xff8830, kerbEmissiveInt:.45, gantryAccent:0xa04020, gantryEmissive:0xff8830, pbrTrack:true, lanes:2, wetness:0.6 },
-  // Guangzhou Cinematic — wet dark asphalt (#0a0c12). kerbA magenta
-  // [1.0,0.13,0.50] + kerbB cyan [0.0,0.88,1.0] + kerbEmissive hot magenta
-  // (#ff2080) at 0.85 intensity so kerbs glow against near-black asphalt.
-  // gantryAccent + gantryEmissive push the neon-magenta/cyan dual-colour language.
-  // pbrTrack + lanes 2 + wetness 0.7 (Phase 2): cyberpunk-rain look — neon
-  // billboards smearen door reflective wet asphalt; gestreepte mid-lijn houdt
-  // de track leesbaar in donkere scenes.
-  guangzhou: { asphalt:0x0a0c12, kerbA:[1.0,0.13,0.50], kerbB:[0.0,0.88,1.0], kerbEmissive:0xff2080, kerbEmissiveInt:.85, gantryAccent:0xff2080, gantryEmissive:0x00e0ff, pbrTrack:true, lanes:2, wetness:0.7 }
-};
-if(typeof window!=='undefined')window.WORLD_TRACK_PALETTE=WORLD_TRACK_PALETTE;
-
-// Phase 13A — per-world PBR profile voor track asphalt. Pier47 +
-// Guangzhou waren al MeshStandard (Phase 4/6); deze tabel breidt naar
-// alle 9 worlds met eigen surface-karakter. envMul = envMapIntensity.
-const _WORLD_TRACK_MAT_PROFILE = {
-  gp:                  { roughness: 0.55, metalness: 0.20, envMul: 0.80, normalStr: 0.30 },
-  candy:               { roughness: 0.42, metalness: 0.15, envMul: 1.25, normalStr: 0.35 },
-  arctic:              { roughness: 0.30, metalness: 0.30, envMul: 1.40, normalStr: 0.40 },
-  volcano:             { roughness: 0.45, metalness: 0.20, envMul: 1.00, normalStr: 0.40 },
-  space:               { roughness: 0.40, metalness: 0.50, envMul: 1.20, normalStr: 0.30 },
-  deepsea:             { roughness: 0.35, metalness: 0.45, envMul: 1.50, normalStr: 0.40 },
-  pier47:              { roughness: 0.24, metalness: 0.62, envMul: 2.00, normalStr: 0.55 },
-  guangzhou:           { roughness: 0.22, metalness: 0.70, envMul: 2.20, normalStr: 0.50 },
-  sandstorm:           { roughness: 0.70, metalness: 0.08, envMul: 0.60, normalStr: 0.50 }
-};
+// Per-world track-surface kleuren + PBR-profiel wonen sinds WP5a in de
+// centrale registry (js/core/world-config.js): velden `track` en
+// `trackMat` per wereld-rij. Lookup-patroon hieronder:
+// `getWorldConfig(activeWorld).track || WORLDS.gp.track` — de gp-rij is
+// de defensieve fallback die een onbekende wereld van een crash afhoudt.
 
 function buildTrack(){
   // Reset per-frame visual state arrays — sommige builders worden niet voor
@@ -171,12 +108,12 @@ function buildTrack(){
   const N=400;
   // Main track mat: polygonOffset pushes asphalt *away* from camera in depth so curbs,
   // edge lines and startline overlays win the depth test on low-precision depth buffers (iPad).
-  const _trackPalette=WORLD_TRACK_PALETTE[activeWorld]||WORLD_TRACK_PALETTE.gp;
+  const _trackPalette=getWorldConfig(activeWorld).track||WORLDS.gp.track;
   const _baseTrackColor=_trackPalette.asphalt;
   // Phase 13A (master) — per-world PBR asphalt profile. All 11 worlds
   // krijgen MeshStandardMaterial met eigen roughness/metalness/envMul/
-  // normalStr via _WORLD_TRACK_MAT_PROFILE. Phase 6.5: Sobel-derived
-  // normalMap voor micro-variatie op natte asphalt reflecties.
+  // normalStr via het trackMat-veld in de registry. Phase 6.5:
+  // Sobel-derived normalMap voor micro-variatie op natte asphalt reflecties.
   // Phase 2 (graphics-upgrade branch) — lane markings + wetness streaks
   // worden in de diffuse map gebakken via _buildTrackSurfaceTex(_laneOpts)
   // voor werelden die `lanes` of `wetness` in palette hebben (pier47,
@@ -189,7 +126,7 @@ function buildTrack(){
   };
   const _surfaceTex=_buildTrackSurfaceTex(_laneOpts);
   const _trackMat=(function(){
-    const profile=_WORLD_TRACK_MAT_PROFILE[activeWorld]||_WORLD_TRACK_MAT_PROFILE.gp;
+    const profile=getWorldConfig(activeWorld).trackMat||WORLDS.gp.trackMat;
     // Deepsea-mobile override: op LOW-tier is er geen IBL/envMap, dus de
     // metalness-component (45% van material-response) draagt ZERO bij —
     // dat deel van de output is effectief zwart. Combinatie met donker
@@ -309,7 +246,7 @@ function buildCurbs(N){
   const CY=.065;
   // Palette lookup once per buildCurbs, used inside the side-loop body.
   // Defensive fallback to GP keeps unknown worlds from crashing.
-  const _palette=WORLD_TRACK_PALETTE[activeWorld]||WORLD_TRACK_PALETTE.gp;
+  const _palette=getWorldConfig(activeWorld).track||WORLDS.gp.track;
   [-1,1].forEach(side=>{
     const eo=side*(TW+CW*.5),pos=[],col=[],idx=[];
     for(let i=0;i<=N;i++){
@@ -550,7 +487,7 @@ function buildGantry(){
   // Pillars sit at TW+5 so the supports stay outside the screen-centre
   // frame where the DOM countdown overlay (#f1Lights) lands.
   const nr=new THREE.Vector3(-tg.z,0,tg.x),hw=TW+5;
-  const _gantryPal=WORLD_TRACK_PALETTE[activeWorld]||WORLD_TRACK_PALETTE.gp;
+  const _gantryPal=getWorldConfig(activeWorld).track||WORLDS.gp.track;
   const accentCol=_gantryPal.gantryAccent;
   const accentEmit=_gantryPal.gantryEmissive;
   const mob=!!window._isMobile;
@@ -674,17 +611,9 @@ function _drawGantryFrame(idx){
   for(let y=0;y<H;y+=3){
     ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(0,y,W,1);
   }
-  const worldCol={
-    space:'#8866ff',deepsea:'#00ddcc',candy:'#ff66cc',
-    volcano:'#ff6622',arctic:'#88ccff',
-    // Sandstorm — warm sand-orange matches the canyon palette; without
-    // this entry the gantry text falls back to magenta '#cc66ff'.
-    sandstorm:'#ffa040',
-    // Pier 47 — sodium-amber matching the lamp anchor (#ff8830).
-    pier47:'#ff8830',
-    // Guangzhou Cinematic — neon-magenta matching kerbEmissive (#ff2080).
-    guangzhou:'#ff2080'
-  }[activeWorld]||'#cc66ff';
+  // Per-wereld LED-tekstkleur uit de registry (veld `gantryCol`); zonder
+  // rij-waarde valt de tekst terug op magenta '#cc66ff'.
+  const worldCol=getWorldConfig(activeWorld).gantryCol||'#cc66ff';
   ctx.font='bold 52px Orbitron,Arial';ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillStyle=worldCol;
   // Stronger glow on the bigger canvas so the LED sign reads from distance.
@@ -694,13 +623,8 @@ function _drawGantryFrame(idx){
   _gantryLabel.userData.tex.needsUpdate=true;
 }
 function _gantryFrameText(idx){
-  const worldName={
-    space:'COSMIC CIRCUIT',deepsea:'DEEP SEA CIRCUIT',candy:'CANDY KINGDOM',
-    volcano:'VOLCANO RUSH',arctic:'ARCTIC PEAKS',
-    sandstorm:'SANDSTORM CANYON',
-    pier47:'PIER 47',
-    guangzhou:'GUANGZHOU NIGHT GP'
-  }[activeWorld]||"SPENCER'S RACE CLUB";
+  // Display-naam uit de registry (veld `gantryName`).
+  const worldName=getWorldConfig(activeWorld).gantryName||"SPENCER'S RACE CLUB";
   const car=carObjs[playerIdx];
   const lap=car?Math.max(1,Math.min(3,car.lap+1)):1;
   // Find best lap of any car

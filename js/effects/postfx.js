@@ -323,32 +323,9 @@ function setWorldGrading(world){
   // waarden krijgen lift=0, saturation=1, hueShift=0 — backward compatible.
   // Phase 5 — per-wereld grading dramatischer maken: meer lift in shadow-
   // zones, sterkere saturation push, subtle hueShift voor unieke mood.
-  const cfg = {
-    // Cool deep-space lift met cyan hue-pull, mild saturation boost
-    space:     [0.85, 0.92, 1.18, 0.18, 0.55,  0.00, 0.02, 0.06, 1.12, -0.04],
-    // Cyaan lift, boosted saturation + lichte cyan rotatie voor bioluminescent pop
-    deepsea:   [0.78, 1.05, 1.12, 0.20, 0.65,  0.00, 0.03, 0.07, 1.18, -0.06],
-    // Verlaten pretpark V2 (grim contrast): koel teal-blauw tint
-    // (was warm violet), vignette aanzienlijk steviger voor pretpark-
-    // tunnel-feel, saturation hard omlaag (omgeving desaturated,
-    // bloomed bronnen behouden kleur via bloom-additive),
-    // lift negatief (zwart-niveau omlaag — geen ambient-grey meer),
-    // hueShift naar cyan ipv magenta. Schema: [tint_r, tint_g, tint_b,
-    // gradeAmount, vignette, liftR, liftG, liftB, saturation, hueShift].
-    candy:     [0.85, 0.92, 1.08, 0.24, 0.82, -0.04,-0.04,-0.04, 0.55, -0.05],
-    // Warm ember-lift, strong saturation voor lava glow, hue naar oranje
-    volcano:   [1.22, 0.90, 0.75, 0.18, 0.55,  0.05, 0.01, 0.00, 1.25,  0.04],
-    // Cool blue lift voor arctic, lichte saturation; hue iets cooler
-    arctic:    [0.90, 1.00, 1.20, 0.16, 0.50,  0.00, 0.02, 0.05, 1.10, -0.03],
-    // Sahara warmth, natuurlijke zand-kleur behouden met subtle oranje hue
-    sandstorm: [1.12, 1.00, 0.88, 0.12, 0.45,  0.03, 0.01, 0.00, 1.08,  0.03],
-    // Pier 47: cool desaturated film-look, koele blauwgrijze shadow-push,
-    // hue naar teal voor industriële night-mood.
-    pier47:    [0.98, 0.92, 0.98, 0.18, 0.65,  0.00, 0.02, 0.04, 0.92, -0.05],
-    // Guangzhou Cinematic: cool blue-purple urban neon, donkerpaars shadows,
-    // hue naar cyan-teal voor cold cyberpunk
-    guangzhou: [0.88, 0.86, 1.18, 0.20, 0.68,  0.02, 0.00, 0.05, 1.18, -0.06]
-  }[world] || [1,1,1, 0.0, 0.45,  0,0,0, 1.0, 0.0];
+  // Per-wereld grading-arrays wonen sinds WP5a in de centrale registry
+  // (js/core/world-config.js, veld `grading` per wereld-rij).
+  const cfg = getWorldConfig(world).grading || [1,1,1, 0.0, 0.45,  0,0,0, 1.0, 0.0];
   const u = _postfx.matComposite.uniforms;
   u.tint.value.set(cfg[0], cfg[1], cfg[2]);
   u.gradeAmount.value = cfg[3];
