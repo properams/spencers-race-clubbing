@@ -53,7 +53,7 @@ if(typeof document!=='undefined'){
   });
 }
 
-let _aiFrameCounter=0,_fpsShow=false,_fpsFrames=0,_fpsLast=performance.now(),_fpsVal=60;
+let _aiFrameCounter=0;
 let _lastStatsLog=0;
 let _perfBadFrames=0,_perfChecked=false,_lowQuality=!!window._isMobile;
 // Idle-screen render gate (desktop freeze fix). #sSelect en #sWorld hebben

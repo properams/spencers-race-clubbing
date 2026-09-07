@@ -456,7 +456,13 @@ function _newSkyCanvas(top,bot){
   const _scale=window._isMobile?0.75:1;
   const c=document.createElement('canvas');
   c.width=Math.round(1024*_scale);c.height=Math.round(512*_scale);
-  const g=c.getContext('2d');
+  // WP4 rang 8 (R4-restant): willReadFrequently — guangzhou's sky-bakes
+  // lezen dit canvas full-size terug (dither-pass getImageData in
+  // makeGuangzhouSkyTex/makeGuangzhouNightSkyTex), en de candy seam-dbg
+  // sampelt er losse pixels uit. Zonder flag forceert dat een GPU→CPU
+  // copy per readback; context-attributen tellen alleen op de éérste
+  // getContext, dus de flag moet hier — niet op de leeslocaties.
+  const g=c.getContext('2d',{willReadFrequently:true});
   if(_scale!==1)g.scale(_scale,_scale);
   const gr=g.createLinearGradient(0,0,0,512);
   gr.addColorStop(0,top);gr.addColorStop(1,bot);g.fillStyle=gr;g.fillRect(0,0,1024,512);
@@ -1005,6 +1011,11 @@ if(typeof window!=='undefined') window._yieldBuild=_yieldBuild;
 
 async function buildScene(opts){
   opts = opts || {};
+  // WP4 rang 7 — build-volgnummer voor de goToRace prewarm-cache: een
+  // herstart in dezelfde build (QuickRestart → goToSelectAgain → goToRace)
+  // hoeft de multi-pose/mirror prewarm-renders niet te herhalen; elke
+  // (re)build invalideert de cache doordat dit nummer verspringt.
+  window._sceneBuildSeq = (window._sceneBuildSeq|0) + 1;
   // opts.deferPrecompile: sla de zware _precompileSceneChunked over. Alleen
   // gezet door de boot-build (boot.js), die een wereld bouwt die de speler
   // nog niet bevestigd heeft — kiest hij een andere wereld in de carousel,
@@ -1837,10 +1848,11 @@ window._precompileScene=_precompileScene;
 // zichtbaar via navigation.js' raceStartOverlay / boot.js' loadingScreen;
 // deze fix levert main-thread vrij periodiek aan event loop.
 //
-// Feature-detect compileAsync (r152+) — als ooit beschikbaar in de vendor-
-// build (huidige assets/vendor/three-r160.min.js heeft 'm niet), gebruik
-// die native async-route. Fallback: per-mesh compile via scene.traverse,
-// yield elke BATCH_SIZE_DEFAULT meshes.
+// Feature-detect compileAsync (r152+) — sinds #99 levert de vendor-build
+// (assets/vendor/three-r160.min.js, échte r160) die wél, dus de native
+// async-route is het actieve pad op boot én wissel (rebaseline-ledger
+// 2026-08-28 §2). Fallback: per-mesh compile via scene.traverse, yield
+// elke BATCH_SIZE_DEFAULT meshes — onbereikbaar op de geleverde vendor.
 //
 // labelFn(i, N) wordt per voltooide batch aangeroepen voor UI-feedback
 // (setStatus in goToRace, SrcLoader.setLabel in buildScene-pad). Optional.
@@ -1851,8 +1863,10 @@ async function _precompileSceneChunked(opts){
   const labelFn = opts.labelFn;
   if(!renderer||!scene||!camera)return;
 
-  // Native fast-path. compileAsync sinds r152, niet in deze vendor build —
-  // maar feature-detect houdt het pad open voor toekomstige upgrade.
+  // Native fast-path. compileAsync sinds r152; de geleverde vendor is
+  // échte r160 (#99), dus dit ís het pad dat draait — runtime-bewijs:
+  // de span build.precompile.compileAsync verschijnt in elke boot
+  // (rebaseline-ledger 2026-08-28 §2).
   if(typeof renderer.compileAsync==='function'){
     if(window.perfMark)perfMark('precompile:compileAsync:start');
     try{ await renderer.compileAsync(scene,camera); }
