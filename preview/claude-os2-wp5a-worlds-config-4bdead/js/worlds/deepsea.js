@@ -5,9 +5,13 @@
 
 // Per-world state (uit main.js verhuisd) — gereset in core/scene.js buildScene().
 let _kelpList=[];
+// WP3 (#107): jellyfish + light-rays zijn geïnstanced; de sway draait in de
+// vertex-shader op de gedeelde tijd-uniform _dsaSwayU (gereset in
+// core/scene.js). _jellyfishList blijft (leeg) gedeclareerd omdat
+// night.js:110-115 er nog overheen itereert (dode PointLight-lookup).
 let _jellyfishList=[];
+let _dsaSwayU=null;
 let _dsaBubbleGeo=null,_dsaBubblePos=null;
-let _dsaLightRays=[];
 let _dsaBioEdges=[];
 // Fase 2 plankton: drijvende bio-particles in het volume rond de track.
 // Geo/pos hoisted zodat updateDeepSeaWorld de positie-attribuut per frame
@@ -844,12 +848,97 @@ function buildBioluminescentTrackEdges(){
 }
 
 
+// ── WP3 (#107): sway in de vertex-shader ─────────────────────────────────
+// Eerste onBeforeCompile-injecties in de codebase (D19): op ingebouwde
+// materialen (basic-shaderlib) i.p.v. raw ShaderMaterial zodat FogExp2,
+// tone-mapping en colorspace ongewijzigd meekomen. De program-cache-key is
+// onBeforeCompile.toString() — daarom per materiaal een eigen benoemde
+// functie, geen gedeelde factory-closure. uTime is een dt-som die alleen in
+// updateDeepSeaWorld optelt: exact dezelfde integratie (incl. pauze/title-
+// freeze) als de oude CPU-phases.
+function _dsaJellyBellOBC(shader){
+  shader.uniforms.uTime=_dsaSwayU.uTime;
+  shader.vertexShader=
+    'uniform float uTime;\n'+
+    'attribute vec4 aJParam;\n'+   // phase0, bobSpeed, bobAmp, radius
+    'attribute vec4 aJColor;\n'+   // rgb + per-instance bell-opacity
+    'varying vec4 vJColor;\n'+
+    // Volgorde = oude transform-keten: geometry-radius → child scale.y-pulse
+    // → group rotation.y-spin (voor alle kwallen gelijk, accumuleerde vanaf
+    // 0) → group bob-translatie. instanceMatrix is puur translatie.
+    shader.vertexShader.replace('#include <begin_vertex>',
+      'vJColor=aJColor;\n'+
+      'float jPh=aJParam.x+uTime*aJParam.y;\n'+
+      'vec3 transformed=position*aJParam.w;\n'+
+      'transformed.y*=0.9+sin(jPh*2.2)*0.15;\n'+
+      'float jCa=cos(uTime*0.15), jSa=sin(uTime*0.15);\n'+
+      'transformed=vec3(transformed.x*jCa+transformed.z*jSa, transformed.y, -transformed.x*jSa+transformed.z*jCa);\n'+
+      'transformed.y+=sin(jPh)*aJParam.z;');
+  shader.fragmentShader=
+    'varying vec4 vJColor;\n'+
+    shader.fragmentShader.replace('#include <color_fragment>',
+      '#include <color_fragment>\n\tdiffuseColor*=vJColor;');
+}
+function _dsaJellyTentOBC(shader){
+  shader.uniforms.uTime=_dsaSwayU.uTime;
+  // Kleur/opacity lopen via three's ingebouwde vertex-color-pad: attribute
+  // 'color' met itemSize 4 + vertexColors:true → USE_COLOR_ALPHA, en
+  // <color_fragment> doet dan al diffuseColor *= vColor. Alleen de
+  // positie-keten hoeft geïnjecteerd. (Bells kunnen dit niet: per-instance
+  // kleur, en instanceColor is vec3 in r160 — geen alpha.)
+  shader.vertexShader=
+    'uniform float uTime;\n'+
+    'attribute vec3 aJOffset;\n'+  // groepscentrum (jx, jy0, jz)
+    'attribute vec3 aJParam;\n'+   // phase0, bobSpeed, bobAmp
+    // Tentakels pulsen niet (scale.y raakte alleen de bell); wel spin + bob.
+    shader.vertexShader.replace('#include <begin_vertex>',
+      'float jPh=aJParam.x+uTime*aJParam.y;\n'+
+      'float jCa=cos(uTime*0.15), jSa=sin(uTime*0.15);\n'+
+      'vec3 transformed=vec3(position.x*jCa+position.z*jSa, position.y, -position.x*jSa+position.z*jCa);\n'+
+      'transformed+=aJOffset;\n'+
+      'transformed.y+=sin(jPh)*aJParam.z;');
+}
+function _dsaRayOBC(shader){
+  shader.uniforms.uTime=_dsaSwayU.uTime;
+  shader.vertexShader=
+    'uniform float uTime;\n'+
+    'attribute vec4 aRParam;\n'+   // phase0, speed, baseOp, ry0
+    'attribute vec2 aRSize;\n'+    // breedte, hoogte per straal
+    'varying float vROp;\n'+
+    // Non-uniforme schaal vóór de rotatie — zelfde volgorde als de oude
+    // mesh-transform (geometry w×h, daarna rotation.y).
+    shader.vertexShader.replace('#include <begin_vertex>',
+      'vROp=aRParam.z*(1.0+sin(aRParam.x+uTime*aRParam.y)*0.8);\n'+
+      'float rAng=aRParam.w+uTime*0.04;\n'+
+      'float rCa=cos(rAng), rSa=sin(rAng);\n'+
+      'vec3 rp=vec3(position.x*aRSize.x, position.y*aRSize.y, position.z);\n'+
+      'vec3 transformed=vec3(rp.x*rCa+rp.z*rSa, rp.y, -rp.x*rSa+rp.z*rCa);');
+  shader.fragmentShader=
+    'varying float vROp;\n'+
+    shader.fragmentShader.replace('#include <color_fragment>',
+      '#include <color_fragment>\n\tdiffuseColor.a=vROp;');
+}
+
 function buildJellyfish(){
   _jellyfishList.length=0;
   // Fase 2 density boost: 15 → 22 desktop (×1.5), 15 → 18 mobile (×1.2,
   // jellyfish hebben veel children dus voorzichtiger op LOW-tier).
   const _M = !!window._isMobile;
   const N = _M ? 18 : 22;
+  // WP3 (#107): van N groepen × (bell-mesh + 6-10 Line-tentakels) ≈ ~200
+  // render-items naar 1 InstancedMesh (bells) + 1 LineSegments (alle
+  // tentakels gemerged). Formules/randoms ongewijzigd; per-kwal parameters
+  // zitten in instance/vertex-attributes. De 2026-05-15-noot blijft gelden:
+  // geen per-jellyfish PointLight — bloom op bell/tentakel-kleur draagt de
+  // "glow".
+  if(!_dsaSwayU)_dsaSwayU={uTime:{value:0}};
+  const bellGeo=new THREE.SphereGeometry(1,8,6,0,Math.PI*2,0,Math.PI/2);
+  const bellMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true});
+  bellMat.onBeforeCompile=_dsaJellyBellOBC;
+  const bells=new THREE.InstancedMesh(bellGeo,bellMat,N);
+  const bellParam=new Float32Array(N*4), bellCol=new Float32Array(N*4);
+  const tentPos=[],tentOff=[],tentParam=[],tentCol=[];
+  const _c=new THREE.Color(), _mtx=new THREE.Matrix4();
   for(let ji=0;ji<N;ji++){
     const t=(ji/N+.03)%1;
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
@@ -859,38 +948,59 @@ function buildJellyfish(){
     const jz=p.z+nr.z*side+(Math.random()-.5)*12;
     const jy=3+Math.random()*8;
     const col=ji%3===0?0xff44cc:ji%3===1?0x44ccff:0x88ff88;
-    // Bell (dome)
-    const bell=new THREE.Mesh(new THREE.SphereGeometry(1.1+Math.random()*.5,8,6,0,Math.PI*2,0,Math.PI/2),
-      new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.45+Math.random()*.2}));
-    bell.position.set(jx,jy,jz);
-    // Tentacles
-    const group=new THREE.Group();group.add(bell);
-    const tentMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.35+Math.random()*.2});
+    _c.setHex(col);
+    // Bell (dome) — radius nu als aJParam.w i.p.v. in de geometry
+    const radius=1.1+Math.random()*.5;
+    const bellOp=.45+Math.random()*.2;
+    const bobPhase=Math.random()*Math.PI*2;
+    const bobSpeed=.4+Math.random()*.35;
+    const bobAmp=.5+Math.random()*.4;
+    bells.setMatrixAt(ji,_mtx.makeTranslation(jx,jy,jz));
+    bellParam[ji*4]=bobPhase;bellParam[ji*4+1]=bobSpeed;
+    bellParam[ji*4+2]=bobAmp;bellParam[ji*4+3]=radius;
+    bellCol[ji*4]=_c.r;bellCol[ji*4+1]=_c.g;bellCol[ji*4+2]=_c.b;bellCol[ji*4+3]=bellOp;
+    // Tentacles — zelfde puntformules, tentakel-lokaal; groepscentrum en
+    // bob/spin komen uit de shader (aJOffset/aJParam). Polyline → segment-
+    // paren voor LineSegments (8 segmenten per tentakel).
+    const tentOp=.35+Math.random()*.2;
     const tentCount=6+Math.floor(Math.random()*5);
     for(let tc=0;tc<tentCount;tc++){
       const ang=tc/tentCount*Math.PI*2;
-      const tentGeo=new THREE.BufferGeometry();
-      const tPoints=[];const tentLen=2+Math.random()*4;
+      const tentLen=2+Math.random()*4;
+      let px=0,py=0,pz=0;
       for(let ts=0;ts<=8;ts++){
         const ty=-ts*(tentLen/8);const wave=Math.sin(ts*.8)*(.3+Math.random()*.2);
-        tPoints.push(Math.cos(ang)*.6+Math.cos(ang)*wave,ty,Math.sin(ang)*.6+Math.sin(ang)*wave);
+        const nx=Math.cos(ang)*.6+Math.cos(ang)*wave, nz=Math.sin(ang)*.6+Math.sin(ang)*wave;
+        if(ts>0){
+          tentPos.push(px,py,pz,nx,ty,nz);
+          tentOff.push(jx,jy,jz,jx,jy,jz);
+          tentParam.push(bobPhase,bobSpeed,bobAmp,bobPhase,bobSpeed,bobAmp);
+          tentCol.push(_c.r,_c.g,_c.b,tentOp,_c.r,_c.g,_c.b,tentOp);
+        }
+        px=nx;py=ty;pz=nz;
       }
-      tentGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(tPoints),3));
-      group.add(new THREE.Line(tentGeo,tentMat));
     }
-    group.position.set(jx,jy,jz);bell.position.set(0,0,0);
-    // 2026-05-15: removed per-jellyfish PointLight (-15 lights from the ~99-light
-    // Deep Sea total). Bell uses MeshBasicMaterial which doesn't sample lights
-    // anyway; the PL only added barely-visible ambient glow to nearby coral
-    // 15+ units away. Bloom on the bell+tentacle colours carries the "glow".
-    group._bobPhase=Math.random()*Math.PI*2;
-    group._bobSpeed=.4+Math.random()*.35;
-    group._bobAmp=.5+Math.random()*.4;
-    group._driftX=(Math.random()-.5)*.008;
-    group._driftZ=(Math.random()-.5)*.008;
-    group._baseY=jy;
-    scene.add(group);_jellyfishList.push(group);
   }
+  bells.geometry.setAttribute('aJParam',new THREE.InstancedBufferAttribute(bellParam,4));
+  bells.geometry.setAttribute('aJColor',new THREE.InstancedBufferAttribute(bellCol,4));
+  bells.instanceMatrix.needsUpdate=true;
+  bells.frustumCulled=false;               // instances beslaan de hele ring
+  bells.userData._noLodCull=true;
+  scene.add(bells);
+  const tentGeo=new THREE.BufferGeometry();
+  tentGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(tentPos),3));
+  tentGeo.setAttribute('aJOffset',new THREE.BufferAttribute(new Float32Array(tentOff),3));
+  tentGeo.setAttribute('aJParam',new THREE.BufferAttribute(new Float32Array(tentParam),3));
+  tentGeo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(tentCol),4));
+  const tentMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,vertexColors:true});
+  tentMat.onBeforeCompile=_dsaJellyTentOBC;
+  const tent=new THREE.LineSegments(tentGeo,tentMat);
+  // frustumCulled=false is hier een harde eis, geen optimalisatie: position
+  // is tentakel-lokaal (wereld-offset zit in aJOffset), dus de bounding-
+  // sphere ligt rond de origin en de renderer zou de hele batch wegcullen
+  // zodra de origin buiten beeld raakt. lod-cull slaat Lines sowieso over.
+  tent.frustumCulled=false;
+  scene.add(tent);
 }
 
 
@@ -966,9 +1076,18 @@ function buildDeepSeaBubbles(){
 
 function buildDeepSeaLightRays(){
   const _M = !!window._isMobile;
-  _dsaLightRays.length=0;
-  const rayMat=new THREE.MeshBasicMaterial({color:0x44aaff,transparent:true,opacity:.04,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
   const N = _M ? 4 : 8;
+  // WP3 (#107): N losse additive planes met per-ray materiaal-clone → 1
+  // InstancedMesh op een unit-plane. Opacity-flicker + trage rotatie in de
+  // vertex-shader (aRParam), breedte/hoogte per straal in aRSize.
+  // instanceMatrix is puur translatie (rx, h/2, rz).
+  if(!_dsaSwayU)_dsaSwayU={uTime:{value:0}};
+  const rayGeo=new THREE.PlaneGeometry(1,1);
+  const rayMat=new THREE.MeshBasicMaterial({color:0x44aaff,transparent:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
+  rayMat.onBeforeCompile=_dsaRayOBC;
+  const rays=new THREE.InstancedMesh(rayGeo,rayMat,N);
+  const rParam=new Float32Array(N*4), rSize=new Float32Array(N*2);
+  const _mtx=new THREE.Matrix4();
   for(let ri=0;ri<N;ri++){
     const t=(ri/N+.04)%1;
     const p=trackCurve.getPoint(t),tg=trackCurve.getTangent(t).normalize();
@@ -976,13 +1095,19 @@ function buildDeepSeaLightRays(){
     const side=(ri%2===0?1:-1)*(Math.random()*50+5);
     const rx=p.x+nr.x*side+(Math.random()-.5)*40,rz=p.z+nr.z*side+(Math.random()-.5)*40;
     const h=28+Math.random()*18;
-    const geo=new THREE.PlaneGeometry(3+Math.random()*3,h);
-    const ray=new THREE.Mesh(geo,rayMat.clone());
-    ray.position.set(rx,h/2,rz);
-    ray.rotation.y=Math.random()*Math.PI*2;
-    scene.add(ray);
-    _dsaLightRays.push({mesh:ray,phase:Math.random()*Math.PI*2,speed:.6+Math.random()*.4,baseOp:.03+Math.random()*.05});
+    rays.setMatrixAt(ri,_mtx.makeTranslation(rx,h/2,rz));
+    rSize[ri*2]=3+Math.random()*3;rSize[ri*2+1]=h;
+    rParam[ri*4]=Math.random()*Math.PI*2;   // phase0
+    rParam[ri*4+1]=.6+Math.random()*.4;     // speed
+    rParam[ri*4+2]=.03+Math.random()*.05;   // baseOp
+    rParam[ri*4+3]=Math.random()*Math.PI*2; // ry0
   }
+  rays.geometry.setAttribute('aRParam',new THREE.InstancedBufferAttribute(rParam,4));
+  rays.geometry.setAttribute('aRSize',new THREE.InstancedBufferAttribute(rSize,2));
+  rays.instanceMatrix.needsUpdate=true;
+  rays.frustumCulled=false;                // stralen staan rond de hele ring
+  rays.userData._noLodCull=true;
+  scene.add(rays);
 }
 
 
@@ -1175,15 +1300,10 @@ function updateDeepSeaWorld(dt){
     k.rotation.z=Math.sin(k._swayPhase)*.12;
     k.rotation.x=Math.cos(k._swayPhase*.7)*.07;
   }
-  // Jellyfish bob
-  for(let _ji=0;_ji<_jellyfishList.length;_ji++){
-    const j=_jellyfishList[_ji];
-    j._bobPhase+=dt*j._bobSpeed;
-    j.position.y=j._baseY+Math.sin(j._bobPhase)*j._bobAmp;
-    j.rotation.y+=dt*.15;
-    // Tentacle writhe: scale bell slightly
-    j.children[0].scale.y=.9+Math.sin(j._bobPhase*2.2)*.15;
-  }
+  // WP3 (#107): jellyfish-bob/spin/pulse + light-ray-flicker draaien in de
+  // vertex-shader; hier telt alleen de gedeelde tijd-uniform op. dt-som
+  // (geen wall-clock) zodat pauze/title-freeze exact het oude gedrag houdt.
+  if(_dsaSwayU)_dsaSwayU.uTime.value+=dt;
   // Fase 2 plankton drift — Y-bob + minimale X/Z trend. _dsaPlanktonPhase
   // houdt per-particle phase offsets bij zodat ze niet synchroon bobben.
   // Hergebruik _dsaSin LUT (al actief) om Math.sin calls te besparen.
@@ -1341,13 +1461,7 @@ function updateDeepSeaWorld(dt){
     e.mat.opacity=.65+s*.35;
     if(e.ribbonMat) e.ribbonMat.opacity=.12+s*.10;
   }
-  // Light rays pulsing
-  for(let _ri=0;_ri<_dsaLightRays.length;_ri++){
-    const r=_dsaLightRays[_ri];
-    r.phase+=dt*r.speed;
-    r.mesh.material.opacity=r.baseOp*(1+Math.sin(r.phase)*.8);
-    r.mesh.rotation.y+=dt*.04;
-  }
+  // Light rays: flicker + rotatie zitten sinds WP3 (#107) in de vertex-shader.
   // Bubbles rising
   if(_dsaBubbleGeo&&_dsaBubblePos){
     const pos=_dsaBubblePos;

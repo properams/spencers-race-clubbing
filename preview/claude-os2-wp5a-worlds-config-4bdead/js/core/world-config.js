@@ -2,7 +2,7 @@
 //
 // Eén data-gedreven rij per wereld voor alle per-wereld-configuratie die
 // voorheen als losse lookup-tabellen door de codebase verspreid lag
-// (WP5a, 2026-08-28 — zie docs/plannen/os2-wp5a-worlds-config.md en D19).
+// (WP5a, 2026-08-28 — zie docs/plannen/os2-wp5a-worlds-config.md en D20).
 // Nieuwe wereld toevoegen = één rij hier + registratie in data/tracks.json.
 //
 // Geladen direct ná js/config.js, vóór álle consumers (track, ramps,

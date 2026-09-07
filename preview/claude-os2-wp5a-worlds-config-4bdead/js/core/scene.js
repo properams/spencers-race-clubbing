@@ -1108,7 +1108,9 @@ async function buildScene(opts){
   if(typeof _spaceUnderglow!=='undefined')_spaceUnderglow.length=0;
   if(typeof _kelpList!=='undefined')_kelpList.length=0;
   if(typeof _jellyfishList!=='undefined')_jellyfishList.length=0;
-  if(typeof _dsaLightRays!=='undefined')_dsaLightRays.length=0;
+  // WP3 (#107): jellyfish/rays zijn geïnstanced; alleen de gedeelde
+  // sway-tijd-uniform is nog module-state (objecten ruimt disposeScene op).
+  if(typeof _dsaSwayU!=='undefined')_dsaSwayU=null;
   if(typeof _dsaBioEdges!=='undefined')_dsaBioEdges.length=0;
   if(typeof _dsaBubbleGeo!=='undefined')_dsaBubbleGeo=null;
   if(typeof _dsaBubblePos!=='undefined')_dsaBubblePos=null;
